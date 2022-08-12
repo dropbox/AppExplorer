@@ -1,0 +1,10 @@
+node_modules
+
+/.cache
+/build
+/public/build
+.env
+
+# Files that should not be committed to AppExplorer It's a space for copying
+# files from other projects while working on the scanner.
+example/LOCAL/

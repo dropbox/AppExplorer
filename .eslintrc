@@ -1,0 +1,9 @@
+{
+  "extends": ["@remix-run/eslint-config", "@remix-run/eslint-config/node"],
+  "parserOptions": {
+    "project": ["tsconfig.json", "example/tsconfig.json"]
+  },
+  "rules": {
+    "no-console": [1]
+  }
+}
