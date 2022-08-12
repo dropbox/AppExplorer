@@ -2,6 +2,10 @@ Development Board:
 
 https://miro.com/app/board/uXjVOk9T9PU=/?share_link_id=883960100418
 
+Miro App:
+
+https://miro.com/oauth/authorize/?response_type=code&client_id=3458764531189693223&redirect_uri=%2Fconfirm-app-install%2F
+
 # App Explorer
 
 This app uses the [Miro Web SDK][websdk] to diagram important landmarks in your
