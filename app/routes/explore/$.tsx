@@ -20,7 +20,6 @@ export const loader: LoaderFunction = async ({ params }) => {
   const path = params["*"] ?? "";
 
   const fullPath = fs.pathJoin(process.env.REPO_ROOT, path);
-  console.log({ fullPath });
 
   let stat;
   try {

@@ -3,7 +3,7 @@ import { json } from "@remix-run/node";
 import invariant from "tiny-invariant";
 import * as fs from "~/utils/fs.server";
 
-type TaggedComment = {
+export type TaggedComment = {
   type: "TaggedComment";
   filePath: string;
   commentStartLine: number;
