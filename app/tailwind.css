@@ -574,8 +574,9 @@ video {
   position: relative;
 }
 
-.hidden {
-  display: none;
+.sticky {
+  position: -webkit-sticky;
+  position: sticky;
 }
 
 .transform {
@@ -584,6 +585,10 @@ video {
 
 .rounded {
   border-radius: 0.25rem;
+}
+
+.border {
+  border-width: 1px;
 }
 
 .filter {

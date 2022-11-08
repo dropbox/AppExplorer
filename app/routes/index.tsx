@@ -1,6 +1,5 @@
 import { Link } from "@remix-run/react";
 import React from "react";
-import { readProjectId } from "~/chart";
 
 /**
  * Listens for events on the board:
@@ -11,38 +10,7 @@ import { readProjectId } from "~/chart";
  */
 async function init() {
   miro.board.ui.on("icon:click", async () => {
-    await miro.board.ui.openPanel({ url: "projects" });
-  });
-
-  // Listen to the 'app_card:open' event
-  miro.board.ui.on("app_card:open", (event) => {
-    console.log("Subscribed to app card open event", event);
-    const { appCard } = event;
-
-    const path = readProjectId(appCard);
-
-    if (path) {
-      const projectField = appCard.fields
-        ?.map((f) => f.value)
-        .find((value) => value?.match(/^project:/));
-
-      console.log({ projectField });
-
-      if (projectField) {
-        const [, projectId] = projectField.split(":");
-        const url = `project/${projectId}/${path}`;
-        console.log(url);
-        miro.board.ui.openPanel({
-          url: `project/${projectId}/${path}`,
-        });
-      } else {
-        miro.board.ui.openPanel({
-          url: `browse/${path}`,
-        });
-      }
-    } else {
-      console.warn("Unhandled card");
-    }
+    await miro.board.ui.openPanel({ url: "explore/" });
   });
 }
 
@@ -71,11 +39,11 @@ export default function Index() {
       </p>
       <p>
         If you click on a card in Miro, then there's an event that will tell it
-        to open <Link to="/browse">/browse</Link> in the sidebar. If it's opened
-        in an iframe in Miro it interacts with the board. If I load it directly
-        in another tab it works the same, but all my miro promises seem to hang
-        forever. I think that's actually really great experience. If I'm working
-        on something in the scanner, I don't need to run the process of
+        to open <Link to="/explore">/explore</Link> in the sidebar. If it's
+        opened in an iframe in Miro it interacts with the board. If I load it
+        directly in another tab it works the same, but all my miro promises seem
+        to hang forever. I think that's actually really great experience. If I'm
+        working on something in the scanner, I don't need to run the process of
         rebuilding the board. I can just run it in another tab until I have the
         data I want. Then load it in Miro and work on the other half.
       </p>
