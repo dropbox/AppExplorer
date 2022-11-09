@@ -2,10 +2,12 @@ import type { ActionFunction, LoaderFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import invariant from "tiny-invariant";
 import * as fs from "~/utils/fs.server";
+import { scanAppExplorerComments } from "./scanAppExplorerComments";
 
 export type TaggedComment = {
   type: "TaggedComment";
   filePath: string;
+  permalink: string;
   commentStartLine: number;
   rawText: string;
 };
@@ -59,39 +61,3 @@ export const loader: LoaderFunction = async ({ request }) => {
 
   return json<FileScanResult>(scanResult);
 };
-
-async function scanAppExplorerComments(path: string) {
-  invariant(process.env.REPO_ROOT, "This file requires a REPO_ROOT");
-  const fullPath = fs.pathJoin(process.env.REPO_ROOT, path);
-  const file = String(await fs.readFile(fullPath));
-  const lines = file.split("\n");
-  const results: Array<TaggedComment> = [];
-  let status = "idle" as "idle" | "comment" | "tag";
-  let comment = [];
-  let commentStartLine = 0;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (status === "idle" && line.includes("/**")) {
-      commentStartLine = i + 1;
-      status = "comment";
-    }
-    if (status === "comment" && line.includes("@AppExplorer")) {
-      status = "tag";
-    }
-    if (["tag", "comment"].includes(status)) {
-      comment.push(line);
-      if (line.includes("*/")) {
-        if (status === "tag") {
-          results.push({
-            type: "TaggedComment",
-            filePath: path,
-            commentStartLine,
-            rawText: comment.join("\n"),
-          });
-        }
-        status = "idle";
-      }
-    }
-  }
-  return results;
-}

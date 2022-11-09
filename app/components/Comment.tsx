@@ -9,6 +9,11 @@ type Update = {
   content: string;
 };
 
+function convertComment(item: TaggedComment) {
+  const permalink = `<a href="${item.permalink}">${item.filePath}</a>`;
+  return (permalink + "\n\n" + item.rawText).replace(/\n/g, "<br />");
+}
+
 export function Comment({ item }: { item: TaggedComment }) {
   const updateFetcher = useFetcher<FileScanResult>();
   const [update, setUpdate] = React.useState<null | Update>(null);
@@ -37,7 +42,7 @@ export function Comment({ item }: { item: TaggedComment }) {
         const tmp = new URL(url);
         const widgetId = tmp.searchParams.get("moveToWidget");
         if (widgetId) {
-          const content = item.rawText.replace(/\n/g, "<br />");
+          const content = convertComment(item);
           try {
             // This throws if the item isn't found
             const shape = await miro.board.getById(widgetId);
@@ -51,7 +56,7 @@ export function Comment({ item }: { item: TaggedComment }) {
       }
     }
     checkForUpdates();
-  }, [item.rawText]);
+  }, [item, item.rawText]);
 
   return (
     <Draggable
@@ -60,6 +65,7 @@ export function Comment({ item }: { item: TaggedComment }) {
           x,
           y,
           width: 700,
+          height: 300,
           shape: "round_rectangle",
           style: {
             ...theme.jsDoc,
@@ -67,14 +73,18 @@ export function Comment({ item }: { item: TaggedComment }) {
         });
         await shape.sync();
 
-        const content = item.rawText.replace(
+        let content = item.rawText.replace(
           /@AppExplorer\s?.*/,
           `@AppExplorer https://miro.com/app/board/${
             (await miro.board.getInfo()).id
           }/?moveToWidget=${shape.id}`
         );
 
-        shape.content = content.replace(/\n/g, "<br/>");
+        shape.content = convertComment({
+          ...item,
+          rawText: content,
+        });
+
         await shape.sync();
 
         updateFetcher.submit(

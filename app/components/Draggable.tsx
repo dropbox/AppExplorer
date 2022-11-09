@@ -1,6 +1,5 @@
 import type { DropEvent } from "@mirohq/websdk-types";
 import React from "react";
-import { getPositionOfLineAndCharacter } from "typescript";
 
 export function Draggable({
   onDrop,
