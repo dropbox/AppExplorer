@@ -1,3 +1,4 @@
+import type { Item } from "@mirohq/websdk-types";
 import { useFetcher } from "@remix-run/react";
 import React from "react";
 import { theme } from "~/chart/theme";
@@ -17,6 +18,7 @@ function convertComment(item: TaggedComment) {
 export function Comment({ item }: { item: TaggedComment }) {
   const updateFetcher = useFetcher<FileScanResult>();
   const [update, setUpdate] = React.useState<null | Update>(null);
+  const [id, setId] = React.useState<null | string>(null);
 
   async function applyUpdate() {
     if (!update) return;
@@ -49,6 +51,7 @@ export function Comment({ item }: { item: TaggedComment }) {
             if (shape && shape.type === "shape" && shape.content !== content) {
               setUpdate({ widgetId, content });
             }
+            setId(widgetId);
           } catch (e) {
             // ignore
           }
@@ -110,18 +113,25 @@ export function Comment({ item }: { item: TaggedComment }) {
       >
         {item.rawText}
       </pre>
-      {update != null && (
-        <button
-          style={{
-            position: "absolute",
-            right: 0,
-            top: 0,
-          }}
-          onClick={applyUpdate}
-        >
-          update
-        </button>
-      )}
+      <div
+        style={{
+          position: "absolute",
+          right: 0,
+          top: 0,
+        }}
+      >
+        {update != null && <button onClick={applyUpdate}>update</button>}
+        {id && (
+          <button
+            onClick={async () => {
+              const shape = (await miro.board.getById(id)) as Item;
+              miro.board.viewport.zoomTo(shape);
+            }}
+          >
+            Go to
+          </button>
+        )}
+      </div>
     </Draggable>
   );
 }
