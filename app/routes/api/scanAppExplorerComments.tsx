@@ -35,6 +35,7 @@ export async function scanAppExplorerComments(path: string) {
           });
         }
         status = "idle";
+        comment.length = 0;
       }
     }
   }
