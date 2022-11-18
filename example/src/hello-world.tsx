@@ -1,6 +1,6 @@
 import React from "react";
-import Title from "./title";
 import MissingImport from "./missing";
+import Title from "./title";
 
 /**
  * At the moment, because this function isn't on the graph this note gets
@@ -29,6 +29,11 @@ export default function HelloWorld(props: { name: string }) {
     </div>
   );
 }
+
+/**
+ *
+ * @TODO Create a todo for this file
+ */
 export class Button extends React.Component {
   render() {
     return <button>test</button>;
