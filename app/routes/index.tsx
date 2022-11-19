@@ -1,15 +1,14 @@
 import type { SelectionUpdateEvent } from "@mirohq/websdk-types";
 import { Link } from "@remix-run/react";
 import React from "react";
-import { isTemplateExpression } from "typescript";
 import { PermalinkRegex } from "~/components/Comment";
 
 /**
- * Listens for events on the board:
- * - clicked the icon (/browse in the sidebar)
- * - clicked an app card (/browse/path/to/file in sidebar)
+ * init() sets up listeners including:
+ * - Clicking the icon for AppExplorer launches http://localhost:50505/explore/ in the sidebar
+ * - Clicking a tagged comment will open /explore/ to the file path in the permalink
  *
- * @AppExplorer
+ * @AppExplorer https://miro.com/app/board/uXjVPBl8yvs=/?moveToWidget=3458764539084725994
  */
 async function init() {
   miro.board.ui.on("icon:click", async () => {
@@ -36,8 +35,10 @@ async function openTaggedComment(event: SelectionUpdateEvent) {
 }
 
 /**
- * Miro loads this page in an invisible iframe that listens to events and opens
- * the sidebar for AppExplorer
+ * Index is the entry point for this plugin. Miro loads this URL in an invisible iframe
+ * so that our init() can listen for events.
+ *
+ * @AppExplorer https://miro.com/app/board/uXjVPBl8yvs=/?moveToWidget=3458764539084002567
  */
 export default function Index() {
   React.useEffect(() => {
@@ -68,16 +69,6 @@ export default function Index() {
         rebuilding the board. I can just run it in another tab until I have the
         data I want. Then load it in Miro and work on the other half.
       </p>
-
-      <iframe
-        title="Miro development board"
-        src="https://miro.com/app/live-embed/uXjVOk9T9PU=/?moveToViewport=-7382,-339,7264,4167&embedId=205241659823"
-        scrolling="no"
-        allowFullScreen
-        width="767"
-        height="440"
-        frameBorder="0"
-      ></iframe>
     </div>
   );
 }

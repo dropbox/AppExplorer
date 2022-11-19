@@ -16,6 +16,16 @@ function convertComment(item: TaggedComment) {
   return (permalink + "\n\n" + item.rawText).replace(/\n/g, "<br />").trim();
 }
 
+/**
+ * <Comment renders a TaggedComment from scanAppExplorerComments.
+ *
+ * This component must:
+ * 1. Render a preview in HTML
+ * 2. When it's dragged onto the board, construct the appropriate shape(s) with Miro's API
+ * 3. Identify existing copies of the current comment so they can be updated
+ *
+ * @AppExplorer https://miro.com/app/board/uXjVPBl8yvs=/?moveToWidget=3458764539084099358
+ */
 export function Comment({ item }: { item: TaggedComment }) {
   const updateFetcher = useFetcher<FileScanResult>();
   const [update, setUpdate] = React.useState<null | Update>(null);
@@ -141,10 +151,10 @@ export function Comment({ item }: { item: TaggedComment }) {
   );
 }
 function ignorePermalink(content: string) {
-  const [permalink, ...rest] = content.split("\n");
+  const [permalink, ...rest] = content.split("<br />");
 
   if (permalink.match(PermalinkRegex)) {
-    return rest.join("\n");
+    return rest.join("<br />");
   }
   return content;
 }

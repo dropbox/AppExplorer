@@ -12,6 +12,12 @@ export type TaggedComment = {
   rawText: string;
 };
 
+/**
+ * FileScanResult holds all the types that are supported by the scanner. Today
+ * it's only TaggedComment. When a new scanner is added, this will get a new type.
+ *
+ * @AppExplorer https://miro.com/app/board/uXjVPBl8yvs=/?moveToWidget=3458764539084002810
+ */
 export type FileScanResult = Array<TaggedComment>;
 
 export const action: ActionFunction = async ({ request }) => {
@@ -39,16 +45,10 @@ export const action: ActionFunction = async ({ request }) => {
 };
 
 /**
- * This API route only returns JSON from a loader. It uses scanFile
- * and composes a set of scanners together.
+ * This route uses a loader without a default export to make it a JSON API
+ * route.
  *
- * If I want a scanner that's just a subset, like maybe I fetch the annotations
- * separately, or make a different scanner powered by Bazel, it can just be
- * another route.
- *
- * @AppExplorer
- * @param param0
- * @returns
+ * @AppExplorer https://miro.com/app/board/uXjVPBl8yvs=/?moveToWidget=3458764539084002865
  */
 export const loader: LoaderFunction = async ({ request }) => {
   const url = new URL(request.url);

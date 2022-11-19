@@ -12,7 +12,10 @@ export type FileData = {
  * This calls /api/scanFile?path= to asynchronously load the results of the
  * scan.
  *
- * @AppExplorer
+ * Using the FileScanResult type with unreachable(), it enforces that we have a
+ * component ready to handle every kind of result.
+ *
+ * @AppExplorer https://miro.com/app/board/uXjVPBl8yvs=/?moveToWidget=3458764539084098939
  */
 export function ShowFile(props: { path: string }) {
   const fetcher = useFetcher<FileScanResult>();

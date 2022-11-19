@@ -48,9 +48,9 @@ export const loader: LoaderFunction = async ({ params }) => {
 const sep = "/";
 
 /**
- * BrowseComponent is the entry point for the sidebar in Miro.
+ * /explore/ (<BrowseComponent) is a simple file browser. Select a file to see what the scanner picks up.
  *
- * @AppExplorer https://miro.com/app/board/uXjVOHoOb1g=/?moveToWidget=3458764537984544734
+ * @AppExplorer https://miro.com/app/board/uXjVPBl8yvs=/?moveToWidget=3458764539084002773
  */
 export default function BrowseComponent() {
   const data = useLoaderData<AppData>();

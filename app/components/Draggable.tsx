@@ -1,6 +1,13 @@
 import type { DropEvent } from "@mirohq/websdk-types";
 import React from "react";
 
+/**
+ * Miro's onDrop gives you the DOM node of whatever was dragged. That means I need
+ * some way of identifying exactly what item was dragged. This component keeps
+ * that detail in this component and I just render a `<Draggable onDrop`.
+ *
+ * @AppExplorer https://miro.com/app/board/uXjVPBl8yvs=/?moveToWidget=3458764539084099504
+ */
 export function Draggable({
   onDrop,
   children,

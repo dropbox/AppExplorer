@@ -14,7 +14,8 @@ export function getCommitHash(fullPath: string): string {
   return hash.stdout.trim();
 }
 
-const GithubRegex = /git@github.com:([^/\s]+)\/([^/\s]+)(.git)/;
+const GithubRegex =
+  /(?:git@|https:\/\/)github.com[:/]([^/\s]+)\/([^/\s]+)(.git)?/;
 
 export function getRemoteURL(fullPath: string): string {
   const hash = child.spawnSync("git", ["remote", "-v"], {
@@ -22,13 +23,14 @@ export function getRemoteURL(fullPath: string): string {
     cwd: path.dirname(fullPath),
   });
 
-  const github = String(hash.stdout).match(GithubRegex);
+  const remote = String(hash.stdout);
+  const github = remote.match(GithubRegex);
 
   if (github) {
     return github[0];
   }
 
-  return "https://example.com/unknown_remote";
+  throw new Error(`Unrecognized remote: ${remote}`);
 }
 
 export function getPermalink(path: string, line: number) {

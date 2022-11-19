@@ -8,12 +8,16 @@ import {
   ScrollRestoration,
 } from "@remix-run/react";
 
+/**
+ * Tailwind is currently disabled because it removes ALL the styles including
+ * buttons.  I haven't wanted to work on a theme yet, so everything is mostly
+ * unstyled HTML.
+ *
+ * @AppExplorer
+ */
 // import styles from "./tailwind.css";
 
 export const links: LinksFunction = () => [
-  // I'm not using this at the moment because it removes the styles on my
-  // buttons.  I don't want to deal with making up button styles, so I'll just
-  // skip this for now and write the CSS I need.
   // { rel: "stylesheet", href: styles },
 ];
 
