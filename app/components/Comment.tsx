@@ -9,10 +9,11 @@ type Update = {
   widgetId: string;
   content: string;
 };
+export const PermalinkRegex = /<a href="(.+)">(.+)<\/a>/;
 
 function convertComment(item: TaggedComment) {
   const permalink = `<a href="${item.permalink}">${item.filePath}</a>`;
-  return (permalink + "\n\n" + item.rawText).replace(/\n/g, "<br />");
+  return (permalink + "\n\n" + item.rawText).replace(/\n/g, "<br />").trim();
 }
 
 export function Comment({ item }: { item: TaggedComment }) {
@@ -48,7 +49,11 @@ export function Comment({ item }: { item: TaggedComment }) {
           try {
             // This throws if the item isn't found
             const shape = await miro.board.getById(widgetId);
-            if (shape && shape.type === "shape" && shape.content !== content) {
+            if (
+              shape &&
+              shape.type === "shape" &&
+              ignorePermalink(shape.content) !== ignorePermalink(content)
+            ) {
               setUpdate({ widgetId, content });
             }
             setId(widgetId);
@@ -134,4 +139,12 @@ export function Comment({ item }: { item: TaggedComment }) {
       </div>
     </Draggable>
   );
+}
+function ignorePermalink(content: string) {
+  const [permalink, ...rest] = content.split("\n");
+
+  if (permalink.match(PermalinkRegex)) {
+    return rest.join("\n");
+  }
+  return content;
 }
