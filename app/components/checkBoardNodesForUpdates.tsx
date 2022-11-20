@@ -1,11 +1,6 @@
 import type { Shape } from "@mirohq/websdk-types";
 import type { FileScanResult, TaggedComment } from "~/routes/api/scanFile";
-import {
-  readAppExplorerLink,
-  decodeMiroContent,
-  readPathFromPermalink,
-  needsUpdate,
-} from "./Comment";
+import { readAppExplorerLink, decodeMiroContent, needsUpdate } from "./Comment";
 
 type UpdatePair = [Shape, TaggedComment];
 
@@ -32,8 +27,8 @@ export async function checkBoardNodesForUpdates() {
 
     const id = readAppExplorerLink(shape);
     if (id === shape.id) {
-      const [permalink] = decodeMiroContent(shape.content).split("\n");
-      const filePath = readPathFromPermalink(permalink);
+      const [filePath] = decodeMiroContent(shape.content).split(/\s/g);
+
       if (filePath) {
         const results = await checkFile(filePath);
         const item = results.find(

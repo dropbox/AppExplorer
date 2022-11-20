@@ -34,15 +34,17 @@ export function ShowFile(props: { path: string }) {
 
   return (
     <div>
-      {data.map((item, i) => {
-        switch (item.type) {
-          case "TaggedComment":
-            return <Comment key={i} item={item} />;
-          default:
-            unreachable(item.type);
-        }
-        return null;
-      })}
+      <div className="grid">
+        {data.map((item, i) => {
+          switch (item.type) {
+            case "TaggedComment":
+              return <Comment key={i} item={item} />;
+            default:
+              unreachable(item.type);
+          }
+          return null;
+        })}
+      </div>
 
       <details>
         <summary>JSON</summary>

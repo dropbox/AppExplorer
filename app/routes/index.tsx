@@ -1,7 +1,7 @@
 import type { SelectionUpdateEvent } from "@mirohq/websdk-types";
 import { Link } from "@remix-run/react";
 import React from "react";
-import { decodeMiroContent, readPathFromPermalink } from "~/components/Comment";
+import { decodeMiroContent, readPathFromShape } from "~/components/Comment";
 
 /**
  * init() sets up listeners including:
@@ -26,9 +26,8 @@ async function openTaggedComment(event: SelectionUpdateEvent) {
     if (item.type === "shape") {
       const content = decodeMiroContent(item.content);
       const hasTag = content.includes("@AppExplorer");
-      const [permalink] = content.split("\n");
-      const filePath = readPathFromPermalink(permalink);
-      if (hasTag && filePath) {
+      if (hasTag) {
+        const filePath = readPathFromShape(item);
         await miro.board.ui.openPanel({ url: "explore/" + filePath });
       }
     }

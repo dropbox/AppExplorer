@@ -7,6 +7,7 @@ import {
   Scripts,
   ScrollRestoration,
 } from "@remix-run/react";
+import styles from "mirotone/dist/styles.css";
 
 /**
  * Tailwind is currently disabled because it removes ALL the styles including
@@ -17,9 +18,7 @@ import {
  */
 // import styles from "./tailwind.css";
 
-export const links: LinksFunction = () => [
-  // { rel: "stylesheet", href: styles },
-];
+export const links: LinksFunction = () => [{ rel: "stylesheet", href: styles }];
 
 export const meta: MetaFunction = () => ({
   charset: "utf-8",

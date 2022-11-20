@@ -26,7 +26,7 @@ export function Draggable({
 
   return (
     <div
-      className="miro-draggable"
+      className="miro-draggable cs2 ce11"
       data-id={id}
       style={{ position: "relative" }}
     >

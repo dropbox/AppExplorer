@@ -3,7 +3,6 @@ import { json } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
 import React from "react";
 import invariant from "tiny-invariant";
-import BoardUpdates from "~/components/BoardUpdates";
 import type { FileData } from "~/components/ShowFile";
 import { ShowFile } from "~/components/ShowFile";
 import * as fs from "~/utils/fs.server";
@@ -59,8 +58,14 @@ export default function BrowseComponent() {
 
   return (
     <div style={{ maxHeight: "100vh", overflow: "auto" }}>
-      {path === "" && <BoardUpdates />}
-      <h1>
+      {path === "" && (
+        <div className="centered">
+          <Link className="link link-primary" to="/board-updates">
+            Check board for updates
+          </Link>
+        </div>
+      )}
+      <h1 className="h1">
         <BrowseBreadcrumbs path={path} />
       </h1>
 
@@ -89,20 +94,25 @@ function BrowseBreadcrumbs(props: { path: string }) {
   const f = props.path.split(sep).filter(Boolean);
 
   return (
-    <>
-      <Link to="">(root)</Link>/
+    <div className="grid">
+      <Link className="cs1 ce12" to="">
+        (root)/
+      </Link>
       {f.map((fragment, i, arr) => (
         <React.Fragment key={i}>
-          {i > 0 && "/"}
           {i < arr.length - 1 ? (
-            <Link key={i} to={`${arr.slice(0, i + 1).join(sep)}`}>
-              {fragment}
+            <Link
+              className={"ce12 cs" + (2 + (i % 12))}
+              key={i}
+              to={`${arr.slice(0, i + 1).join(sep)}`}
+            >
+              {fragment}/
             </Link>
           ) : (
-            <>{fragment}</>
+            <div className={"ce12 cs" + (2 + (i % 12))}>{fragment}</div>
           )}
         </React.Fragment>
       ))}
-    </>
+    </div>
   );
 }
