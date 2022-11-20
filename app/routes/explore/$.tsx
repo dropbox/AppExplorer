@@ -3,6 +3,7 @@ import { json } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
 import React from "react";
 import invariant from "tiny-invariant";
+import BoardUpdates from "~/components/BoardUpdates";
 import type { FileData } from "~/components/ShowFile";
 import { ShowFile } from "~/components/ShowFile";
 import * as fs from "~/utils/fs.server";
@@ -58,6 +59,7 @@ export default function BrowseComponent() {
 
   return (
     <div style={{ maxHeight: "100vh", overflow: "auto" }}>
+      {path === "" && <BoardUpdates />}
       <h1>
         <BrowseBreadcrumbs path={path} />
       </h1>

@@ -1,7 +1,7 @@
 import type { SelectionUpdateEvent } from "@mirohq/websdk-types";
 import { Link } from "@remix-run/react";
 import React from "react";
-import { PermalinkRegex } from "~/components/Comment";
+import { decodeMiroContent, readPathFromPermalink } from "~/components/Comment";
 
 /**
  * init() sets up listeners including:
@@ -23,12 +23,13 @@ async function init() {
 async function openTaggedComment(event: SelectionUpdateEvent) {
   if (event.items.length === 1) {
     const [item] = event.items;
-    if (item.type === "shape" && item.content.match(/@AppExplorer/)) {
-      const [permalink] = item.content.split("\n");
-
-      const match = permalink.match(PermalinkRegex);
-      if (match) {
-        await miro.board.ui.openPanel({ url: "explore/" + match[2] });
+    if (item.type === "shape") {
+      const content = decodeMiroContent(item.content);
+      const hasTag = content.includes("@AppExplorer");
+      const [permalink] = content.split("\n");
+      const filePath = readPathFromPermalink(permalink);
+      if (hasTag && filePath) {
+        await miro.board.ui.openPanel({ url: "explore/" + filePath });
       }
     }
   }

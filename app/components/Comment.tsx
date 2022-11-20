@@ -1,21 +1,97 @@
-import type { Item } from "@mirohq/websdk-types";
+import type { Item, Shape } from "@mirohq/websdk-types";
+import { diffStringsUnified } from "jest-diff";
 import { useFetcher } from "@remix-run/react";
 import React from "react";
 import { theme } from "~/chart/theme";
 import type { FileScanResult, TaggedComment } from "~/routes/api/scanFile";
 import { Draggable } from "./Draggable";
 
-type Update = {
-  widgetId: string;
-  content: string;
-};
 export const PermalinkRegex = /<a href="(.+)">(.+)<\/a>/;
 
-function convertComment(item: TaggedComment) {
+function formatContentForMiro(item: TaggedComment) {
   const permalink = `<a href="${item.permalink}">${item.filePath}</a>`;
   return (permalink + "\n\n" + item.rawText).replace(/\n/g, "<br />").trim();
 }
 
+export function readPathFromPermalink(permalink: string) {
+  const match = permalink.match(PermalinkRegex);
+  if (match) {
+    return match[2];
+  }
+}
+
+async function updateCommentNode(shape: Shape, update: TaggedComment) {
+  shape.content = formatContentForMiro(update);
+  await shape.sync();
+}
+
+export function decodeMiroContent(string: string) {
+  return string
+    .replace(/<br \/>/g, "\n")
+    .replace(/<p>/g, "\n")
+    .replace(/<\/p>/g, "")
+    .replace(/&#(\d+);/g, (_match, charCode) => {
+      return String.fromCharCode(charCode);
+    })
+    .replace(/&(lt);/g, (match, str) => {
+      switch (str) {
+        case "lt":
+          return "<";
+        case "gt":
+          return ">";
+      }
+      throw new Error(`Unhandled: ${match}`);
+    })
+    .trim();
+}
+
+export function readAppExplorerLink(shape: Shape) {
+  const content = decodeMiroContent(shape.content);
+  const match = content.match(/@AppExplorer (http[^\s]+)/);
+  let url = match?.[1];
+  if (url) {
+    const tmp = new URL(url);
+    return tmp.searchParams.get("moveToWidget")?.replace(/[^\d]/g, "");
+  }
+  return null;
+}
+
+async function getBoardCommentFromId(widgetId: string): Promise<null | Shape> {
+  try {
+    // This throws if the item isn't found
+    const shape = await miro.board.getById(widgetId);
+    if (shape && shape.type === "shape") {
+      const id = readAppExplorerLink(shape);
+      if (id && id === widgetId) {
+        return shape;
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+  return null;
+}
+
+export function needsUpdate(shape: Shape, item: TaggedComment): boolean {
+  let a = decodeMiroContent(shape.content);
+  let b = decodeMiroContent(formatContentForMiro(item));
+  a = ignorePermalink(a);
+  b = ignorePermalink(b);
+
+  function ignorePermalink(content: string) {
+    const [permalink, ...rest] = content.split("\n");
+
+    if (permalink.match(PermalinkRegex)) {
+      return rest.join("\n");
+    }
+    return content;
+  }
+  if (a !== b) {
+    // console.log(JSON.stringify({ a, b }, null, 2));
+    return true;
+  }
+  return false;
+}
 /**
  * <Comment renders a TaggedComment from scanAppExplorerComments.
  *
@@ -28,53 +104,28 @@ function convertComment(item: TaggedComment) {
  */
 export function Comment({ item }: { item: TaggedComment }) {
   const updateFetcher = useFetcher<FileScanResult>();
-  const [update, setUpdate] = React.useState<null | Update>(null);
-  const [id, setId] = React.useState<null | string>(null);
-
-  async function applyUpdate() {
-    if (!update) return;
-
-    try {
-      // This throws if the item isn't found
-      const shape = await miro.board.getById(update.widgetId);
-      if (shape && shape.type === "shape" && shape.content !== update.content) {
-        shape.content = update?.content;
-        await shape.sync();
-        setUpdate(null);
-      }
-    } catch (e) {
-      // ignore
+  const [update, setUpdate] = React.useState<Shape | null>(null);
+  const widgetId = React.useMemo(() => {
+    const match = item.rawText.match(/@AppExplorer (http.*)/);
+    const url = match?.[1];
+    if (url) {
+      const tmp = new URL(url);
+      return tmp.searchParams.get("moveToWidget")?.replace(/[^\d]/g, "");
     }
-  }
+    return null;
+  }, [item.rawText]);
 
   React.useEffect(() => {
     async function checkForUpdates() {
-      const match = item.rawText.match(/@AppExplorer (http.*)/);
-      const url = match?.[1];
-      if (url) {
-        const tmp = new URL(url);
-        const widgetId = tmp.searchParams.get("moveToWidget");
-        if (widgetId) {
-          const content = convertComment(item);
-          try {
-            // This throws if the item isn't found
-            const shape = await miro.board.getById(widgetId);
-            if (
-              shape &&
-              shape.type === "shape" &&
-              ignorePermalink(shape.content) !== ignorePermalink(content)
-            ) {
-              setUpdate({ widgetId, content });
-            }
-            setId(widgetId);
-          } catch (e) {
-            // ignore
-          }
+      if (widgetId) {
+        const shape = await getBoardCommentFromId(widgetId);
+        if (shape && needsUpdate(shape, item)) {
+          setUpdate(shape);
         }
       }
     }
     checkForUpdates();
-  }, [item, item.rawText]);
+  }, [item, item.rawText, widgetId]);
 
   return (
     <Draggable
@@ -98,7 +149,7 @@ export function Comment({ item }: { item: TaggedComment }) {
           }/?moveToWidget=${shape.id}`
         );
 
-        shape.content = convertComment({
+        shape.content = formatContentForMiro({
           ...item,
           rawText: content,
         });
@@ -126,7 +177,12 @@ export function Comment({ item }: { item: TaggedComment }) {
           border: `1px solid black`,
         }}
       >
-        {item.rawText}
+        {update
+          ? diffStringsUnified(
+              decodeMiroContent(update.content),
+              decodeMiroContent(formatContentForMiro(item))
+            )
+          : item.rawText}
       </pre>
       <div
         style={{
@@ -135,11 +191,19 @@ export function Comment({ item }: { item: TaggedComment }) {
           top: 0,
         }}
       >
-        {update != null && <button onClick={applyUpdate}>update</button>}
-        {id && (
+        {update && (
+          <button
+            onClick={() => {
+              updateCommentNode(update, item).then(() => setUpdate(null));
+            }}
+          >
+            update
+          </button>
+        )}
+        {widgetId && (
           <button
             onClick={async () => {
-              const shape = (await miro.board.getById(id)) as Item;
+              const shape = (await miro.board.getById(widgetId)) as Item;
               miro.board.viewport.zoomTo(shape);
             }}
           >
@@ -149,12 +213,4 @@ export function Comment({ item }: { item: TaggedComment }) {
       </div>
     </Draggable>
   );
-}
-function ignorePermalink(content: string) {
-  const [permalink, ...rest] = content.split("<br />");
-
-  if (permalink.match(PermalinkRegex)) {
-    return rest.join("<br />");
-  }
-  return content;
 }
