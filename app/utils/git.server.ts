@@ -15,7 +15,7 @@ export function getCommitHash(fullPath: string): string {
 }
 
 const GithubRegex =
-  /(?:git@|https:\/\/)github.com[:/]([^/\s]+)\/([^/\s]+)(.git)?/;
+  /(?:git@|https:\/\/)github.com[:/]([^/\s]+)\/([^/\s]+)(?:\.git)/;
 
 export function getRemoteURL(fullPath: string): string {
   const hash = child.spawnSync("git", ["remote", "-v"], {

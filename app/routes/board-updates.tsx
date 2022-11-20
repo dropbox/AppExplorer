@@ -1,5 +1,6 @@
 import type { Shape } from "@mirohq/websdk-types";
 import React from "react";
+import { updateCommentNode } from "~/components/board-utilities";
 import { checkBoardNodesForUpdates } from "~/components/checkBoardNodesForUpdates";
 import { Comment } from "~/components/Comment";
 import type { TaggedComment } from "~/routes/api/scanFile";
@@ -10,13 +11,11 @@ export default function BoardUpdates() {
   > | null>(null);
 
   React.useEffect(() => {
-    console.log("?", updates);
     if (updates == null) {
       checkBoardNodesForUpdates().then(setUpdates);
     }
   }, [updates]);
 
-  console.log("render", updates);
   if (updates == null) {
     return (
       <div className="centered cs2 ce11">Scanning objects on board...</div>
@@ -27,10 +26,22 @@ export default function BoardUpdates() {
   }
 
   return (
-    <div className="grid">
-      {updates.map(([, item], i) => (
-        <Comment key={i} item={item} />
-      ))}
+    <div>
+      <div className="grid">
+        {updates.map(([shape, item], i) => (
+          <Comment
+            key={i}
+            item={item}
+            update={shape}
+            onUpdate={async () => {
+              await updateCommentNode(shape, item);
+              setUpdates(
+                (updates) => updates?.filter(([s]) => shape !== s) ?? null
+              );
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 }

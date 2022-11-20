@@ -1,7 +1,10 @@
 import type { SelectionUpdateEvent } from "@mirohq/websdk-types";
 import { Link } from "@remix-run/react";
 import React from "react";
-import { decodeMiroContent, readPathFromShape } from "~/components/Comment";
+import {
+  decodeMiroContent,
+  readPathFromShape,
+} from "~/components/board-utilities";
 
 /**
  * init() sets up listeners including:

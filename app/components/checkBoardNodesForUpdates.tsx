@@ -1,6 +1,10 @@
 import type { Shape } from "@mirohq/websdk-types";
 import type { FileScanResult, TaggedComment } from "~/routes/api/scanFile";
-import { readAppExplorerLink, decodeMiroContent, needsUpdate } from "./Comment";
+import {
+  readAppExplorerLink,
+  decodeMiroContent,
+  needsUpdate,
+} from "./board-utilities";
 
 type UpdatePair = [Shape, TaggedComment];
 
