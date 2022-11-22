@@ -29,7 +29,9 @@ async function openTaggedComment(event: SelectionUpdateEvent) {
     if (item.type === "shape") {
       const content = decodeMiroContent(item.content);
       const hasTag = content.includes("@AppExplorer");
-      if (hasTag) {
+
+      // Only open self-referential nodes
+      if (hasTag && content.includes("moveToWidget=" + item.id)) {
         const filePath = readPathFromShape(item);
         await miro.board.ui.openPanel({ url: "explore/" + filePath });
       }
