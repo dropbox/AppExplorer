@@ -11,7 +11,6 @@ type Props = {
 };
 
 export const Code = ({ children, line = 1 }: React.PropsWithChildren<Props>): JSX.Element => {
-  console.log(children, line)
   if (typeof children === "string") {
     const lines = String(children!).split('\n')
     return Code({

@@ -10,7 +10,10 @@ type DirectoryResponse = {
   // All directories end in a slash
   path: `${string}/`,
   name: string,
-  children: Array<string>
+  children: Array<{
+    name: string,
+    type: 'directory' | 'file',
+  }>
 }
 type FileResponse = {
   type: 'file',
@@ -18,7 +21,14 @@ type FileResponse = {
   name: string,
 }
 
-export type ApiLsResponse = DirectoryResponse | FileResponse | { errors: { path: string } }
+type ErrorResponse = {
+  type: 'error',
+  errors: {
+    path: string;
+  };
+};
+
+export type ApiLsResponse = DirectoryResponse | FileResponse | ErrorResponse
 
 const bannedFolders = [
   // Don't open node_modules, it's too big
@@ -36,25 +46,38 @@ export const loader = async ({ params, request }: LoaderArgs): Promise<TypedResp
   const url = new URL(request.url)
   const path = url.searchParams.get("path")
   if (typeof path !== "string") {
-    return json({ errors: { path: "Path is required" } }, { status: 400 });
+    return json({ type: 'error', errors: { path: "Path is required" } }, { status: 400 });
   }
 
   const requestedPath = fsPath.join(project.root, path)
   if (!requestedPath.startsWith(project.root)) {
-    return json({ errors: { path: "Path is invalid" } }, { status: 400 });
+    return json({ type: 'error', errors: { path: "Path is invalid" } }, { status: 400 });
   }
 
   const stat = await fs.stat(requestedPath)
   const name = fsPath.basename(path)
 
   if (stat.isDirectory()) {
-    const children = (await fs.readdir(requestedPath)).filter(isAllowed)
+    const directoryListing = (await fs.readdir(requestedPath)).filter(isAllowed)
+
+    const children = directoryListing.map(name => {
+      const childPath = fsPath.join(path, name)
+      return fs.stat(fsPath.join(project.root, childPath)).then(stat => {
+        if (stat.isDirectory()) {
+          return { name, type: 'directory' } as const
+        } else if (stat.isFile()) {
+          return { name, type: 'file' } as const
+        } else {
+          throw new Error('Unknown file type')
+        }
+      })
+    })
 
     return json({
       type: "directory",
       path: `${path}/`,
       name,
-      children,
+      children: await Promise.all(children),
     } as const);
   } else if (stat.isFile()) {
     return json({
@@ -63,7 +86,10 @@ export const loader = async ({ params, request }: LoaderArgs): Promise<TypedResp
       name,
     } as const);
   } else {
-    return json({ errors: { path: "Path is invalid" } }, { status: 400 });
+    return json({
+      type: 'error',
+      errors: { path: "Path is invalid" }
+    }, { status: 400 });
   }
 }
 
