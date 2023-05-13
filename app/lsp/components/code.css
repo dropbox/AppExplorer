@@ -1,0 +1,10 @@
+code {
+  counter-reset: line;
+}
+
+code span:before {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  padding-right: 1em;
+}

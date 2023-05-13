@@ -4,7 +4,9 @@ import * as lspServer from "~/lsp/lsp.server";
 import { useLoaderData } from "@remix-run/react";
 import type { DocumentSymbol } from "vscode-languageserver-protocol";
 import React from "react";
-import { Code } from "~/lsp/components/code";
+import { Code, links as codeLinks } from "~/lsp/components/code";
+
+export const links = codeLinks
 
 export const loader = async ({ params }: LoaderArgs) => {
   const [projectName, project] = lspServer.requireProject(params);
@@ -66,20 +68,25 @@ const lookupKind = (kind: DocumentSymbol['kind']): string => {
 }
 
 export default function () {
-  const { symbols, fileContent } = useLoaderData<typeof loader>();
+  const { symbols, fileContent, path } = useLoaderData<typeof loader>();
   const lines = React.useMemo(() => fileContent.split("\n"), [fileContent])
 
   return (
     <div className="flex">
-      {/* <Code>{fileContent}</Code> */}
 
       <div>
-        <div>Here are the symbols found in the selected file:</div>
+        <div>Symbols found in {path}</div>
         <hr />
         <ul>
           {symbols.map((symbol, i) => (
             <SymbolViewer lines={lines} symbol={symbol} key={i} />
           ))}
+          {symbols.length === 0 && (
+            <div>
+              No symbols found. Showing source instead.
+              <Code>{fileContent}</Code>
+            </div>
+          )}
         </ul>
       </div>
     </div>
@@ -109,7 +116,8 @@ function SymbolViewer({ symbol, lines }: { symbol: DocumentSymbol, lines: string
         (kind: {lookupKind(symbol.kind)})
       </div>
       <Code>{JSON.stringify(symbol, null, 2)}</Code>
-      <Code>{source}</Code>
+
+      <Code line={symbol.range.start.line}>{source}</Code>
     </li>
   )
 

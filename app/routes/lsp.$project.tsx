@@ -28,6 +28,10 @@ export default function () {
       </ul>
 
       <div className="flex-1">
+        <p className="bg-gray-800 p-3 text-white">
+          This is a minimal prototype to launch a TypeScript language server and explore
+          its responses.
+        </p>
         <Outlet />
       </div>
     </div>
