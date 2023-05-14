@@ -1,12 +1,13 @@
-import { useFetcher, useLoaderData, useParams, useSearchParams } from "@remix-run/react";
-import React from "react";
-import { Code } from "~/lsp/components/code";
+import { useLoaderData, useParams, useSearchParams } from "@remix-run/react";
+import { Code, links as codeLinks } from "~/lsp/components/code";
 import invariant from "tiny-invariant";
 import type { LoaderArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { requireProject } from "~/lsp/lsp.server";
 import { fs } from "~/fs-promises.server";
 import * as fsPath from "path";
+
+export const links = codeLinks
 
 
 export const loader = async ({ params, request }: LoaderArgs) => {
@@ -22,7 +23,6 @@ export const loader = async ({ params, request }: LoaderArgs) => {
     throw new Response("Path is invalid", { status: 400 })
   }
 
-  console.log({ requestedPath })
   const stat = await fs.stat(requestedPath)
 
   if (stat.isDirectory()) {

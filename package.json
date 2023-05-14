@@ -6,7 +6,7 @@
     "build": "run-s \"build:*\"",
     "build:css": "npm run generate:css -- --minify",
     "build:remix": "remix build",
-    "dev": "run-p \"dev:*\"",
+    "dev": "cross-env PORT=50505 run-p \"dev:*\"",
     "dev:css": "npm run generate:css -- --watch",
     "lsp": "nodemon --watch 'app/lsp/**' --ext 'ts,json'  --exec 'ts-node -T app/lsp/ts.ts'",
     "dev:remix": "cross-env NODE_ENV=development binode --require ./mocks -- @remix-run/dev:remix dev",
@@ -51,6 +51,7 @@
   },
   "devDependencies": {
     "@faker-js/faker": "^7.6.0",
+    "@mirohq/websdk-types": "^2.8.0",
     "@remix-run/dev": "^1.15.0",
     "@remix-run/eslint-config": "^1.15.0",
     "@testing-library/cypress": "^9.0.0",

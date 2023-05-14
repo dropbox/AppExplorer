@@ -21,33 +21,23 @@ export const loader = async ({ params, request }: LoaderArgs) => {
   const plugins = routeFiles.filter(file =>
     file !== 'lsp.$project.tsx'
     && (
-      file.startsWith(`lsp._plugin.${projectName}.`)
+      file.startsWith(`lsp.plugin.${projectName}.`)
       || file.startsWith(`lsp.$project.`)
     )
-  ).map(pluginFilename => {
+  ).flatMap(pluginFilename => {
     const parts = pluginFilename.split('.')
     console.log(parts)
     invariant(parts.shift() === 'lsp', 'Expected to start with lsp')
     invariant(parts.shift() === '$project', 'Missing $project')
     invariant(parts.pop() === 'tsx', 'Expected to end with tsx')
-
-    console.log({ parts })
-    if (parts[0] === '_plugin') {
+    if (parts[0] === 'plugin') {
       parts.shift()
       return {
         name: parts.join('.'),
         path: parts.join('/'),
       }
     }
-
-    if (parts.length === 1) {
-      const name = parts.pop()
-      return {
-        name: name === '_index' ? 'view file' : name,
-        path: './' + (name === '_index' ? '' : name),
-      }
-    }
-    throw new Error('Unexpected plugin filename: ' + pluginFilename)
+    return []
   })
 
   return json({
@@ -61,22 +51,9 @@ export const loader = async ({ params, request }: LoaderArgs) => {
 export default function () {
   const { projectName, path, tabs } = useLoaderData<typeof loader>()
 
-  return (
-    <div className="flex ">
-      <ul className="bg-coconut min-w-[20vw] max-w-[35vw]">
-        <FileOrDirectory
-          project={projectName}
-          path=""
-          name={`(${projectName})`}
-          type="directory"
-          to="?path=" />
-      </ul>
-
+  if (path) {
+    return (
       <div className="flex-1">
-        <p className="bg-dropboxBlue text-coconut">
-          This is a minimal prototype to launch a TypeScript language server and explore
-          its responses.
-        </p>
         <nav className='p-1 flex flex-row gap-1'>
           {tabs.map(tab => (
             <Tab key={tab.name} to={`./${tab.path}?path=${path}`}>{tab.name}</Tab>
@@ -84,6 +61,24 @@ export default function () {
         </nav>
         <Outlet />
       </div>
+    )
+
+
+  }
+
+
+  return (
+    <div className="flex">
+      <ul className="bg-coconut w-full">
+        <FileOrDirectory
+          project={projectName}
+          path=""
+          name={`(${projectName})`}
+          type="directory"
+          to="./plugin?path=" />
+      </ul>
+      {path}
+
     </div>
   )
 }

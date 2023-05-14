@@ -11,26 +11,21 @@ export default function () {
   const data = useLoaderData<typeof loader>()
 
   return (
-    <div>
-      <h1>Language Server Protocol Explorer</h1>
-      <p>
-        This is a tool to explore the Language Server Protocol. It is a work in
-        progress. My plan is to figure out what I can do with the LSP and then
-        integrate it into AppExplorer. Interacting at the LSP protocol means I
-        can make this work for any language.
-      </p>
-
+    <div className="bg-coconut text-c-ocean ">
       <p>
         The following projects are available for exploration:
       </p>
 
-      <ul>
+      <div className="flex flex-col max-w-md">
         {Object.keys(data.projects).map((projectName) => (
-          <li key={projectName}>
-            <Link to={"./" + projectName}>{projectName}</Link>
-          </li>
+          <Link
+            key={projectName}
+            className="rounded-full bg-c-ocean text-coconut px-4 py-2 m-2"
+            to={"./" + projectName}>
+            {projectName}
+          </Link>
         ))}
-      </ul>
+      </div>
 
     </div>
   )

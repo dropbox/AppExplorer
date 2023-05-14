@@ -80,18 +80,27 @@ async function readPlugins(projectName: string, pluginFolder: string) {
       const destination = path.join(
         __dirname,
         "../app/routes",
-        `lsp.$project._plugin.${projectName}.${plugin}`
+        `lsp.$project.plugin.${projectName}.${plugin}`
       );
 
       await fs.mkdir(path.dirname(destination), { recursive: true });
 
       try {
         const destinationStats = await fs.stat(destination);
+        const sourceStats = await fs.stat(source);
+        // Only copy the file if the source is older, because this updates the
+        // app directory and triggers a reload. Without this timestamp check, it
+        // gets stuck in an infinite loop
         if (
           destinationStats.isFile() &&
-          (await fs.stat(source)).mtimeMs < destinationStats.mtimeMs
+          sourceStats.mtimeMs < destinationStats.mtimeMs
         ) {
-          console.log("Plugin already installed, skipping");
+          if (destinationStats.mtimeMs > sourceStats.mtimeMs + 60000) {
+            console.log("Saving updates to", source);
+            await fs.copyFile(destination, source);
+          } else {
+            console.log("Plugin already installed, skipping");
+          }
           return `${projectName}.${plugin}`;
         }
       } catch (e) {
@@ -109,7 +118,7 @@ export async function readInstalledPlugins(projectName: string) {
   const files = await fs.readdir(path.join(__dirname, "../app/routes/"));
 
   const plugins = files
-    .filter((filename) => filename.startsWith(`lsp._plugin.${projectName}.`))
+    .filter((filename) => filename.startsWith(`lsp.plugin.${projectName}.`))
     .map((filename) => {
       const [, , , pluginName] = filename.split(".");
       return {

@@ -3,7 +3,7 @@ import { json } from "@remix-run/node"
 import { requireProject } from "~/lsp/lsp.server";
 import * as fsPath from 'path'
 import { fs } from "~/fs-promises.server";
-import { requireFileFromQuery } from "~/plugin-utils/require-file-from-query";
+import { getPathFromQuery } from "~/plugin-utils/require-file-from-query";
 
 
 type DirectoryResponse = {
@@ -45,7 +45,7 @@ const isAllowed = (name: string) => {
 
 export const loader = async ({ params, request }: LoaderArgs): Promise<TypedResponse<ApiLsResponse>> => {
   const [, project] = await requireProject(params);
-  const { path, stat, fullPath } = await requireFileFromQuery(request, project);
+  const { path, stat, fullPath } = await getPathFromQuery(request, project);
   const name = fsPath.basename(path)
 
   if (stat.isDirectory()) {

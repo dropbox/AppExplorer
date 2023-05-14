@@ -11,4 +11,4 @@ node_modules
 
 /app/styles/tailwind.css
 
-app/routes/lsp.$project._plugin.*
+app/routes/lsp.$project.plugin.*.tsx
