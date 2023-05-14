@@ -1,10 +1,10 @@
 import type { LoaderArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
-import { LSPProjects } from "~/lsp/lsp.server";
+import { getProjects } from "~/lsp/projects";
 
-export const loader = (a: LoaderArgs) => {
-  return json({ projects: LSPProjects })
+export const loader = async (a: LoaderArgs) => {
+  return json({ projects: await getProjects() })
 }
 
 export default function () {

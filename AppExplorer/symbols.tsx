@@ -1,9 +1,41 @@
-import { useFetcher, useLoaderData, useParams } from "@remix-run/react";
+import { useLoaderData, useParams } from "@remix-run/react";
 import type { DocumentSymbol } from "vscode-languageserver-protocol";
 import React from "react";
 import { Code } from "~/lsp/components/code";
-import type { loader } from "../../routes/lsp_.api_.$project_.symbols";
 import invariant from "tiny-invariant";
+import type { LoaderArgs } from "@remix-run/node";
+import { json } from "@remix-run/node";
+import * as lspServer from "~/lsp/lsp.server";
+
+
+export const loader = async ({ params, request }: LoaderArgs) => {
+  const [projectName, project] = await lspServer.requireProject(params);
+  const url = new URL(request.url)
+  const path = url.searchParams.get("path")
+  if (typeof path !== "string") {
+    throw new Response("Path is required", { status: 400 })
+  }
+
+  const fullPath = lspServer.resolvePath(project, path);
+
+  // TODO: Make this more generic, so that I can ask for the connection for a file instead of using
+  // a specific language. Right now I'm exploring what I can do with the LSP.
+  const connection = await lspServer.getTypescriptConnection();
+  const { uri, text: fileContent } = await lspServer.openTextDocument(connection, fullPath);
+
+  // This is a list of top level symbols created in the file. The type is
+  // recursive, so this seems to be the module level symbols.
+  const symbols = await lspServer.requestDocumentSymbols(connection, uri);
+
+  return json({
+    type: 'symbols',
+    projectName,
+    path,
+    fileContent,
+    symbols,
+  } as const);
+};
+
 export const lookupKind = (kind: DocumentSymbol['kind']): string => {
   switch (kind) {
     case 1: return 'File'
@@ -36,56 +68,44 @@ export const lookupKind = (kind: DocumentSymbol['kind']): string => {
   }
 
 }
-export function LanguageServerProtocol() {
-  // const { symbols, fileContent, path } = useLoaderData<typeof loader>();
-  const lines = React.useMemo(() => fileContent.split("\n"), [fileContent]);
-  const fetcher = useFetcher<typeof loader>()
-
+export default function LanguageServerProtocol() {
+  const data = useLoaderData<typeof loader>()
   const params = useParams()
-  const currentFile = '/' + params['*']
   const project = params.project
   invariant(project !== undefined, 'project is undefined')
 
-
-  React.useEffect(() => {
-    if (fetcher.state === "idle"
-      && fetcher.data === undefined
-    ) {
-      fetcher.load('/lsp/api/' + project + '/ls?path=' + (currentFile));
+  const lines = React.useMemo(() => {
+    if (data?.type === 'symbols') {
+      return data.fileContent.split('\n')
     }
-  }, [currentFile, fetcher, project]);
-  const data = fetcher.data;
+    return [] as string[]
+  }, [data]);
 
   return (
     <div className="flex">
 
       <div>
-        <div>Symbols found in {currentFile}</div>
+        <div>Symbols found in {data.path}</div>
         <hr />
 
-        {fetcher.state === "loading" && (
-          <div>Loading...</div>
-        )}
-        {fetcher.data && (
-
+        {data?.type === 'symbols' && (
           <ul>
-            {fetcher.data.symbols.map((symbol, i) => (
+            {data.symbols.map((symbol, i) => (
               <SymbolViewer lines={lines} symbol={symbol} key={i} />
             ))}
-            {fetcher.data.symbols.length === 0 && (
+            {data.symbols.length === 0 && (
               <div>
                 No symbols found. Showing source instead.
-                <Code>{fetcher.data.fileContent}</Code>
+                <Code>{data.fileContent}</Code>
               </div>
             )}
           </ul>
-
         )}
-
       </div>
     </div >
   );
 }
+
 function getRange(lines: string[], range: DocumentSymbol['range']) {
   let subset = lines.slice(range.start.line, range.end.line + 1);
   subset[0] = subset[0].slice(range.start.character);

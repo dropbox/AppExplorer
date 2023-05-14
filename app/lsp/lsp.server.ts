@@ -11,23 +11,21 @@ import type {
 } from "vscode-languageserver-protocol";
 import { DocumentSymbolRequest } from "vscode-languageserver-protocol";
 import { URI } from "vscode-uri";
-import * as fs from "fs/promises";
+import { fs } from "~/fs-promises.server";
 import { spawn } from "node:child_process";
 import * as rpc from "vscode-jsonrpc";
 import identity from "lodash.identity";
 import path from "path";
 import type { Params } from "@remix-run/react";
+import { getProjects } from "./projects";
 export { getTypescriptConnection } from "./ts";
 
-type Project = {
+export type Project = {
+  readonly name: string;
   readonly root: string;
+  // readonly registrations?: Array<Registration>;
+  plugins: Array<string>;
 };
-export const LSPProjects = {
-  AppExplorer: {
-    root: path.join(__dirname, "../"),
-  },
-} as const;
-
 export function launchLanguageServer(
   command: string,
   args: string[]
@@ -113,9 +111,12 @@ export function goToDefinition(
   );
 }
 
-export function requireProject(params: Params): readonly [string, Project] {
-  const projectName = params.project as keyof typeof LSPProjects;
-  const project = LSPProjects[projectName];
+export async function requireProject(
+  params: Params
+): Promise<readonly [string, Project]> {
+  const projectName = params.project as string;
+  const projects = await getProjects();
+  const project = projects[projectName];
   if (!project) {
     throw new Response("Project not found", { status: 404 });
   }

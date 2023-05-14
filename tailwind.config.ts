@@ -5,6 +5,10 @@ export default {
   theme: {
     extend: {},
     colors: {
+      transparent: "transparent",
+      black: "#000000",
+      white: "#ffffff",
+
       dropboxBlue: "#0061FF",
       coconut: "#F7F5F2",
       graphite: "#1E1919",

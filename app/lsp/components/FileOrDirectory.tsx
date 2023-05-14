@@ -1,4 +1,4 @@
-import { Link, useLocation, useMatches, useParams } from "@remix-run/react";
+import { Link, useSearchParams } from "@remix-run/react";
 import React from "react";
 import { useFetcher } from "react-router-dom";
 import type { ApiLsResponse } from "../../routes/lsp_.api_.$project_.ls";
@@ -12,8 +12,8 @@ type FileOrDirectoryProps = {
   to: string;
 };
 export function FileOrDirectory({ type, project, path, to, name }: FileOrDirectoryProps) {
-  const params = useParams()
-  const currentFile = '/' + params['*']
+  const [searchParams] = useSearchParams()
+  const currentFile = '/' + searchParams.get('path')
   const isActive = currentFile.startsWith(path);
   const [expand, setExpand] = React.useState(path === "" || isActive);
   const fetcher = useFetcher<ApiLsResponse>();
@@ -24,7 +24,7 @@ export function FileOrDirectory({ type, project, path, to, name }: FileOrDirecto
       && expand
       && fetcher.data === undefined
     ) {
-      fetcher.load('/lsp/api/' + project + '/ls?path=' + (path));
+      fetcher.load('/lsp/api/' + project + '/ls?path=' + path);
     }
   }, [expand, fetcher, path, project, type]);
   const data = fetcher.data;
@@ -38,7 +38,7 @@ export function FileOrDirectory({ type, project, path, to, name }: FileOrDirecto
           "text-coconut": isActive,
         }
       )} >
-        <Link to={"/lsp/" + project + "/" + to + path}>
+        <Link to={"/lsp/" + project + "/" + to + path} onClick={e => e.stopPropagation()}>
           {name}
         </Link>
       </li>

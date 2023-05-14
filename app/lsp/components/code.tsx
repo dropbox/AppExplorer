@@ -20,7 +20,7 @@ export const Code = ({ children, line = 1 }: React.PropsWithChildren<Props>): JS
   }
 
   return (
-    <div className="bg-black p-2 m-2 max-h-[75vh] overflow-auto">
+    <div className="bg-graphite p-2 m-2 max-h-[75vh] overflow-auto">
       <code
         className="whitespace-pre text-white flex flex-col"
         style={{
