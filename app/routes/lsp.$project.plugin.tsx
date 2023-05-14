@@ -16,29 +16,7 @@ export const loader = async ({ params, request }: LoaderArgs) => {
   const url = new URL(request.url)
   const path = url.searchParams.get("path") ?? ''
 
-  const routeFiles = await fs.readdir(fsPath.join(__dirname, '../app/routes'))
-
-  const plugins = routeFiles.filter(file =>
-    file !== 'lsp.$project.tsx'
-    && (
-      file.startsWith(`lsp.plugin.${projectName}.`)
-      || file.startsWith(`lsp.$project.`)
-    )
-  ).flatMap(pluginFilename => {
-    const parts = pluginFilename.split('.')
-    console.log(parts)
-    invariant(parts.shift() === 'lsp', 'Expected to start with lsp')
-    invariant(parts.shift() === '$project', 'Missing $project')
-    invariant(parts.pop() === 'tsx', 'Expected to end with tsx')
-    if (parts[0] === 'plugin' && parts.length > 1) {
-      parts.shift()
-      return {
-        name: parts.join('.'),
-        path: parts.join('/'),
-      }
-    }
-    return []
-  })
+  const plugins = await getPlugins(projectName);
 
   return json({
     projectName,
@@ -47,6 +25,36 @@ export const loader = async ({ params, request }: LoaderArgs) => {
   })
 }
 
+
+export async function getPlugins(projectName: string) {
+  const routeFiles = await fs.readdir(fsPath.join(__dirname, '../app/routes'));
+  const plugins = routeFiles.filter(file => file !== 'lsp.$project.tsx'
+    && (
+      file.startsWith(`lsp.plugin.${projectName}.`)
+      || file.startsWith(`lsp.$project.`)
+    )
+  ).flatMap(pluginFilename => {
+    const parts = pluginFilename.split('.');
+    console.log(parts);
+    invariant(parts.shift() === 'lsp', 'Expected to start with lsp');
+    invariant(parts.shift() === '$project', 'Missing $project');
+    invariant(parts.pop() === 'tsx', 'Expected to end with tsx');
+    if (
+      parts[0] === 'plugin'
+      && parts.length > 1
+      && parts[1] !== '_index'
+    ) {
+      parts.shift();
+
+      return {
+        name: parts.join('.'),
+        path: parts.join('/'),
+      };
+    }
+    return [];
+  });
+  return plugins;
+}
 
 export default function () {
   const { path, tabs, projectName } = useLoaderData<typeof loader>()
@@ -74,6 +82,11 @@ export default function () {
             Menu
           </button>
         )}
+        <Tab
+          expand={expand}
+          to={`/lsp/${projectName}/?path=${path}`}>
+          Browse
+        </Tab>
         {tabs.map(tab => (
           <Tab
             key={tab.name}
