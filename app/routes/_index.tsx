@@ -6,6 +6,15 @@ async function init() {
   miro.board.ui.on("icon:click", async () => {
     await miro.board.ui.openPanel({ url: "/lsp" });
   });
+
+  miro.board.ui.on('selection:update', async (event) => {
+    event.items.forEach(async (item) => {
+      console.log(
+        item.id,
+        await item.getMetadata('path')
+      )
+    })
+  })
 }
 
 export default function Index() {

@@ -6,9 +6,9 @@ import { json } from "@remix-run/node";
 import { requireProject } from "~/lsp/lsp.server";
 import { fs } from "~/fs-promises.server";
 import * as fsPath from "path";
+import { MiroShape } from "~/lsp/components/miro-shape";
 
 export const links = codeLinks
-
 
 export const loader = async ({ params, request }: LoaderArgs) => {
   const [, project] = await requireProject(params);
@@ -28,6 +28,7 @@ export const loader = async ({ params, request }: LoaderArgs) => {
   if (stat.isDirectory()) {
     return json({
       type: 'directory'
+      path,
     } as const)
   } else if (stat.isFile()) {
     return json({
@@ -57,6 +58,16 @@ export default function ViewFile() {
         {data?.type === 'cat' && (
           <Code>{data.content}</Code>
         )}
+        <MiroShape
+          shape='circle'
+          content="Hello World"
+          meta={{
+            path: data.path,
+            project,
+          }}
+          width={70}
+          height={30}
+        />
       </div>
     </div >
   );

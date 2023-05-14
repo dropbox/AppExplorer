@@ -96,7 +96,9 @@ export default function () {
           </Tab>
         ))}
       </nav>
-      <Outlet />
+      <div className="overflow-auto">
+        <Outlet />
+      </div>
     </div>
   )
 }
