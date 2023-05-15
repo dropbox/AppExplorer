@@ -8,3 +8,8 @@ code span:before {
   display: inline-block;
   padding-right: 1em;
 }
+
+code .active,
+code span:hover:before {
+  color: #f00;
+}

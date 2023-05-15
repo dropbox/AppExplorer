@@ -27,7 +27,7 @@ export const loader = async ({ params, request }: LoaderArgs) => {
 
   if (stat.isDirectory()) {
     return json({
-      type: 'directory'
+      type: 'directory',
       path,
     } as const)
   } else if (stat.isFile()) {
@@ -56,7 +56,7 @@ export default function ViewFile() {
         <div>{currentFile}</div>
         <hr />
         {data?.type === 'cat' && (
-          <Code>{data.content}</Code>
+          <Code path={data.path}>{data.content}</Code>
         )}
         <MiroShape
           shape='circle'

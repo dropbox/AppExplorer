@@ -1,4 +1,4 @@
-import type { DropEvent } from '@mirohq/websdk-types';
+import type { DropEvent, Shape } from '@mirohq/websdk-types';
 import type { ShapeProps } from '@mirohq/websdk-types';
 import classNames from 'classnames';
 import React, { useId } from 'react'
@@ -11,7 +11,8 @@ const defaultStyles = {
   borderStyle: 'normal',
   borderOpacity: 1,
   color: "#007891",
-  borderWidth: 1
+  borderWidth: 1,
+  fontSize: 28,
 }
 
 type Meta = Record<string, string | number | boolean | object | undefined>
@@ -19,7 +20,8 @@ type Meta = Record<string, string | number | boolean | object | undefined>
 
 type Props = {
   shape?: ShapeProps['shape']
-  content: string,
+  content: React.ReactNode,
+  onDrop?: (shape: Shape) => void,
   width: number,
   height: number,
   style?: ShapeProps['style']
@@ -29,72 +31,83 @@ export const MiroShape = ({
   shape = 'round_rectangle',
   content,
   width,
+  onDrop,
   height,
   style = {},
   meta = {},
 }: Props) => {
   const id = useId()
+  const self = React.useRef<HTMLDivElement>(null)
 
   const shapeStyle = React.useMemo(() => {
     return Object.assign({}, defaultStyles, style)
   }, [style])
 
-  const onDrop = React.useCallback(async (x: number, y: number) => {
+  const handleDrop = React.useCallback(async (x: number, y: number) => {
+    const zoom = await miro.board.viewport.getZoom()
     const shapeItem = await miro.board.createShape({
       x,
       y,
-      width,
-      height,
+      width: width / zoom,
+      height: height / zoom,
       shape,
-      content: content,
-      style: shapeStyle,
+      content: self.current?.innerHTML ?? '(empty)',
+      style: {
+        ...shapeStyle,
+        fontSize: Math.round(shapeStyle.fontSize / zoom),
+      },
     });
-    await Promise.all(Object.entries(meta).map(([key, value]) => {
-      console.log('set', key, value)
-      return shapeItem.setMetadata(key, value as any)
+    await Promise.all(Object.entries(meta).map(async ([key, value]) => {
+      if (value != null) {
+        console.log('set', key, value)
+        return shapeItem.setMetadata(key, value as any)
+      }
     }))
     await shapeItem.sync();
-    console.log({ shapeItem })
-  }, [content, height, meta, shape, shapeStyle, width])
+    onDrop?.(shapeItem)
+  }, [height, meta, onDrop, shape, shapeStyle, width])
 
   React.useEffect(() => {
-    async function handleDrop({ x, y, target }: DropEvent) {
+    async function dropHandle({ x, y, target }: DropEvent) {
       if (target.dataset.id === id) {
-        onDrop(x, y);
+        handleDrop(x, y);
       }
     }
 
-    miro.board.ui.on("drop", handleDrop);
-    return () => miro.board.ui.off("drop", handleDrop);
-  }, [id, onDrop]);
+    miro.board.ui.on("drop", dropHandle);
+    return () => miro.board.ui.off("drop", dropHandle);
+  }, [id, handleDrop]);
 
   return (
-    <div className={classNames(
-      'max-w-xs',
-      'miro-draggable p-2', {
-      'rounded-lg': shape === 'round_rectangle',
-      'rounded-[100%]': shape === 'circle',
+    <div
+      ref={self}
+      className={classNames(
+        'max-w-xs',
+        'miro-draggable draggable-item relative p-2', {
+        'rounded-lg': shape === 'round_rectangle',
+        'rounded-[100%]': shape === 'circle',
 
-      'text-center': shapeStyle.textAlign === 'center',
-      'text-left': shapeStyle.textAlign === 'left',
-      'text-right': shapeStyle.textAlign === 'right',
+        'text-center': shapeStyle.textAlign === 'center',
+        'text-left': shapeStyle.textAlign === 'left',
+        'text-right': shapeStyle.textAlign === 'right',
 
-      'flex flex-col justify-around': shapeStyle.textAlignVertical === 'middle',
-      'flex flex-col justify-start': shapeStyle.textAlignVertical === 'top',
-      'flex flex-col justify-end': shapeStyle.textAlignVertical === 'bottom',
+        'flex flex-col justify-around': shapeStyle.textAlignVertical === 'middle',
+        'flex flex-col justify-start': shapeStyle.textAlignVertical === 'top',
+        'flex flex-col justify-end': shapeStyle.textAlignVertical === 'bottom',
 
-      'border-solid': shapeStyle.borderStyle === 'normal',
-      'border-0': shapeStyle.borderWidth === 0,
-      'border-2': shapeStyle.borderWidth === 1,
-      'border-4': shapeStyle.borderWidth === 2,
-      'border-8': shapeStyle.borderWidth === 3,
-    }
-    )}
+        'border-solid': shapeStyle.borderStyle === 'normal',
+        'border-0': shapeStyle.borderWidth === 0,
+        'border-2': shapeStyle.borderWidth === 1,
+        'border-4': shapeStyle.borderWidth === 2,
+        'border-8': shapeStyle.borderWidth === 3,
+      }
+      )}
       style={{
         backgroundColor: shapeStyle.fillColor,
         aspectRatio: `${width}/${height}`,
         color: shapeStyle.color,
         borderColor: shapeStyle.borderColor,
+        fontSize: shapeStyle.fontSize,
       }}
       data-id={id}>
       <span>
