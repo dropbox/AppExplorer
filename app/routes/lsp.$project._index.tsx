@@ -23,7 +23,7 @@ export default function () {
   const { projectName } = useLoaderData<typeof loader>()
 
   return (
-    <ul className="flex bg-coconut w-full">
+    <ul className="flex bg-coconut w-full h-full overflow-auto">
       <FileOrDirectory
         project={projectName}
         path=""

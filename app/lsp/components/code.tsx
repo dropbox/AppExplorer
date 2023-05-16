@@ -10,13 +10,19 @@ export const links: LinksFunction = () => [
 
 type Props = {
   line?: number
-  path: string,
+  shapeMeta?: {
+    projectName: string,
+    path: string,
+  }
 };
 
-export const Code = ({ children, line = 1, path }: React.PropsWithChildren<Props>): JSX.Element => {
+export const Code = ({ children, line = 1, shapeMeta }: React.PropsWithChildren<Props>): JSX.Element => {
   const [lineSelection, setLineSelection] = React.useState<number[]>([])
 
   const selectLine = React.useCallback((line: number) => {
+    // Only select lines if this component has metadata for a shape.
+    if (!shapeMeta) { return }
+
     setLineSelection((prev) => {
       const lastSelection = prev[prev.length - 1]
       if (lastSelection == undefined) {
@@ -28,7 +34,7 @@ export const Code = ({ children, line = 1, path }: React.PropsWithChildren<Props
       }
       return []
     })
-  }, [])
+  }, [shapeMeta])
 
 
   const textSelection = React.useMemo(() => {
@@ -46,24 +52,22 @@ export const Code = ({ children, line = 1, path }: React.PropsWithChildren<Props
 
   return (
     <div className="bg-graphite p-2 m-2 max-h-[75vh] overflow-auto">
-      {textSelection.length > 0 && (
+      {textSelection.length > 0 && shapeMeta && (
         <MiroShape
           content={textSelection}
           shape="round_rectangle"
           onDrop={(shape) => {
-            console.log('onDrop', shape)
             setLineSelection([])
-          }
-          }
-          width={70}
-          height={30}
+          }}
+          width={300}
+          height={150}
           style={{
             textAlign: 'left',
             fontSize: 12,
           }}
           meta={{
-            path,
-            lintes: lineSelection.join('-'),
+            ...shapeMeta,
+            lines: lineSelection.join('-'),
           }}
         />
       )}

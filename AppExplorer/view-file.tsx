@@ -1,17 +1,16 @@
-import { useLoaderData, useParams, useSearchParams } from "@remix-run/react";
+import { useLoaderData, useSearchParams } from "@remix-run/react";
 import { Code, links as codeLinks } from "~/lsp/components/code";
-import invariant from "tiny-invariant";
 import type { LoaderArgs } from "@remix-run/node";
+import { redirect } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { requireProject } from "~/lsp/lsp.server";
 import { fs } from "~/fs-promises.server";
 import * as fsPath from "path";
-import { MiroShape } from "~/lsp/components/miro-shape";
 
 export const links = codeLinks
 
 export const loader = async ({ params, request }: LoaderArgs) => {
-  const [, project] = await requireProject(params);
+  const [projectName, project] = await requireProject(params);
   const url = new URL(request.url)
   const path = url.searchParams.get("path") ?? ''
   if (typeof path !== "string") {
@@ -26,14 +25,11 @@ export const loader = async ({ params, request }: LoaderArgs) => {
   const stat = await fs.stat(requestedPath)
 
   if (stat.isDirectory()) {
-    return json({
-      type: 'directory',
-      path,
-    } as const)
+    throw redirect(`/lsp/${projectName}/?path=${path}`)
   } else if (stat.isFile()) {
     return json({
-      type: "cat",
       path,
+      projectName,
       content: await fs.readFile(requestedPath, 'utf-8'),
     } as const);
   } else {
@@ -41,13 +37,11 @@ export const loader = async ({ params, request }: LoaderArgs) => {
   }
 }
 
+
 export default function ViewFile() {
   const data = useLoaderData<typeof loader>()
-  const params = useParams()
   const [searchParams] = useSearchParams()
   const currentFile = (searchParams.get('path') ?? '')
-  const project = params.project
-  invariant(project !== undefined, 'project is undefined')
 
 
   return (
@@ -55,19 +49,10 @@ export default function ViewFile() {
       <div>
         <div>{currentFile}</div>
         <hr />
-        {data?.type === 'cat' && (
-          <Code path={data.path}>{data.content}</Code>
-        )}
-        <MiroShape
-          shape='circle'
-          content="Hello World"
-          meta={{
-            path: data.path,
-            project,
-          }}
-          width={70}
-          height={30}
-        />
+        <Code shapeMeta={{
+          path: data.path,
+          projectName: data.projectName,
+        }}>{data.content}</Code>
       </div>
     </div >
   );

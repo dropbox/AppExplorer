@@ -15,27 +15,30 @@ const defaultStyles = {
   fontSize: 28,
 }
 
-type Meta = Record<string, string | number | boolean | object | undefined>
+type Meta = {
+  projectName?: string,
+  path?: string
+}
 
 
-type Props = {
+type Props<M extends Meta> = {
   shape?: ShapeProps['shape']
   content: React.ReactNode,
   onDrop?: (shape: Shape) => void,
   width: number,
   height: number,
   style?: ShapeProps['style']
-  meta?: Meta
+  meta?: M
 }
-export const MiroShape = ({
+export const MiroShape = <M extends Meta>({
   shape = 'round_rectangle',
   content,
   width,
   onDrop,
   height,
   style = {},
-  meta = {},
-}: Props) => {
+  meta,
+}: Props<M>) => {
   const id = useId()
   const self = React.useRef<HTMLDivElement>(null)
 
@@ -57,7 +60,7 @@ export const MiroShape = ({
         fontSize: Math.round(shapeStyle.fontSize / zoom),
       },
     });
-    await Promise.all(Object.entries(meta).map(async ([key, value]) => {
+    await Promise.all(Object.entries(meta || {}).map(async ([key, value]) => {
       if (value != null) {
         console.log('set', key, value)
         return shapeItem.setMetadata(key, value as any)

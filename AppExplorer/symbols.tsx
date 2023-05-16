@@ -1,12 +1,10 @@
-import { useLoaderData, useParams } from "@remix-run/react";
+import { useLoaderData } from "@remix-run/react";
 import type { DocumentSymbol } from "vscode-languageserver-protocol";
 import React from "react";
 import { Code } from "~/lsp/components/code";
-import invariant from "tiny-invariant";
 import type { LoaderArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import * as lspServer from "~/lsp/lsp.server";
-
 
 export const loader = async ({ params, request }: LoaderArgs) => {
   const [projectName, project] = await lspServer.requireProject(params);
@@ -70,9 +68,6 @@ export const lookupKind = (kind: DocumentSymbol['kind']): string => {
 }
 export default function LanguageServerProtocol() {
   const data = useLoaderData<typeof loader>()
-  const params = useParams()
-  const project = params.project
-  invariant(project !== undefined, 'project is undefined')
 
   const lines = React.useMemo(() => {
     if (data?.type === 'symbols') {
