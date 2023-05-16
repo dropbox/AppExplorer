@@ -68,6 +68,7 @@ export const Code = ({ children, line = 1, shapeMeta }: React.PropsWithChildren<
           meta={{
             ...shapeMeta,
             lines: lineSelection.join('-'),
+            fileId: `${shapeMeta.projectName}/${shapeMeta.path}`
           }}
         />
       )}

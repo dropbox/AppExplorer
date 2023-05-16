@@ -1,4 +1,4 @@
-import type { DropEvent, Shape } from '@mirohq/websdk-types';
+import type { AppDataValue, DropEvent, Shape } from '@mirohq/websdk-types';
 import type { ShapeProps } from '@mirohq/websdk-types';
 import classNames from 'classnames';
 import React, { useId } from 'react'
@@ -15,22 +15,17 @@ const defaultStyles = {
   fontSize: 28,
 }
 
-type Meta = {
-  projectName?: string,
-  path?: string
-}
 
-
-type Props<M extends Meta> = {
+type Props = {
   shape?: ShapeProps['shape']
   content: React.ReactNode,
   onDrop?: (shape: Shape) => void,
   width: number,
   height: number,
   style?: ShapeProps['style']
-  meta?: M
+  meta?: Record<string, AppDataValue>
 }
-export const MiroShape = <M extends Meta>({
+export const MiroShape = ({
   shape = 'round_rectangle',
   content,
   width,
@@ -38,7 +33,7 @@ export const MiroShape = <M extends Meta>({
   height,
   style = {},
   meta,
-}: Props<M>) => {
+}: Props) => {
   const id = useId()
   const self = React.useRef<HTMLDivElement>(null)
 
