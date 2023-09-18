@@ -4,7 +4,7 @@
   "description": "Helps build documentation while navigating through code",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.82.0"
+    "vscode": "^1.80.0"
   },
   "categories": [
     "Other"

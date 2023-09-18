@@ -37,7 +37,7 @@ export function makeExpressServer(
   app.use(compression());
   app.use(
     "/",
-    express.static(path.join(__dirname, "../public"), { index: "index.html" })
+    express.static(path.join(__dirname, "public"), { index: "index.html" })
   );
 
   // You may want to be more aggressive with this caching

@@ -2,12 +2,12 @@
 /**
  * @typedef {import('@mirohq/websdk-types').Miro} Miro
  * @typedef {import('@mirohq/websdk-types').Card} Card
- * @typedef {import("../src/EventTypes").RequestEvents} RequestEvents
- * @typedef {import('../src/EventTypes').CardGutter} CardGutter
- * @typedef {import('../src/EventTypes').CardData} CardData
+ * @typedef {import("../EventTypes").RequestEvents} RequestEvents
+ * @typedef {import('../EventTypes').CardGutter} CardGutter
+ * @typedef {import('../EventTypes').CardData} CardData
  * @typedef {import("socket.io-client").Socket<
- *     import("../src/EventTypes").RequestEvents,
- *     import("../src/EventTypes").ResponseEvents,
+ *     import("../EventTypes").RequestEvents,
+ *     import("../EventTypes").ResponseEvents,
  * >} Socket
  */
 
@@ -52,7 +52,7 @@ const newCard = async (data) => {
 };
 
 /**
- * @type {import('../src/EventTypes').Handler<
+ * @type {import('../EventTypes').Handler<
  *     RequestEvents['activeEditor'],
  *     Promise<Array<CardData>>
  * >}
