@@ -15,7 +15,7 @@
  * @type {import('../src/EventTypes').Handler<RequestEvents['newCard'], Promise<void>>}
  */
 const newCard = async (data) => {
-  const { title, path, symbolPosition } = data;
+  const { title, path } = data;
   const zoom = await miro.board.viewport.getZoom();
   const viewport = await miro.board.viewport.get();
 
@@ -31,9 +31,6 @@ const newCard = async (data) => {
   const fields = [
     {
       value: path,
-    },
-    {
-      value: `position:${symbolPosition.start.line},${symbolPosition.start.character}-${symbolPosition.end.line},${symbolPosition.end.character}}`,
     },
   ];
 
