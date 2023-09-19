@@ -12,7 +12,7 @@
  */
 
 /**
- * @type {RequestEvents['newCard']}
+ * @type {import('../src/EventTypes').Handler<RequestEvents['newCard'], Promise<void>>]}
  */
 const newCard = async (data) => {
   const { title, path, symbolPosition } = data;
@@ -59,6 +59,7 @@ const newCard = async (data) => {
  */
 export async function activeEditor(path) {
   const allCards = await miro.board.get({ type: "card" });
+  const boardId = await miro.board.getInfo().then((info) => info.id);
   const results = await allCards.reduce(
     /**
      *
@@ -84,7 +85,11 @@ export async function activeEditor(path) {
       if (data && data.path === path) {
         allCards.push({
           card,
-          data,
+          data: {
+            ...data,
+            miroLink: `https://miro.com/app/board/${boardId}/?moveToWidget=${card.id}`,
+            description: card.description,
+          },
         });
       } else if (!data) {
         const pathField = card.fields?.find(({value}) => value?.startsWith(path))
@@ -150,7 +155,9 @@ async function upgradeCard(pathField, card, path, allCards) {
  */
 export function attachToSocket(socket) {
   socket.on("newCard", (event) => {
-    newCard(event);
+    newCard(event).then(() => {
+      activeEditor(event.path);
+    });
   });
 
   socket.on("activeEditor", (uri) => {

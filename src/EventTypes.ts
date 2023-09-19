@@ -10,6 +10,8 @@ export type JSPosition = {
 export type CardData = {
   title: string;
   path: string;
+  description?: string;
+  miroLink?: string;
   symbolPosition: {
     start: JSPosition;
     end: JSPosition;
