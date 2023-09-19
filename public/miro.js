@@ -12,7 +12,7 @@
  */
 
 /**
- * @type {import('../src/EventTypes').Handler<RequestEvents['newCard'], Promise<void>>]}
+ * @type {import('../src/EventTypes').Handler<RequestEvents['newCard'], Promise<void>>}
  */
 const newCard = async (data) => {
   const { title, path, symbolPosition } = data;
@@ -80,7 +80,16 @@ export async function activeEditor(path) {
       /**
        * @type {CardData}
        */
-      const data = metadata.data;
+      let data = metadata.data;
+
+      if (!data) {
+        const pathField = card.fields?.find(({ value }) =>
+          value?.startsWith(path)
+        );
+        if (pathField && pathField.value) {
+          data = await upgradeCard(pathField.value, card, path, allCards);
+        }
+      }
 
       if (data && data.path === path) {
         allCards.push({
@@ -91,11 +100,6 @@ export async function activeEditor(path) {
             description: card.description,
           },
         });
-      } else if (!data) {
-        const pathField = card.fields?.find(({value}) => value?.startsWith(path))
-        if (pathField && pathField.value) {
-          await upgradeCard(pathField.value, card, path, allCards);
-        }
       }
 
       return allCards;
@@ -119,18 +123,19 @@ export async function activeEditor(path) {
  * @param {{ card: any; data: import("../src/EventTypes").CardData; }[]} allCards
  */
 async function upgradeCard(pathField, card, path, allCards) {
-  const lines = pathField.split('#')[1];
-  const [startLine, endLine] = lines?.split('-').map((n) => parseInt(n, 10)) ?? [];
+  const lines = pathField.split("#")[1];
+  const [startLine, endLine] =
+    lines?.split("-").map((n) => parseInt(n, 10)) ?? [];
 
   const symbolPosition = {
     start: {
       line: startLine,
-      character: 0
+      character: 0,
     },
     end: {
       line: endLine,
       character: Number.MAX_SAFE_INTEGER,
-    }
+    },
   };
   /**
    * @type {CardData} CardData
@@ -146,8 +151,9 @@ async function upgradeCard(pathField, card, path, allCards) {
 
   allCards.push({
     card,
-    data
+    data,
   });
+  return data;
 }
 
 /**
