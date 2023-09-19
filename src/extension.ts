@@ -15,25 +15,6 @@ export function activate(context: vscode.ExtensionContext) {
         const document = editor.document;
         const position = editor.selection.active;
 
-        // Fetch hover information
-        // const hover = await vscode.commands.executeCommand<vscode.Hover[]>(
-        //   "vscode.executeHoverProvider",
-        //   document.uri,
-        //   position
-        // );
-        // if (hover && hover.length > 0) {
-        //   const contents = hover[0].contents;
-
-        //   console.log({ contents });
-        //   vscode.window.showInformationMessage(
-        //     `Symbol Info: ${contents.map((c) => c.value).join(" ")}`
-        //   );
-        // } else {
-        //   vscode.window.showInformationMessage(
-        //     "No symbol information available."
-        //   );
-        // }
-
         // Fetch go to definition information
         const definitions = await vscode.commands.executeCommand<
           Array<vscode.LocationLink | vscode.Location>
@@ -41,7 +22,6 @@ export function activate(context: vscode.ExtensionContext) {
 
         if (definitions && definitions.length > 0) {
           const def = definitions[0];
-          console.log({ def });
 
           if ("targetUri" in def && "targetSelectionRange" in def) {
             const symbolRange = def.targetSelectionRange!;
@@ -49,7 +29,6 @@ export function activate(context: vscode.ExtensionContext) {
 
             const path = getRelativePath(def.targetUri)!;
 
-            console.log({ path });
             io.emit("newCard", {
               title,
               path: path,
@@ -104,7 +83,6 @@ export function activate(context: vscode.ExtensionContext) {
     const editor = vscode.window.visibleTextEditors.find(
       (editor) => getRelativePath(editor.document.uri) === path
     );
-    console.log("editor", editor, cards);
     if (editor) {
       const decorations: vscode.DecorationOptions[] = [];
       cards.forEach((card: CardData) => {
@@ -175,7 +153,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {}
 
-function getRelativePath(uri: vscode.Uri): string | undefined {
+export function getRelativePath(uri: vscode.Uri): string | undefined {
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (workspaceFolders) {
     for (const folder of workspaceFolders) {

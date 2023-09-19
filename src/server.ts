@@ -6,6 +6,7 @@ import express = require("express");
 import morgan = require("morgan");
 import { Server } from "socket.io";
 import { Handler, RequestEvents, ResponseEvents } from "./EventTypes";
+import { getRelativePath } from "./extension";
 
 export function makeExpressServer(
   cardsInEditor: Handler<ResponseEvents["cardsInEditor"]>
@@ -26,18 +27,21 @@ export function makeExpressServer(
 
     vscode.window.showInformationMessage(`Socket ${socket.id} connected`);
 
+    const uri = vscode.window.activeTextEditor?.document.uri;
+    if (uri) {
+      const path = getRelativePath(uri);
+      if (path) {
+        io.emit("activeEditor", path);
+      }
+    }
+
     socket.on("cardsInEditor", cardsInEditor);
-    // socket.on("cardsInEditor", (data) => {
-    //   vscode.window.showInformationMessage(
-    //     `cardsInEditor ${socket.id} ${JSON.stringify(data)}`
-    //   );
-    // });
   });
 
   app.use(compression());
   app.use(
     "/",
-    express.static(path.join(__dirname, "public"), { index: "index.html" })
+    express.static(path.join(__dirname, "../public"), { index: "index.html" })
   );
 
   // You may want to be more aggressive with this caching
@@ -52,7 +56,6 @@ export function makeExpressServer(
     console.log(`Express server listening on port ${port}`);
   });
 
-  console.log({ httpServer });
 
   return io;
 }

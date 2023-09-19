@@ -2,12 +2,12 @@
 /**
  * @typedef {import('@mirohq/websdk-types').Miro} Miro
  * @typedef {import('@mirohq/websdk-types').Card} Card
- * @typedef {import("../EventTypes").RequestEvents} RequestEvents
- * @typedef {import('../EventTypes').CardGutter} CardGutter
- * @typedef {import('../EventTypes').CardData} CardData
+ * @typedef {import("../src/EventTypes").RequestEvents} RequestEvents
+ * @typedef {import('../src/EventTypes').CardGutter} CardGutter
+ * @typedef {import('../src/EventTypes').CardData} CardData
  * @typedef {import("socket.io-client").Socket<
- *     import("../EventTypes").RequestEvents,
- *     import("../EventTypes").ResponseEvents,
+ *     import("../src/EventTypes").RequestEvents,
+ *     import("../src/EventTypes").ResponseEvents,
  * >} Socket
  */
 
@@ -52,7 +52,7 @@ const newCard = async (data) => {
 };
 
 /**
- * @type {import('../EventTypes').Handler<
+ * @type {import('../src/EventTypes').Handler<
  *     RequestEvents['activeEditor'],
  *     Promise<Array<CardData>>
  * >}
@@ -86,6 +86,11 @@ export async function activeEditor(path) {
           card,
           data,
         });
+      } else if (!data) {
+        const pathField = card.fields?.find(({value}) => value?.startsWith(path))
+        if (pathField && pathField.value) {
+          await upgradeCard(pathField.value, card, path, allCards);
+        }
       }
 
       return allCards;
@@ -100,6 +105,44 @@ export async function activeEditor(path) {
   }
 
   return results.map((r) => r.data);
+}
+
+/**
+ * @param {string} pathField
+ * @param {import("@mirohq/websdk-types").Card} card
+ * @param {string} path
+ * @param {{ card: any; data: import("../src/EventTypes").CardData; }[]} allCards
+ */
+async function upgradeCard(pathField, card, path, allCards) {
+  const lines = pathField.split('#')[1];
+  const [startLine, endLine] = lines?.split('-').map((n) => parseInt(n, 10)) ?? [];
+
+  const symbolPosition = {
+    start: {
+      line: startLine,
+      character: 0
+    },
+    end: {
+      line: endLine,
+      character: Number.MAX_SAFE_INTEGER,
+    }
+  };
+  /**
+   * @type {CardData} CardData
+   */
+  const data = {
+    title: card.title,
+    path,
+    symbolPosition: symbolPosition,
+    definitionPosition: symbolPosition,
+  };
+
+  await card.setMetadata("data", data);
+
+  allCards.push({
+    card,
+    data
+  });
 }
 
 /**
