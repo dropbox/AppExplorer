@@ -12,10 +12,37 @@
  */
 
 /**
+ * Updates the data of a blank card.
+ *
+ * @param {Card} card The card to update.
+ * @param {Partial<CardData>} data The data to update the card with.
+ */
+async function updateCard(card, data) {
+  if (data.title) {
+    card.title = data.title;
+  }
+  if (data.codeLink) {
+    card.description = data.codeLink;
+  }
+  /**
+   * @type {import('@mirohq/websdk-types').CardField[]}
+   */
+  const fields = [
+    {
+      value: data.path,
+      tooltip: data.path,
+    },
+  ];
+  card.fields = fields;
+
+  await card.sync();
+  await card.setMetadata("app-explorer", data);
+}
+
+/**
  * @type {import('../src/EventTypes').Handler<RequestEvents['newCard'], Promise<void>>}
  */
 const newCard = async (data) => {
-  const { title, path } = data;
   const zoom = await miro.board.viewport.getZoom();
   const viewport = await miro.board.viewport.get();
 
@@ -23,29 +50,15 @@ const newCard = async (data) => {
   const y = viewport.y + viewport.height / 2;
   const width = 300;
   const height = 200;
-  const projectTag = null;
-  const style = {};
-  /**
-   * @type {import('@mirohq/websdk-types').CardField[]}
-   */
-  const fields = [
-    {
-      value: path,
-    },
-  ];
 
   const card = await miro.board.createCard({
     x,
     y,
     width: width / zoom,
     height: height / zoom,
-    title,
-    style,
-    tagIds: projectTag ? [projectTag] : [],
-    fields,
   });
 
-  await card.setMetadata("data", data);
+  return updateCard(card, data);
 };
 
 /**
@@ -84,7 +97,7 @@ export async function activeEditor(path) {
           value?.startsWith(path)
         );
         if (pathField && pathField.value) {
-          data = await upgradeCard(pathField.value, card, path, allCards);
+          data = await updateOlderCard(pathField.value, card, path, allCards);
         }
       }
 
@@ -119,7 +132,7 @@ export async function activeEditor(path) {
  * @param {string} path
  * @param {{ card: any; data: import("../src/EventTypes").CardData; }[]} allCards
  */
-async function upgradeCard(pathField, card, path, allCards) {
+async function updateOlderCard(pathField, card, path, allCards) {
   const lines = pathField.split("#")[1];
   const [startLine, endLine] =
     lines?.split("-").map((n) => parseInt(n, 10)) ?? [];
@@ -138,18 +151,18 @@ async function upgradeCard(pathField, card, path, allCards) {
    * @type {CardData} CardData
    */
   const data = {
-    title: card.title,
+    title: card.title.split(" ")[0],
     path,
+    codeLink: card.description,
     symbolPosition: symbolPosition,
     definitionPosition: symbolPosition,
   };
-
-  await card.setMetadata("data", data);
 
   allCards.push({
     card,
     data,
   });
+  await updateCard(card, data);
   return data;
 }
 
@@ -162,6 +175,11 @@ export function attachToSocket(socket) {
       activeEditor(event.path);
     });
   });
+  //   socket.on("updateCard", (cardUrl, data) => {
+  //     newCard(data).then(() => {
+  //       activeEditor(data.path);
+  //     });
+  //   });
 
   socket.on("activeEditor", (uri) => {
     activeEditor(uri).then((cards) => {

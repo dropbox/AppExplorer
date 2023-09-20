@@ -12,6 +12,7 @@ export type CardData = {
   path: string;
   description?: string;
   miroLink?: string;
+  codeLink: string | null;
   symbolPosition: {
     start: JSPosition;
     end: JSPosition;
@@ -24,6 +25,7 @@ export type CardData = {
 
 export type RequestEvents = {
   newCard: (data: CardData) => void;
+  updateCard: (miroLink: string, data: CardData) => void;
   activeEditor: (uri: string) => void;
   jump: (data: {
     lastUri: string;
