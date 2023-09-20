@@ -73,7 +73,7 @@ export function activate(context: vscode.ExtensionContext) {
     overviewRulerLane: vscode.OverviewRulerLane.Right,
     isWholeLine: false,
     light: {
-      textDecoration: "underline wavy rgba(0, 255, 0, 0.1)",
+      textDecoration: "underline wavy rgba(0, 255, 0, 0.9)",
     },
     dark: {
       textDecoration: "underline wavy rgba(0, 255, 0, 0.3)",

@@ -120,11 +120,19 @@ export async function activeEditor(path) {
   const cards = results.map((r) => r.card);
   console.log("cards", cards);
   if (cards.length > 0) {
-    await miro.board.viewport.zoomTo(cards);
+    recentCards.push(cards)
+    setTimeout(() => {
+      recentCards = recentCards.filter((c) => c !== cards)
+    }, 10000)
+    await miro.board.viewport.zoomTo(recentCards.flat());
   }
 
   return results.map((r) => r.data);
 }
+/**
+ * @type {Card[][]}
+ */
+let recentCards = [];
 
 /**
  * @param {string} pathField
