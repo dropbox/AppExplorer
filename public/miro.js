@@ -16,6 +16,7 @@
  *
  * @param {Card} card The card to update.
  * @param {Partial<CardData>} data The data to update the card with.
+ * @returns {Promise<Card>} The updated card.
  */
 async function updateCard(card, data) {
   if (data.title) {
@@ -37,12 +38,14 @@ async function updateCard(card, data) {
 
   await card.sync();
   await card.setMetadata("app-explorer", data);
+  return card;
 }
 
 /**
- * @type {import('../src/EventTypes').Handler<RequestEvents['newCard'], Promise<void>>}
+ * @type {import('../src/EventTypes').Handler<RequestEvents['newCard'], Promise<Card>>}
  */
 const newCard = async (data) => {
+  await miro.board.viewport.setZoom(1);
   const zoom = await miro.board.viewport.getZoom();
   const viewport = await miro.board.viewport.get();
 
@@ -57,6 +60,14 @@ const newCard = async (data) => {
     width: width / zoom,
     height: height / zoom,
   });
+
+  const lastCard = pinnedCards[pinnedCards.length - 1];
+  if (lastCard) {
+    await miro.board.createConnector({
+      start: { item: lastCard.id },
+      end: { item: card.id },
+    });
+  }
 
   return updateCard(card, data);
 };
@@ -120,19 +131,19 @@ export async function activeEditor(path) {
   const cards = results.map((r) => r.card);
   console.log("cards", cards);
   if (cards.length > 0) {
-    recentCards.push(cards)
-    setTimeout(() => {
-      recentCards = recentCards.filter((c) => c !== cards)
-    }, 10000)
-    await miro.board.viewport.zoomTo(recentCards.flat());
+    await miro.board.viewport.zoomTo([pinnedCards, ...cards].flat());
+    const zoom = await miro.board.viewport.getZoom();
+    if (zoom > 1) {
+      await miro.board.viewport.setZoom(1);
+    }
   }
 
   return results.map((r) => r.data);
 }
 /**
- * @type {Card[][]}
+ * @type {Card[]}
  */
-let recentCards = [];
+let pinnedCards = [];
 
 /**
  * @param {string} pathField
@@ -179,7 +190,8 @@ async function updateOlderCard(pathField, card, path, allCards) {
  */
 export function attachToSocket(socket) {
   socket.on("newCard", (event) => {
-    newCard(event).then(() => {
+    newCard(event).then((card) => {
+      pinnedCards.push(card);
       activeEditor(event.path);
     });
   });
