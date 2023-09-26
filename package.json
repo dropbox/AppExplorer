@@ -3,6 +3,7 @@
   "displayName": "app-explorer",
   "description": "Helps build documentation while navigating through code",
   "version": "0.0.1",
+  "repository": "https://github.com/dropbox/AppExplorer",
   "engines": {
     "vscode": "^1.80.0"
   },
@@ -21,8 +22,8 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./src",
-    "watch": "tsc -watch -p ./src",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js"
@@ -34,7 +35,7 @@
     "@types/morgan": "^1.9.5",
     "@types/node": "16.x",
     "@types/socket.io-client": "^3.0.0",
-    "@types/vscode": "^1.82.0",
+    "@types/vscode": "1.80",
     "@types/ws": "^8.5.5",
     "@typescript-eslint/eslint-plugin": "^6.7.0",
     "@typescript-eslint/parser": "^6.7.0",
