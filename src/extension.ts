@@ -27,7 +27,14 @@ export function activate(context: vscode.ExtensionContext) {
 
           if ("targetUri" in def && "targetSelectionRange" in def) {
             const symbolRange = def.targetSelectionRange!;
-            const title = editor.document.getText(symbolRange);
+            const defaultTitle = await readTargetSelectionRange(def);
+            const title = await vscode.window.showInputBox({
+              prompt: "Enter card title",
+              value: defaultTitle,
+            });
+            if (!title) {
+              return;
+            }
 
             const path = getRelativePath(def.targetUri)!;
 
@@ -246,4 +253,18 @@ async function getGitHubUrl(editor: vscode.TextEditor): Promise<string | null> {
   const gitHubUrl = `https://github.com/${gitRepoOwner}/${gitRepoName}/blob/${gitHash}/${relativeFilePath}#L${lineNumber}`;
 
   return gitHubUrl;
+}
+
+async function readTargetSelectionRange(
+  locationLink: vscode.LocationLink
+): Promise<string | undefined> {
+  const document = await vscode.workspace.openTextDocument(
+    locationLink.targetUri
+  );
+
+  return document.getText(
+    locationLink.targetSelectionRange ??
+      locationLink.targetSelectionRange ??
+      locationLink.targetRange
+  );
 }
