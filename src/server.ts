@@ -4,28 +4,40 @@ import * as path from "path";
 import compression = require("compression");
 import express = require("express");
 import morgan = require("morgan");
-import { Server } from "socket.io";
+import { Server, Socket } from "socket.io";
 import { Handler, RequestEvents, ResponseEvents } from "./EventTypes";
 import { getRelativePath } from "./extension";
 
 export function makeExpressServer(
-  cardsInEditor: Handler<ResponseEvents["cardsInEditor"]>
+  cardsInEditor: Handler<ResponseEvents["cardsInEditor"]>,
+  sockets: Map<string, Socket>,
+  statusBar: vscode.StatusBarItem
 ) {
   const app = express();
-
-  // You need to create the HTTP server from the Express app
   const httpServer = createServer(app);
-
-  // And then attach the socket.io server to the HTTP server
   const io = new Server<ResponseEvents, RequestEvents>(httpServer);
 
-  // Then you can use `io` to listen the `connection` event and get a socket
-  // from a client
-  io.on("connection", (socket) => {
-    // from this point you are on the WS connection with a specific client
-    console.log(socket.id, "connected");
+  function renderStatusBar() {
+    if (sockets.size == 0) {
+      statusBar.backgroundColor = "red";
+    }
+    statusBar.text = `AppExplorer (${sockets.size})`;
+    statusBar.show();
+  }
 
-    vscode.window.showInformationMessage(`Socket ${socket.id} connected`);
+  renderStatusBar();
+
+  io.on("connection", (socket) => {
+    sockets.set(socket.id, socket);
+    renderStatusBar();
+    socket.on("disconnect", () => {
+      sockets.delete(socket.id);
+      renderStatusBar();
+    });
+
+    vscode.window.showInformationMessage(
+      `AppExplorer Connected at socket - ${socket.id}`
+    );
 
     const uri = vscode.window.activeTextEditor?.document.uri;
     if (uri) {
@@ -43,9 +55,6 @@ export function makeExpressServer(
     "/",
     express.static(path.join(__dirname, "../public"), { index: "index.html" })
   );
-
-  // You may want to be more aggressive with this caching
-  // app.use(express.static("public", { maxAge: "1h" }));
 
   app.use(morgan("tiny"));
 

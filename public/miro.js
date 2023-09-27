@@ -60,16 +60,38 @@ const newCard = async (data) => {
     width: width / zoom,
     height: height / zoom,
   });
+  await updateCard(card, data);
 
-  const lastCard = pinnedCards[pinnedCards.length - 1];
-  if (lastCard) {
-    await miro.board.createConnector({
-      start: { item: lastCard.id },
-      end: { item: card.id },
-    });
+  const selection = (await miro.board.getSelection()).filter(
+    (item) => item.type === "card"
+  );
+
+  if (selection.length > 0) {
+    await selection.reduce(async (promise, item) => {
+      console.log({ promise });
+      await promise;
+      console.log("createConnector", {
+        start: { item: item.id },
+        end: { item: card.id },
+        shape: "curved",
+        style: {
+          startStrokeCap: "none",
+          endStrokeCap: "arrow",
+        },
+      });
+      return miro.board.createConnector({
+        start: { item: item.id },
+        end: { item: card.id },
+        shape: "curved",
+        style: {
+          startStrokeCap: "none",
+          endStrokeCap: "arrow",
+        },
+      });
+    }, Promise.resolve(null));
   }
 
-  return updateCard(card, data);
+  return card;
 };
 
 /**
@@ -129,9 +151,9 @@ export async function activeEditor(path) {
   );
 
   const cards = results.map((r) => r.card);
-  console.log("cards", cards);
   if (cards.length > 0) {
-    await miro.board.viewport.zoomTo([pinnedCards, ...cards].flat());
+    const selection = await miro.board.getSelection();
+    await miro.board.viewport.zoomTo([selection, ...cards].flat());
     const zoom = await miro.board.viewport.getZoom();
     if (zoom > 1) {
       await miro.board.viewport.setZoom(1);
@@ -140,10 +162,6 @@ export async function activeEditor(path) {
 
   return results.map((r) => r.data);
 }
-/**
- * @type {Card[]}
- */
-let pinnedCards = [];
 
 /**
  * @param {string} pathField
@@ -190,9 +208,10 @@ async function updateOlderCard(pathField, card, path, allCards) {
  */
 export function attachToSocket(socket) {
   socket.on("newCard", (event) => {
-    newCard(event).then((card) => {
-      pinnedCards.push(card);
-      activeEditor(event.path);
+    newCard(event).then(async (card) => {
+      await miro.board.deselect();
+      await miro.board.select({ id: card.id });
+      await activeEditor(event.path);
     });
   });
   //   socket.on("updateCard", (cardUrl, data) => {

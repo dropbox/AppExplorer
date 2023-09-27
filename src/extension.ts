@@ -3,9 +3,19 @@ import * as path from "path";
 import { makeExpressServer } from "./server";
 import { CardData, ResponseEvents } from "./EventTypes";
 import * as util from "util";
+import { Socket } from "socket.io";
 import * as child_process from "child_process";
 
+let statusBar: vscode.StatusBarItem;
+
 export function activate(context: vscode.ExtensionContext) {
+  statusBar = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Right,
+    100
+  );
+  // myStatusBarItem.command = myCommandId;
+  context.subscriptions.push(statusBar);
+
   context.subscriptions.push(
     vscode.commands.registerCommand("app-explorer.createCard", async () => {
       const editor = vscode.window.activeTextEditor;
@@ -14,6 +24,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (!uri) {
           return;
         }
+        await waitForConnections();
         const document = editor.document;
         const position = editor.selection.active;
 
@@ -41,7 +52,7 @@ export function activate(context: vscode.ExtensionContext) {
             io.emit("newCard", {
               title,
               path: path,
-              codeLink: await getGitHubUrl(editor),
+              codeLink: await getGitHubUrl(def),
               symbolPosition: {
                 start: {
                   line: symbolRange.start.line,
@@ -116,7 +127,31 @@ export function activate(context: vscode.ExtensionContext) {
     );
   };
 
-  const io = makeExpressServer(cardsInEditor);
+  const sockets = new Map<string, Socket>();
+  const io = makeExpressServer(cardsInEditor, sockets, statusBar);
+
+  async function waitForConnections() {
+    if (sockets.size > 0) {
+      return;
+    }
+
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "AppExplorer: Waiting for connections...",
+        cancellable: true,
+      },
+      async (progress, token) => {
+        token.onCancellationRequested(() => {
+          console.log("User canceled the long running operation");
+        });
+
+        while (sockets.size === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+      }
+    );
+  }
 
   let lastPosition: vscode.Position | undefined;
   let lastUri: vscode.Uri | undefined;
@@ -211,10 +246,14 @@ export function getRelativePath(uri: vscode.Uri): string | undefined {
 
 const exec = util.promisify(child_process.exec);
 
-async function getGitHubUrl(editor: vscode.TextEditor): Promise<string | null> {
-  const uri = editor.document.uri;
+async function getGitHubUrl(
+  locationLink: vscode.LocationLink
+): Promise<string | null> {
+  const document = await vscode.workspace.openTextDocument(
+    locationLink.targetUri
+  );
+  const uri = document.uri;
   const filePath = uri.fsPath;
-  const lineNumber = editor.selection.active.line + 1;
   const relativeFilePath = getRelativePath(uri);
 
   // Get the current git hash
@@ -248,6 +287,10 @@ async function getGitHubUrl(editor: vscode.TextEditor): Promise<string | null> {
   }
   const gitRepoOwner = gitRemoteUrlParts[1];
   const gitRepoName = gitRemoteUrlParts[2];
+
+  const lineNumber =
+    locationLink.targetSelectionRange?.start.line ??
+    locationLink.targetRange.start.line;
 
   // Construct the GitHub URL for the current file and line number
   const gitHubUrl = `https://github.com/${gitRepoOwner}/${gitRepoName}/blob/${gitHash}/${relativeFilePath}#L${lineNumber}`;
