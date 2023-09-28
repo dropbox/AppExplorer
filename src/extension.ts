@@ -25,60 +25,18 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
         await waitForConnections();
-        const document = editor.document;
-        const position = editor.selection.active;
 
-        // Fetch go to definition information
-        const definitions = await vscode.commands.executeCommand<
-          Array<vscode.LocationLink | vscode.Location>
-        >("vscode.executeDefinitionProvider", document.uri, position);
+        const cardData = await makeCardData(editor);
 
-        if (definitions && definitions.length > 0) {
-          const def = definitions[0];
-
-          if ("targetUri" in def && "targetSelectionRange" in def) {
-            const symbolRange = def.targetSelectionRange!;
-            const defaultTitle = await readTargetSelectionRange(def);
-            const title = await vscode.window.showInputBox({
-              prompt: "Enter card title",
-              value: defaultTitle,
-            });
-            if (!title) {
-              return;
-            }
-
-            const path = getRelativePath(def.targetUri)!;
-
-            io.emit("newCard", {
-              title,
-              path: path,
-              codeLink: await getGitHubUrl(def),
-              symbolPosition: {
-                start: {
-                  line: symbolRange.start.line,
-                  character: symbolRange.start.character,
-                },
-                end: {
-                  line: symbolRange.end.line,
-                  character: symbolRange.end.character,
-                },
-              },
-              definitionPosition: {
-                start: {
-                  line: def.targetRange.start.line,
-                  character: def.targetRange.start.character,
-                },
-                end: {
-                  line: def.targetRange.end.line,
-                  character: def.targetRange.end.character,
-                },
-              },
-            });
+        if (cardData) {
+          const title = await vscode.window.showInputBox({
+            prompt: "Card title",
+            value: cardData.title,
+          });
+          if (title) {
+            cardData.title = title;
+            io.emit("newCard", cardData);
           }
-        } else {
-          vscode.window.showInformationMessage(
-            "No definition information available."
-          );
         }
       }
     })
@@ -310,4 +268,56 @@ async function readTargetSelectionRange(
       locationLink.targetSelectionRange ??
       locationLink.targetRange
   );
+}
+
+async function makeCardData(
+  editor: vscode.TextEditor
+): Promise<CardData | null> {
+  const document = editor.document;
+  const position = editor.selection.active;
+  const definitions = await vscode.commands.executeCommand<
+    Array<vscode.LocationLink | vscode.Location>
+  >("vscode.executeDefinitionProvider", document.uri, position);
+
+  if (definitions && definitions.length > 0) {
+    const def = definitions[0];
+
+    if ("targetUri" in def && "targetSelectionRange" in def) {
+      const symbolRange = def.targetSelectionRange!;
+      const title = await readTargetSelectionRange(def);
+
+      const path = getRelativePath(def.targetUri)!;
+
+      if (!title) {
+        return null;
+      }
+
+      return {
+        title,
+        path: path,
+        codeLink: await getGitHubUrl(def),
+        symbolPosition: symbolRange,
+        definitionPosition: def.targetRange,
+      };
+    }
+  }
+
+  const lineAt = document.lineAt(position);
+  const title = document.getText(lineAt.range);
+  const symbolPosition = lineAt.range;
+
+  const def: vscode.LocationLink = {
+    targetUri: document.uri,
+    targetRange: symbolPosition,
+    targetSelectionRange: symbolPosition,
+  };
+  const path = getRelativePath(def.targetUri)!;
+
+  return {
+    title,
+    path,
+    codeLink: await getGitHubUrl(def),
+    symbolPosition,
+    definitionPosition: symbolPosition,
+  };
 }
