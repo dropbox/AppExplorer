@@ -275,32 +275,28 @@ async function makeCardData(
 ): Promise<CardData | null> {
   const document = editor.document;
   const position = editor.selection.active;
-  const definitions = await vscode.commands.executeCommand<
-    Array<vscode.LocationLink | vscode.Location>
-  >("vscode.executeDefinitionProvider", document.uri, position);
 
-  if (definitions && definitions.length > 0) {
-    const def = definitions[0];
-
-    if ("targetUri" in def && "targetSelectionRange" in def) {
-      const symbolRange = def.targetSelectionRange!;
-      const title = await readTargetSelectionRange(def);
-
-      const path = getRelativePath(def.targetUri)!;
-
-      if (!title) {
-        return null;
-      }
-
-      return {
-        title,
-        path: path,
-        codeLink: await getGitHubUrl(def),
-        symbolPosition: symbolRange,
-        definitionPosition: def.targetRange,
-      };
-    }
-  }
+  // const definitions = await vscode.commands.executeCommand<
+  //   Array<vscode.LocationLink | vscode.Location>
+  // >("vscode.executeDefinitionProvider", document.uri, position);
+  // if (definitions && definitions.length > 0) {
+  //   const def = definitions[0];
+  //   if ("targetUri" in def && "targetSelectionRange" in def) {
+  //     const symbolRange = def.targetSelectionRange!;
+  //     const title = await readTargetSelectionRange(def);
+  //     const path = getRelativePath(def.targetUri)!;
+  //     if (!title) {
+  //       return null;
+  //     }
+  //     return {
+  //       title,
+  //       path: path,
+  //       codeLink: await getGitHubUrl(def),
+  //       symbolPosition: symbolRange,
+  //       definitionPosition: def.targetRange,
+  //     };
+  //   }
+  // }
 
   const lineAt = document.lineAt(position);
   const title = document.getText(lineAt.range);
