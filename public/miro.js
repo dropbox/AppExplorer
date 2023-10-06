@@ -19,7 +19,7 @@
  * @returns {Promise<Card>} The updated card.
  */
 async function updateCard(card, data) {
-  if (data.title) {
+  if (data.title && !card.title) {
     card.title = data.title;
   }
   if (data.codeLink) {
@@ -42,43 +42,98 @@ async function updateCard(card, data) {
 }
 
 /**
- * @type {import('../src/EventTypes').Handler<RequestEvents['newCard'], Promise<Card>>}
+ * @typedef {{
+    min: {x: number;y: number;};
+    max: {x: number;y: number;};
+}} BoundingBox
  */
-const newCard = async (data) => {
-  await miro.board.viewport.setZoom(1);
-  const zoom = await miro.board.viewport.getZoom();
-  const viewport = await miro.board.viewport.get();
 
-  const x = viewport.x + viewport.width / 2;
-  const y = viewport.y + viewport.height / 2;
+/**
+ *
+ * @param {Card[]} items
+ * @returns {BoundingBox}
+ */
+function boundingBox(items) {
+  return items.reduce(
+    (box, item) => {
+      const x = item.x;
+      const y = item.y;
+      const halfWidth = item.width / 2;
+      const halfHeight = item.height / 2;
+      box.min.x = Math.min(box.min.x, x - halfWidth);
+      box.min.y = Math.min(box.min.y, y - halfHeight);
+      box.max.x = Math.max(box.max.x, x + halfWidth);
+      box.max.y = Math.max(box.max.y, y + halfHeight);
+      return box;
+    },
+    {
+      min: { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER },
+      max: { x: Number.MIN_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER },
+    }
+  );
+}
+
+/**
+ *
+ * @param {Card[]} cards
+ * @returns {import('@mirohq/websdk-types').Rect}
+ */
+function makeRect(cards) {
+  const box = boundingBox(cards);
+  return {
+    x: box.min.x,
+    y: box.min.y,
+    width: box.max.x - box.min.x,
+    height: box.max.y - box.min.y,
+  };
+}
+
+async function nextCardLocation() {
+  const selection = (await miro.board.getSelection()).filter(
+    /**
+     * @returns {item is Card}
+     */
+    (item) => item.type === "card"
+  );
   const width = 300;
   const height = 200;
 
-  const card = await miro.board.createCard({
-    x,
-    y,
-    width: width / zoom,
-    height: height / zoom,
-  });
-  await updateCard(card, data);
+  if (selection.length === 0) {
+    const viewport = await miro.board.viewport.get();
 
+    const x = viewport.x + viewport.width / 2;
+    const y = viewport.y + viewport.height / 2;
+    const box = { x, y, width, height };
+    return box;
+  }
+
+  const box = makeRect(selection);
+
+  const gap = 200;
+
+  return {
+    x: box.x + box.width / 2,
+    y: box.y + box.height + gap,
+    width,
+    height,
+  };
+}
+
+/**
+ * @type {import('../src/EventTypes').Handler<RequestEvents['newCard'], Promise<Card>>}
+ */
+const newCard = async (data) => {
   const selection = (await miro.board.getSelection()).filter(
     (item) => item.type === "card"
   );
 
+  const card = await miro.board.createCard(await nextCardLocation());
+  zoomIntoCards([selection, card].flat());
+  await updateCard(card, data);
+
   if (selection.length > 0) {
     await selection.reduce(async (promise, item) => {
-      console.log({ promise });
       await promise;
-      console.log("createConnector", {
-        start: { item: item.id },
-        end: { item: card.id },
-        shape: "curved",
-        style: {
-          startStrokeCap: "none",
-          endStrokeCap: "arrow",
-        },
-      });
       return miro.board.createConnector({
         start: { item: item.id },
         end: { item: card.id },
@@ -100,7 +155,7 @@ const newCard = async (data) => {
  *     Promise<Array<CardData>>
  * >}
  */
-export async function activeEditor(path) {
+export async function onActiveEditor(path) {
   const allCards = await miro.board.get({ type: "card" });
   const boardId = await miro.board.getInfo().then((info) => info.id);
   const results = await allCards.reduce(
@@ -153,14 +208,19 @@ export async function activeEditor(path) {
   const cards = results.map((r) => r.card);
   if (cards.length > 0) {
     const selection = await miro.board.getSelection();
-    await miro.board.viewport.zoomTo([selection, ...cards].flat());
-    const zoom = await miro.board.viewport.getZoom();
-    if (zoom > 1) {
-      await miro.board.viewport.setZoom(1);
-    }
+    await zoomIntoCards([selection, ...cards].flat());
   }
 
   return results.map((r) => r.data);
+}
+
+async function zoomIntoCards(cards) {
+  const viewport = makeRect(cards);
+  const padding = 50;
+  await miro.board.viewport.set({
+    viewport: viewport,
+    padding: { top: padding, right: padding, bottom: padding, left: padding },
+  });
 }
 
 /**
@@ -188,7 +248,7 @@ async function updateOlderCard(pathField, card, path, allCards) {
    * @type {CardData} CardData
    */
   const data = {
-    title: card.title.split(" ")[0],
+    title: card.title,
     path,
     codeLink: card.description,
     symbolPosition: symbolPosition,
@@ -209,9 +269,13 @@ async function updateOlderCard(pathField, card, path, allCards) {
 export function attachToSocket(socket) {
   socket.on("newCard", (event) => {
     newCard(event).then(async (card) => {
+      const uri = event.path;
+
       await miro.board.deselect();
       await miro.board.select({ id: card.id });
-      await activeEditor(event.path);
+      await onActiveEditor(uri).then((cards) => {
+        socket.emit("cardsInEditor", { path: uri, cards });
+      });
     });
   });
   //   socket.on("updateCard", (cardUrl, data) => {
@@ -221,7 +285,7 @@ export function attachToSocket(socket) {
   //   });
 
   socket.on("activeEditor", (uri) => {
-    activeEditor(uri).then((cards) => {
+    onActiveEditor(uri).then((cards) => {
       socket.emit("cardsInEditor", { path: uri, cards });
     });
   });

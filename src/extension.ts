@@ -31,7 +31,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (cardData) {
           const title = await vscode.window.showInputBox({
             prompt: "Card title",
-            value: cardData.title,
+            value: cardData.title.trim(),
           });
           if (title) {
             cardData.title = title;
@@ -254,20 +254,6 @@ async function getGitHubUrl(
   const gitHubUrl = `https://github.com/${gitRepoOwner}/${gitRepoName}/blob/${gitHash}/${relativeFilePath}#L${lineNumber}`;
 
   return gitHubUrl;
-}
-
-async function readTargetSelectionRange(
-  locationLink: vscode.LocationLink
-): Promise<string | undefined> {
-  const document = await vscode.workspace.openTextDocument(
-    locationLink.targetUri
-  );
-
-  return document.getText(
-    locationLink.targetSelectionRange ??
-      locationLink.targetSelectionRange ??
-      locationLink.targetRange
-  );
 }
 
 async function makeCardData(
