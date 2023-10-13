@@ -34,6 +34,12 @@ async function updateCard(card, data) {
       tooltip: data.path,
     },
   ];
+  if (data.symbol) {
+    fields.push({
+      value: data.symbol,
+      tooltip: `Symbol`,
+    });
+  }
   card.fields = fields;
 
   await card.sync();

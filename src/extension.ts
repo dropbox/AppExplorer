@@ -99,7 +99,7 @@ export function activate(context: vscode.ExtensionContext) {
         title: "AppExplorer: Waiting for connections...",
         cancellable: true,
       },
-      async (progress, token) => {
+      async (_progress, token) => {
         token.onCancellationRequested(() => {
           console.log("User canceled the long running operation");
         });
@@ -256,50 +256,125 @@ async function getGitHubUrl(
   return gitHubUrl;
 }
 
+async function getAllSymbols(
+  document: vscode.TextDocument
+): Promise<vscode.SymbolInformation[]> {
+  const symbols = await vscode.commands.executeCommand<
+    vscode.SymbolInformation[]
+  >("vscode.executeDocumentSymbolProvider", document.uri);
+  return symbols || [];
+}
+
 async function makeCardData(
   editor: vscode.TextEditor
 ): Promise<CardData | null> {
   const document = editor.document;
   const position = editor.selection.active;
 
-  // const definitions = await vscode.commands.executeCommand<
-  //   Array<vscode.LocationLink | vscode.Location>
-  // >("vscode.executeDefinitionProvider", document.uri, position);
-  // if (definitions && definitions.length > 0) {
-  //   const def = definitions[0];
-  //   if ("targetUri" in def && "targetSelectionRange" in def) {
-  //     const symbolRange = def.targetSelectionRange!;
-  //     const title = await readTargetSelectionRange(def);
-  //     const path = getRelativePath(def.targetUri)!;
-  //     if (!title) {
-  //       return null;
-  //     }
-  //     return {
-  //       title,
-  //       path: path,
-  //       codeLink: await getGitHubUrl(def),
-  //       symbolPosition: symbolRange,
-  //       definitionPosition: def.targetRange,
-  //     };
-  //   }
-  // }
+  const symbols = await getAllSymbols(document);
+  console.log(symbols);
+
+  let symbol = symbols.find((symbol) => {
+    return symbol.location.range.start.line === position.line;
+  });
+
+  if (!symbol) {
+    const selection = await showSymbolPicker(document, position);
+    if (selection === cancel) {
+      return null;
+    }
+    symbol = selection;
+  }
+
+  if (symbol) {
+    const newSelection = new vscode.Selection(
+      symbol.location.range.start,
+      symbol.location.range.end
+    );
+    editor.selection = newSelection;
+    editor.revealRange(newSelection);
+  }
 
   const lineAt = document.lineAt(position);
-  const title = document.getText(lineAt.range);
-  const symbolPosition = lineAt.range;
-
-  const def: vscode.LocationLink = {
+  let def: vscode.LocationLink = {
     targetUri: document.uri,
-    targetRange: symbolPosition,
-    targetSelectionRange: symbolPosition,
+    targetRange: lineAt.range,
+    targetSelectionRange: lineAt.range,
   };
+
+  if (symbol) {
+    def = {
+      targetUri: symbol.location.uri,
+      targetRange: symbol.location.range,
+      targetSelectionRange: symbol.location.range,
+    };
+  }
+
+  const title = await vscode.window.showInputBox({
+    prompt: "Card title" + (symbol ? ` (${symbol.name})` : ""),
+    value: symbol?.name ?? document.getText(lineAt.range),
+  });
+  if (!title) {
+    return null;
+  }
+
   const path = getRelativePath(def.targetUri)!;
 
   return {
     title,
     path,
+    symbol: symbol?.name,
     codeLink: await getGitHubUrl(def),
-    symbolPosition,
-    definitionPosition: symbolPosition,
+    symbolPosition: def.targetRange,
   };
+}
+
+const cancel = Symbol("cancel");
+
+async function showSymbolPicker(
+  document: vscode.TextDocument,
+  position: vscode.Position
+): Promise<vscode.SymbolInformation | undefined | typeof cancel> {
+  const symbols = await vscode.commands.executeCommand<
+    vscode.SymbolInformation[]
+  >("vscode.executeDocumentSymbolProvider", document.uri);
+  const symbol = symbols.find((symbol) => {
+    // If you trigger the command while on the start line for a symbol, that's
+    // probably what you're trying to create a card for
+    return symbol.location.range.start.line === position.line;
+  });
+  if (symbol) {
+    return symbol;
+  }
+
+  const sortedSymbols = [...symbols].sort((a, b) => {
+    if (a.location.range.contains(position)) {
+      return -1;
+    }
+    if (b.location.range.contains(position)) {
+      return 1;
+    }
+    return 0;
+  });
+
+  const symbolNames = sortedSymbols.map((symbol) => {
+    return symbol.name;
+  });
+  const none = "(None)";
+  const selectedSymbolName = await vscode.window.showQuickPick(
+    [none, ...symbolNames],
+    {
+      placeHolder: `Choose a symbol to anchor the card to`,
+    }
+  );
+  if (!selectedSymbolName) {
+    return cancel;
+  }
+  if (selectedSymbolName === none) {
+    return;
+  }
+  const selectedSymbol = symbols.find((symbol) => {
+    return symbol.name === selectedSymbolName;
+  });
+  return selectedSymbol;
 }
