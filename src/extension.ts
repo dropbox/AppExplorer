@@ -1,53 +1,40 @@
 import * as vscode from "vscode";
-import * as path from "path";
 import { makeExpressServer } from "./server";
-import { CardData, ResponseEvents } from "./EventTypes";
-import * as util from "util";
+import { CardData, RequestEvents, ResponseEvents } from "./EventTypes";
 import { Socket } from "socket.io";
-import * as child_process from "child_process";
+import { makeHoverProvider } from "./make-hover-provider";
+import { makeNewCardHandler } from "./make-new-card-handler";
+import { makeActiveTextEditorHandler } from "./make-active-text-editor-handler";
+import { makeTextSelectionHandler } from "./make-text-selection-handler";
+import { getGitHubUrl } from "./get-github-url";
+import { getRelativePath } from "./get-relative-path";
 
-let statusBar: vscode.StatusBarItem;
+export type HandlerContext = {
+  statusBar: vscode.StatusBarItem;
+  sockets: Map<string, Socket>;
+  lastPosition: vscode.Position | undefined;
+  lastUri: vscode.Uri | undefined;
+  waitForConnections: () => Promise<void>;
+  emit: <T extends keyof RequestEvents>(
+    event: T,
+    ...data: Parameters<RequestEvents[T]>
+  ) => void;
+};
 
 export function activate(context: vscode.ExtensionContext) {
-  statusBar = vscode.window.createStatusBarItem(
+  const statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
     100
   );
   // myStatusBarItem.command = myCommandId;
   context.subscriptions.push(statusBar);
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand("app-explorer.createCard", async () => {
-      const editor = vscode.window.activeTextEditor;
-      if (editor) {
-        const uri = getRelativePath(editor.document.uri);
-        if (!uri) {
-          return;
-        }
-        await waitForConnections();
-
-        const cardData = await makeCardData(editor);
-
-        if (cardData) {
-          const title = await vscode.window.showInputBox({
-            prompt: "Card title",
-            value: cardData.title.trim(),
-          });
-          if (title) {
-            cardData.title = title;
-            io.emit("newCard", cardData);
-          }
-        }
-      }
-    })
-  );
-
   const cardDecoration = vscode.window.createTextEditorDecorationType({
     // gutterIconPath: path.join(__filename, "..", "images", "card.svg"),
     // gutterIconSize: "contain",
     overviewRulerColor: "blue",
     overviewRulerLane: vscode.OverviewRulerLane.Right,
-    isWholeLine: false,
+    isWholeLine: true,
     light: {
       textDecoration: "underline wavy rgba(0, 255, 0, 0.9)",
     },
@@ -86,177 +73,61 @@ export function activate(context: vscode.ExtensionContext) {
   };
 
   const sockets = new Map<string, Socket>();
-  const io = makeExpressServer(cardsInEditor, sockets, statusBar);
 
-  async function waitForConnections() {
-    if (sockets.size > 0) {
-      return;
-    }
-
-    await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: "AppExplorer: Waiting for connections...",
-        cancellable: true,
-      },
-      async (_progress, token) => {
-        token.onCancellationRequested(() => {
-          console.log("User canceled the long running operation");
-        });
-
-        while (sockets.size === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-        }
+  const handlerContext: HandlerContext = {
+    statusBar,
+    lastPosition: undefined,
+    lastUri: undefined,
+    emit: (t, ...data) => io.emit(t, ...data),
+    async waitForConnections() {
+      if (sockets.size > 0) {
+        return;
       }
-    );
-  }
 
-  let lastPosition: vscode.Position | undefined;
-  let lastUri: vscode.Uri | undefined;
-
-  context.subscriptions.push(
-    vscode.window.onDidChangeTextEditorSelection((event) => {
-      const editor = event.textEditor;
-      if (editor) {
-        const position = editor.selection.active;
-        const uri = editor.document.uri;
-        if (lastPosition && lastUri && uri.fsPath !== lastUri.fsPath) {
-          io.emit("jump", {
-            lastUri: lastUri.toString(),
-            lastPosition: lastPosition,
-            uri: uri.toString(),
-            position: position,
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: "AppExplorer: Waiting for connections...",
+          cancellable: true,
+        },
+        async (_progress, token) => {
+          token.onCancellationRequested(() => {
+            console.log("User canceled the long running operation");
           });
+
+          while (sockets.size === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
         }
-        lastPosition = position;
-        lastUri = uri;
-      }
-    })
+      );
+    },
+    sockets,
+  };
+  const io = makeExpressServer(cardsInEditor, handlerContext);
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "app-explorer.createCard",
+      makeNewCardHandler(handlerContext)
+    )
   );
 
   context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (editor) {
-        const uri = editor.document.uri;
-        const path = getRelativePath(uri);
-        if (path) {
-          io.emit("activeEditor", path);
-        }
-
-        lastUri = uri;
-      }
-    })
-  );
-}
-
-function makeHoverProvider(context: vscode.ExtensionContext) {
-  const m = new WeakMap<vscode.TextEditor, CardData[]>();
-  const hoverProvider = vscode.languages.registerHoverProvider(
-    { scheme: "file" },
-    {
-      provideHover(document, position) {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-          return;
-        }
-
-        const cards = m.get(editor);
-        if (!cards) {
-          return;
-        }
-
-        const range = document.getWordRangeAtPosition(position);
-        if (!range) {
-          return;
-        }
-
-        const word = document.getText(range);
-        const card = cards.find((card) => card.title === word);
-        if (!card) {
-          return;
-        }
-
-        const contents = new vscode.MarkdownString();
-        contents.appendMarkdown(`Miro: [${card.title}](${card.miroLink})\n`);
-
-        return new vscode.Hover(contents, range);
-      },
-    }
+    vscode.window.onDidChangeTextEditorSelection(
+      makeTextSelectionHandler(handlerContext)
+    )
   );
 
-  context.subscriptions.push(hoverProvider);
-  return m;
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(
+      makeActiveTextEditorHandler(handlerContext)
+    )
+  );
 }
 
 export function deactivate() {}
 
-export function getRelativePath(uri: vscode.Uri): string | undefined {
-  const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (workspaceFolders) {
-    for (const folder of workspaceFolders) {
-      if (uri.fsPath.startsWith(folder.uri.fsPath)) {
-        return path.relative(folder.uri.fsPath, uri.fsPath);
-      }
-    }
-  }
-  return undefined;
-}
-
-const exec = util.promisify(child_process.exec);
-
-async function getGitHubUrl(
-  locationLink: vscode.LocationLink
-): Promise<string | null> {
-  const document = await vscode.workspace.openTextDocument(
-    locationLink.targetUri
-  );
-  const uri = document.uri;
-  const filePath = uri.fsPath;
-  const relativeFilePath = getRelativePath(uri);
-
-  // Get the current git hash
-  const gitHash = await exec("git rev-parse HEAD", {
-    cwd: path.dirname(filePath),
-  })
-    .then(({ stdout }) => stdout.trim())
-    .catch(() => null);
-
-  if (!gitHash) {
-    return null;
-  }
-
-  // Get the remote URL for the current repository
-  const gitRemoteUrl = await exec("git config --get remote.origin.url", {
-    cwd: path.dirname(filePath),
-  })
-    .then(({ stdout }) => stdout.trim())
-    .catch(() => null);
-
-  if (!gitRemoteUrl) {
-    return null;
-  }
-
-  // Parse the remote URL to get the repository owner and name
-  const gitRemoteUrlParts = gitRemoteUrl.match(
-    /github\.com[:/](.*)\/(.*)\.git/
-  );
-  if (!gitRemoteUrlParts) {
-    return null;
-  }
-  const gitRepoOwner = gitRemoteUrlParts[1];
-  const gitRepoName = gitRemoteUrlParts[2];
-
-  const lineNumber =
-    locationLink.targetSelectionRange?.start.line ??
-    locationLink.targetRange.start.line;
-
-  // Construct the GitHub URL for the current file and line number
-  const gitHubUrl = `https://github.com/${gitRepoOwner}/${gitRepoName}/blob/${gitHash}/${relativeFilePath}#L${lineNumber}`;
-
-  return gitHubUrl;
-}
-
-async function makeCardData(
+export async function makeCardData(
   editor: vscode.TextEditor
 ): Promise<CardData | null> {
   const document = editor.document;

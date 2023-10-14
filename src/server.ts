@@ -4,14 +4,14 @@ import * as path from "path";
 import compression = require("compression");
 import express = require("express");
 import morgan = require("morgan");
-import { Server, Socket } from "socket.io";
+import { Server } from "socket.io";
 import { Handler, RequestEvents, ResponseEvents } from "./EventTypes";
-import { getRelativePath } from "./extension";
+import { HandlerContext } from "./extension";
+import { getRelativePath } from "./get-relative-path";
 
 export function makeExpressServer(
   cardsInEditor: Handler<ResponseEvents["cardsInEditor"]>,
-  sockets: Map<string, Socket>,
-  statusBar: vscode.StatusBarItem
+  { sockets, statusBar }: HandlerContext
 ) {
   const app = express();
   const httpServer = createServer(app);
@@ -64,7 +64,6 @@ export function makeExpressServer(
   httpServer.listen(port, () => {
     console.log(`Express server listening on port ${port}`);
   });
-
 
   return io;
 }
