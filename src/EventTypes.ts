@@ -33,6 +33,7 @@ export type RequestEvents = {
 };
 export type ResponseEvents = {
   cardsInEditor: (data: { path: string; cards: CardData[] }) => void;
+  selectedCards: (data: { data: CardData[] }) => void;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

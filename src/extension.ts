@@ -256,66 +256,40 @@ async function getGitHubUrl(
   return gitHubUrl;
 }
 
-async function getAllSymbols(
-  document: vscode.TextDocument
-): Promise<vscode.SymbolInformation[]> {
-  const symbols = await vscode.commands.executeCommand<
-    vscode.SymbolInformation[]
-  >("vscode.executeDocumentSymbolProvider", document.uri);
-  return symbols || [];
-}
-
 async function makeCardData(
   editor: vscode.TextEditor
 ): Promise<CardData | null> {
   const document = editor.document;
   const position = editor.selection.active;
 
-  const symbols = await getAllSymbols(document);
-  console.log(symbols);
+  await getAllReferencesInFile();
 
-  let symbol = symbols.find((symbol) => {
-    return symbol.location.range.start.line === position.line;
-  });
-
-  if (!symbol) {
-    const selection = await showSymbolPicker(document, position);
-    if (selection === cancel) {
-      return null;
-    }
-    symbol = selection;
+  const symbol = await showSymbolPicker(document, position);
+  if (symbol === cancel) {
+    return null;
   }
 
   if (symbol) {
-    const newSelection = new vscode.Selection(
-      symbol.location.range.start,
-      symbol.location.range.end
-    );
-    editor.selection = newSelection;
-    editor.revealRange(newSelection);
+    selectSymbolInEditor(symbol, editor);
   }
-
   const lineAt = document.lineAt(position);
-  let def: vscode.LocationLink = {
-    targetUri: document.uri,
-    targetRange: lineAt.range,
-    targetSelectionRange: lineAt.range,
-  };
-
-  if (symbol) {
-    def = {
-      targetUri: symbol.location.uri,
-      targetRange: symbol.location.range,
-      targetSelectionRange: symbol.location.range,
-    };
-  }
-
   const title = await vscode.window.showInputBox({
     prompt: "Card title" + (symbol ? ` (${symbol.name})` : ""),
     value: symbol?.name ?? document.getText(lineAt.range),
   });
   if (!title) {
     return null;
+  }
+
+  let def: vscode.LocationLink = {
+    targetUri: document.uri,
+    targetRange: lineAt.range,
+  };
+  if (symbol) {
+    def = {
+      targetUri: symbol.location.uri,
+      targetRange: symbol.location.range,
+    };
   }
 
   const path = getRelativePath(def.targetUri)!;
@@ -330,6 +304,18 @@ async function makeCardData(
 }
 
 const cancel = Symbol("cancel");
+
+function selectSymbolInEditor(
+  symbol: vscode.SymbolInformation,
+  editor: vscode.TextEditor
+) {
+  const newSelection = new vscode.Selection(
+    symbol.location.range.start,
+    symbol.location.range.end
+  );
+  editor.selection = newSelection;
+  editor.revealRange(newSelection);
+}
 
 async function showSymbolPicker(
   document: vscode.TextDocument,
@@ -377,4 +363,44 @@ async function showSymbolPicker(
     return symbol.name === selectedSymbolName;
   });
   return selectedSymbol;
+}
+
+async function getReferencesInFile(
+  document: vscode.TextDocument
+): Promise<vscode.Location[]> {
+  const symbols = await vscode.commands.executeCommand<
+    vscode.SymbolInformation[]
+  >("vscode.executeDocumentSymbolProvider", document.uri);
+  console.log("symbols", symbols);
+  const references: vscode.Location[] = [];
+  for (const symbol of symbols) {
+    const locations = await vscode.commands.executeCommand<vscode.Location[]>(
+      "vscode.executeReferenceProvider",
+      document.uri,
+      symbol.location.range.start
+    );
+    for (const location of locations) {
+      if (location.uri.toString() === document.uri.toString()) {
+        references.push(location);
+      }
+    }
+  }
+  return references;
+}
+
+async function getAllReferencesInFile() {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    return;
+  }
+
+  const document = editor.document;
+
+  const references = await getReferencesInFile(document);
+  console.log(
+    "references",
+    references.map(
+      (ref) => ref.range.start.line + ": " + editor.document.getText(ref.range)
+    )
+  );
 }

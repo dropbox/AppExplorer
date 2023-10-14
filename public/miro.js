@@ -284,15 +284,38 @@ export function attachToSocket(socket) {
       });
     });
   });
-  //   socket.on("updateCard", (cardUrl, data) => {
-  //     newCard(data).then(() => {
-  //       activeEditor(data.path);
-  //     });
-  //   });
+
+  miro.board.ui.on("selection:update", async (event) => {
+    const selectedItems = event.items;
+    const cards = selectedItems.filter((item) => item.type === "card");
+    const data = await Promise.all(cards.map(extractCardData));
+    socket.emit("selectedCards", { data });
+  });
 
   socket.on("activeEditor", (uri) => {
     onActiveEditor(uri).then((cards) => {
       socket.emit("cardsInEditor", { path: uri, cards });
     });
   });
+}
+
+/**
+ *
+ * @param {Card} card
+ * @returns {CardData}
+ */
+async function extractCardData(card) {
+  const metadata = await card.getMetadata("app-explorer");
+
+  const boardId = await miro.board.getInfo().then((info) => info.id);
+
+  return {
+    title: card.title,
+    description: card.description,
+    miroLink: `https://miro.com/app/board/${boardId}/?moveToWidget=${card.id}&cot=14`,
+    path: metadata.path,
+    symbol: metadata.symbol,
+    codeLink: metadata.codeLink,
+    symbolPosition: metadata.symbolPosition,
+  };
 }
