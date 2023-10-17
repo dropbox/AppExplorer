@@ -6,7 +6,6 @@ import { makeHoverProvider } from "./make-hover-provider";
 import { makeNewCardHandler } from "./make-new-card-handler";
 import { makeActiveTextEditorHandler } from "./make-active-text-editor-handler";
 import { makeTextSelectionHandler } from "./make-text-selection-handler";
-import { getGitHubUrl } from "./get-github-url";
 import { getRelativePath } from "./get-relative-path";
 
 export type HandlerContext = {
@@ -127,116 +126,16 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {}
 
-export async function makeCardData(
-  editor: vscode.TextEditor
-): Promise<CardData | null> {
-  const document = editor.document;
-  const position = editor.selection.active;
-
-  await getAllReferencesInFile();
-
-  const symbol = await showSymbolPicker(document, position);
-  if (symbol === cancel) {
-    return null;
-  }
-
-  if (symbol) {
-    selectSymbolInEditor(symbol, editor);
-  }
-  const lineAt = document.lineAt(position);
-  const title = await vscode.window.showInputBox({
-    prompt: "Card title" + (symbol ? ` (${symbol.name})` : ""),
-    value: symbol?.name ?? document.getText(lineAt.range),
-  });
-  if (!title) {
-    return null;
-  }
-
-  let def: vscode.LocationLink = {
-    targetUri: document.uri,
-    targetRange: lineAt.range,
-  };
-  if (symbol) {
-    def = {
-      targetUri: symbol.location.uri,
-      targetRange: symbol.location.range,
-    };
-  }
-
-  const path = getRelativePath(def.targetUri)!;
-
-  return {
-    title,
-    path,
-    symbol: symbol?.name,
-    codeLink: await getGitHubUrl(def),
-    symbolPosition: def.targetRange,
-  };
-}
-
-const cancel = Symbol("cancel");
-
-function selectSymbolInEditor(
-  symbol: vscode.SymbolInformation,
+export function selectRangeInEditor(
+  range: vscode.Range,
   editor: vscode.TextEditor
 ) {
-  const newSelection = new vscode.Selection(
-    symbol.location.range.start,
-    symbol.location.range.end
-  );
+  const newSelection = new vscode.Selection(range.start, range.end);
   editor.selection = newSelection;
   editor.revealRange(newSelection);
 }
 
-async function showSymbolPicker(
-  document: vscode.TextDocument,
-  position: vscode.Position
-): Promise<vscode.SymbolInformation | undefined | typeof cancel> {
-  const symbols = await vscode.commands.executeCommand<
-    vscode.SymbolInformation[]
-  >("vscode.executeDocumentSymbolProvider", document.uri);
-  const symbol = symbols.find((symbol) => {
-    // If you trigger the command while on the start line for a symbol, that's
-    // probably what you're trying to create a card for
-    return symbol.location.range.start.line === position.line;
-  });
-  if (symbol) {
-    return symbol;
-  }
-
-  const sortedSymbols = [...symbols].sort((a, b) => {
-    if (a.location.range.contains(position)) {
-      return -1;
-    }
-    if (b.location.range.contains(position)) {
-      return 1;
-    }
-    return 0;
-  });
-
-  const symbolNames = sortedSymbols.map((symbol) => {
-    return symbol.name;
-  });
-  const none = "(None)";
-  const selectedSymbolName = await vscode.window.showQuickPick(
-    [none, ...symbolNames],
-    {
-      placeHolder: `Choose a symbol to anchor the card to`,
-    }
-  );
-  if (!selectedSymbolName) {
-    return cancel;
-  }
-  if (selectedSymbolName === none) {
-    return;
-  }
-  const selectedSymbol = symbols.find((symbol) => {
-    return symbol.name === selectedSymbolName;
-  });
-  return selectedSymbol;
-}
-
-async function getReferencesInFile(
+export async function getReferencesInFile(
   document: vscode.TextDocument
 ): Promise<vscode.Location[]> {
   const symbols = await vscode.commands.executeCommand<
@@ -257,21 +156,4 @@ async function getReferencesInFile(
     }
   }
   return references;
-}
-
-async function getAllReferencesInFile() {
-  const editor = vscode.window.activeTextEditor;
-  if (!editor) {
-    return;
-  }
-
-  const document = editor.document;
-
-  const references = await getReferencesInFile(document);
-  console.log(
-    "references",
-    references.map(
-      (ref) => ref.range.start.line + ": " + editor.document.getText(ref.range)
-    )
-  );
 }
