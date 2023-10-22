@@ -319,3 +319,7 @@ async function extractCardData(card) {
     symbolPosition: metadata.symbolPosition,
   };
 }
+
+miro.board.ui.on("icon:click", () => {
+  miro.board.ui.openLeftSidebar("sidebar.html");
+});
