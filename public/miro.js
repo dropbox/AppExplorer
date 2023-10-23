@@ -154,72 +154,6 @@ const newCard = async (data) => {
 
   return card;
 };
-
-/**
- * @type {import('../src/EventTypes').Handler<
- *     RequestEvents['activeEditor'],
- *     Promise<Array<CardData>>
- * >}
- */
-export async function onActiveEditor(path) {
-  const allCards = await miro.board.get({ type: "card" });
-  const boardId = await miro.board.getInfo().then((info) => info.id);
-  const results = await allCards.reduce(
-    /**
-     *
-     * @param {Promise<Array<{
-     *   card: Card,
-     *   data: CardData
-     * }>>} p
-     * @param {Card} card
-     * @returns
-     */
-    async (p, card) => {
-      const allCards = await p;
-      /**
-       * @type {any}
-       */
-      const metadata = await card.getMetadata();
-
-      /**
-       * @type {CardData}
-       */
-      let data = metadata.data;
-
-      if (!data) {
-        const pathField = card.fields?.find(({ value }) =>
-          value?.startsWith(path)
-        );
-        if (pathField && pathField.value) {
-          data = await updateOlderCard(pathField.value, card, path, allCards);
-        }
-      }
-
-      if (data && data.path === path) {
-        allCards.push({
-          card,
-          data: {
-            ...data,
-            miroLink: `https://miro.com/app/board/${boardId}/?moveToWidget=${card.id}`,
-            description: card.description,
-          },
-        });
-      }
-
-      return allCards;
-    },
-    Promise.resolve([])
-  );
-
-  const cards = results.map((r) => r.card);
-  if (cards.length > 0) {
-    const selection = await miro.board.getSelection();
-    await zoomIntoCards([selection, ...cards].flat());
-  }
-
-  return results.map((r) => r.data);
-}
-
 async function zoomIntoCards(cards) {
   const viewport = makeRect(cards);
   const padding = 50;
@@ -230,58 +164,13 @@ async function zoomIntoCards(cards) {
 }
 
 /**
- * @param {string} pathField
- * @param {import("@mirohq/websdk-types").Card} card
- * @param {string} path
- * @param {{ card: any; data: import("../src/EventTypes").CardData; }[]} allCards
- */
-async function updateOlderCard(pathField, card, path, allCards) {
-  const lines = pathField.split("#")[1];
-  const [startLine, endLine] =
-    lines?.split("-").map((n) => parseInt(n, 10)) ?? [];
-
-  const symbolPosition = {
-    start: {
-      line: startLine,
-      character: 0,
-    },
-    end: {
-      line: endLine,
-      character: Number.MAX_SAFE_INTEGER,
-    },
-  };
-  /**
-   * @type {CardData} CardData
-   */
-  const data = {
-    title: card.title,
-    path,
-    codeLink: card.description,
-    symbolPosition: symbolPosition,
-    definitionPosition: symbolPosition,
-  };
-
-  allCards.push({
-    card,
-    data,
-  });
-  await updateCard(card, data);
-  return data;
-}
-
-/**
  * @param {Socket} socket
  */
 export function attachToSocket(socket) {
   socket.on("newCard", (event) => {
     newCard(event).then(async (card) => {
-      const uri = event.path;
-
       await miro.board.deselect();
       await miro.board.select({ id: card.id });
-      await onActiveEditor(uri).then((cards) => {
-        socket.emit("cardsInEditor", { path: uri, cards });
-      });
     });
   });
 
@@ -290,12 +179,6 @@ export function attachToSocket(socket) {
     const cards = selectedItems.filter((item) => item.type === "card");
     const data = await Promise.all(cards.map(extractCardData));
     socket.emit("selectedCards", { data });
-  });
-
-  socket.on("activeEditor", (uri) => {
-    onActiveEditor(uri).then((cards) => {
-      socket.emit("cardsInEditor", { path: uri, cards });
-    });
   });
 }
 
@@ -320,6 +203,6 @@ async function extractCardData(card) {
   };
 }
 
-miro.board.ui.on("icon:click", () => {
-  miro.board.ui.openLeftSidebar("sidebar.html");
+miro.board.ui.on("icon:click", async () => {
+  await miro.board.ui.openPanel({ url: "/sidebar.html" });
 });
