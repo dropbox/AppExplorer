@@ -84,9 +84,11 @@ async function showSymbolPicker(
     >("vscode.executeDefinitionProvider", editor.document.uri, position)) ?? [];
   console.log("definitions", definitions);
 
-  const symbols = await vscode.commands.executeCommand<
-    vscode.SymbolInformation[]
-  >("vscode.executeDocumentSymbolProvider", editor.document.uri);
+  const symbols =
+    (await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
+      "vscode.executeDocumentSymbolProvider",
+      editor.document.uri
+    )) || [];
 
   const sortedSymbols = [...symbols].sort((a, b) => {
     if (a.location.range.contains(position)) {
@@ -165,8 +167,10 @@ async function showSymbolPicker(
       }
     },
   });
-  if (!selected || selected.type === "none") {
+  if (!selected) {
     return cancel;
+  } else if (selected === none) {
+    return; /* Do not attach to a symbol, just use the line number */
   } else if (selected.type === "definition") {
     const def = selected.target;
     if ("uri" in def) {
