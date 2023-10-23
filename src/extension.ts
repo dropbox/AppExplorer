@@ -103,6 +103,15 @@ export function activate(context: vscode.ExtensionContext) {
     sockets,
   };
   const io = makeExpressServer(cardsInEditor, handlerContext);
+  context.subscriptions.push(
+    vscode.commands.registerCommand("app-explorer.connect", () => {
+      // This command doesn't really need to do anything. By activating the
+      // extension it will launch the webserver.
+      //
+      // This is useful for connecting the board for navigation purposes
+      // instead of creating new cards.
+    })
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
