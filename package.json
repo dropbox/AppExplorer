@@ -2,7 +2,7 @@
   "name": "app-explorer",
   "displayName": "app-explorer",
   "description": "Helps build documentation while navigating through code",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "repository": "https://github.com/dropbox/AppExplorer",
   "engines": {
     "vscode": "^1.80.0"

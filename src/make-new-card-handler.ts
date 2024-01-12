@@ -7,6 +7,13 @@ import { getGitHubUrl } from "./get-github-url";
 
 const cancel = Symbol("cancel");
 
+const rangeOf = (symbol: vscode.SymbolInformation | vscode.DocumentSymbol) => {
+  if ("location" in symbol) {
+    return symbol.location.range;
+  }
+  return symbol.range;
+};
+
 export const makeNewCardHandler = ({
   waitForConnections,
   emit,
@@ -40,7 +47,7 @@ async function makeCardData(
   }
 
   if (symbol) {
-    selectRangeInEditor(symbol.location.range, editor);
+    selectRangeInEditor(rangeOf(symbol), editor);
   }
   const lineAt = document.lineAt(position);
   const title = await vscode.window.showInputBox({
@@ -57,9 +64,14 @@ async function makeCardData(
     targetRange: lineAt.range,
   };
   if (symbol) {
+    let uri = document.uri;
+    if ("location" in symbol) {
+      uri = symbol.location.uri;
+    }
+
     def = {
-      targetUri: symbol.location.uri,
-      targetRange: symbol.location.range,
+      targetUri: uri,
+      targetRange: rangeOf(symbol),
     };
   }
 
@@ -77,24 +89,34 @@ async function makeCardData(
 async function showSymbolPicker(
   editor: vscode.TextEditor,
   position: vscode.Position
-): Promise<vscode.SymbolInformation | undefined | typeof cancel> {
+): Promise<
+  vscode.SymbolInformation | vscode.DocumentSymbol | undefined | typeof cancel
+> {
   const definitions =
     (await vscode.commands.executeCommand<
       Array<vscode.LocationLink | vscode.Location>
     >("vscode.executeDefinitionProvider", editor.document.uri, position)) ?? [];
-  console.log("definitions", definitions);
 
   const symbols =
-    (await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
-      "vscode.executeDocumentSymbolProvider",
-      editor.document.uri
-    )) || [];
+    (await vscode.commands.executeCommand<
+      Array<vscode.SymbolInformation | vscode.DocumentSymbol>
+    >("vscode.executeDocumentSymbolProvider", editor.document.uri)) || [];
 
-  const sortedSymbols = [...symbols].sort((a, b) => {
-    if (a.location.range.contains(position)) {
+  const handleChildren = (
+    symbol: vscode.SymbolInformation | vscode.DocumentSymbol
+  ): Array<vscode.SymbolInformation | vscode.DocumentSymbol> => {
+    if ("children" in symbol) {
+      return [symbol, ...symbol.children.flatMap(handleChildren)];
+    } else {
+      return [symbol];
+    }
+  };
+
+  const sortedSymbols = [...symbols].flatMap(handleChildren).sort((a, b) => {
+    if (rangeOf(a).contains(position)) {
       return -1;
     }
-    if (b.location.range.contains(position)) {
+    if (rangeOf(b).contains(position)) {
       return 1;
     }
     return 0;
@@ -112,7 +134,10 @@ async function showSymbolPicker(
   type OptionTypes =
     | typeof none
     | TaggedQuickPickItem<"definition", vscode.LocationLink | vscode.Location>
-    | TaggedQuickPickItem<"symbol", vscode.SymbolInformation>;
+    | TaggedQuickPickItem<
+        "symbol",
+        vscode.SymbolInformation | vscode.DocumentSymbol
+      >;
 
   const items: Array<OptionTypes> = [
     none,
@@ -135,12 +160,24 @@ async function showSymbolPicker(
       }
     }),
     ...sortedSymbols.map(
-      (symbol): TaggedQuickPickItem<"symbol", vscode.SymbolInformation> => {
+      (
+        symbol
+      ): TaggedQuickPickItem<
+        "symbol",
+        vscode.SymbolInformation | vscode.DocumentSymbol
+      > => {
+        let range;
+        if ("location" in symbol) {
+          range = symbol.location.range;
+        } else {
+          range = symbol.range;
+        }
+
         return {
           type: "symbol",
           label: `(symbol) ${symbol.name}`,
           target: symbol,
-          picked: symbol.location.range.start.line === position.line,
+          picked: range.start.line === position.line,
         } as const;
       }
     ),
@@ -151,7 +188,7 @@ async function showSymbolPicker(
     placeHolder: `Choose a symbol to anchor the card to`,
     onDidSelectItem: (item: OptionTypes) => {
       if (item.type === "symbol") {
-        selectRangeInEditor(item.target.location.range, editor);
+        selectRangeInEditor(rangeOf(item.target), editor);
       }
       if (item.type === "definition") {
         if ("uri" in item.target) {
@@ -187,7 +224,6 @@ async function showSymbolPicker(
         vscode.SymbolInformation[]
       >("vscode.executeDocumentSymbolProvider", editor.document.uri);
 
-      console.log("symbols", symbols, text);
       return symbols.find((s) => s.name === text);
     }
   } else if (selected.type === "symbol") {
