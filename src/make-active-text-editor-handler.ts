@@ -4,6 +4,11 @@ import { getRelativePath } from "./get-relative-path";
 import { makeHoverProvider } from "./make-hover-provider";
 import { CardData } from "./EventTypes";
 import { readSymbols } from "./make-new-card-handler";
+function invariant(condition: unknown, message: string) {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
 
 export const makeActiveTextEditorHandler = (
   handlerContext: HandlerContext,
@@ -24,25 +29,18 @@ export const makeActiveTextEditorHandler = (
           (card) => card.path === path
         );
         editorCards.set(editor, cards);
-        console.log("cards", cards);
         const decorations: vscode.DecorationOptions[] = [];
 
-        const position = editor.selection.active;
-        const symbols = await readSymbols(editor, position);
+        const symbols = await readSymbols(editor);
         cards.forEach((card: CardData) => {
           if (card.symbol) {
             const symbol = symbols.find(
-              (symbol) => symbol.name === card.symbol
+              (symbol) => symbol.label === card.symbol
             );
 
             if (symbol) {
-              let range;
-              if ("location" in symbol) {
-                range = symbol.location.range;
-              } else {
-                range = symbol.range;
-              }
-
+              invariant(symbol.range, "Symbol range is missing");
+              let range = symbol.range;
               range = new vscode.Range(range.start, range.start);
 
               decorations.push({

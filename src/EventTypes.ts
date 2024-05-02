@@ -13,10 +13,6 @@ export type CardData = {
   symbol?: string;
   miroLink?: string;
   codeLink: string | null;
-  symbolPosition: {
-    start: JSPosition;
-    end: JSPosition;
-  };
 };
 
 export type RequestEvents = {

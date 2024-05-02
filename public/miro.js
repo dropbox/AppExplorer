@@ -1,4 +1,11 @@
 /* global miro */
+
+function invariant(condition, message) {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
 /**
  * @typedef {import('@mirohq/websdk-types').Miro} Miro
  * @typedef {import('@mirohq/websdk-types').Card} Card
@@ -19,16 +26,14 @@
  * @returns {Promise<Card>} The updated card.
  */
 async function updateCard(card, data) {
-  await card.setMetadata("codeLink", data.codeLink);
-  await card.setMetadata("path", data.path);
-  await card.setMetadata("symbol", data.symbol);
+  await card.setMetadata("app-explorer", {
+    path: data.path,
+    symbol: data.symbol,
+    codeLink: data.codeLink,
+  });
+  card.linkedTo = data.codeLink;
 
-  if (data.title && !card.title) {
-    card.title = data.title;
-  }
-  if (data.codeLink) {
-    card.description = data.codeLink;
-  }
+  card.title = data.title;
   /**
    * @type {import('@mirohq/websdk-types').CardField[]}
    */
@@ -45,9 +50,16 @@ async function updateCard(card, data) {
     });
   }
   card.fields = fields;
-
   await card.sync();
-  await card.setMetadata("app-explorer", data);
+
+  const data2 = await extractCardData(card);
+  invariant(data2.title === data.title, "title mismatch");
+  invariant(data2.path === data.path, "path mismatch");
+  invariant(data2.symbol === data.symbol, "symbol mismatch");
+  invariant(data2.codeLink === data.codeLink, "codeLink mismatch");
+  invariant(data2.description === data.description, "description mismatch");
+  invariant(data2.miroLink === data.miroLink, "miroLink mismatch");
+
   return card;
 }
 
@@ -79,7 +91,6 @@ async function boundingBox(items) {
       let currentItem = item;
       while (currentItem && currentItem.parentId) {
         currentItem = await miro.board.getById(currentItem.parentId);
-        console.log("parent", currentItem);
         if (currentItem) {
           box.min.x += currentItem.x;
           box.min.y += currentItem.y;
@@ -179,8 +190,12 @@ const newCard = async (data) => {
 };
 async function zoomIntoCards(cards) {
   const viewport = await makeRect(cards);
-  const padding = Math.max(viewport.width, viewport.height);
-  console.log("viewport", viewport, padding);
+  let padding = Math.max(viewport.width, viewport.height) * 1.3;
+  padding = Math.min(
+    // 400 seems like the largest reasonable padding based on some expermenting.
+    400,
+    padding
+  );
   await miro.board.viewport.set({
     viewport: viewport,
     padding: { top: padding, right: padding, bottom: padding, left: padding },
@@ -204,7 +219,7 @@ export function attachToSocket(socket) {
       await updateCard(card, cardData);
       await miro.board.deselect();
       await miro.board.select({ id: card.id });
-      socket.emit("card", cardData);
+      socket.emit("card", extractCardData(card));
     }
   });
   socket.on("hoverCard", async (cardUrl) => {
@@ -212,56 +227,22 @@ export function attachToSocket(socket) {
     const id = url.searchParams.get("moveToWidget");
 
     const card = await miro.board.getById(id);
+    await miro.board.deselect();
+    await miro.board.select({ id });
     await zoomIntoCards([card]);
   });
 
   socket.on("queryBoard", async () => {
     const cards = await miro.board.get({ type: ["card", "app_card"] });
 
-    const data = await Promise.all(
-      cards.map(
-        /**
-         * @returns {CardData}
-         */
-        async function makeCardData(card) {
-          let path = await card.getMetadata("path");
-          let symbol = await card.getMetadata("symbol");
-          let codeLink = await card.getMetadata("codeLink");
-          if (!path || !symbol) {
-            await Promise.all(
-              card.fields.map(({ value, tooltip }) => {
-                if (!symbol && tooltip === "Symbol") {
-                  symbol = value;
-                  return card.setMetadata("symbol", symbol);
-                } else if (!path && value === tooltip) {
-                  path = value;
-                  return card.setMetadata("path", path);
-                }
-              })
-            );
-          }
-          if (!codeLink && card.description) {
-            codeLink = card.description;
-            await card.setMetadata("codeLink", codeLink);
-          }
-
-          const cardData = {
-            title: card.title,
-            codeLink,
-            miroLink: `https://miro.com/app/board/${miro.board.id}/?moveToWidget=${card.id}`,
-            path,
-            symbol,
-          };
-          return cardData;
-        }
-      )
-    );
-    data.forEach((card) => {
-      socket.emit("card", card);
-    });
+    await cards.reduce(async (promise, card) => {
+      await promise;
+      const data = await extractCardData(card);
+      socket.emit("card", data);
+    }, Promise.resolve(null));
   });
 
-  miro.board.ui.on("selection:update", async (event) => {
+  miro.board.ui.on("selection:update", async function selectionUpdate(event) {
     const selectedItems = event.items;
     const cards = selectedItems.filter((item) => item.type === "card");
     const data = await Promise.all(cards.map(extractCardData));
@@ -272,24 +253,27 @@ export function attachToSocket(socket) {
 /**
  *
  * @param {Card} card
- * @returns {CardData}
+ * @returns {Promise<CardData>}
  */
 async function extractCardData(card) {
   const metadata = await card.getMetadata("app-explorer");
 
   const boardId = await miro.board.getInfo().then((info) => info.id);
+  if (card.linkedTo !== metadata.codeLink) {
+    card.linkedTo = metadata.codeLink;
+    await card.sync();
+  }
 
   return {
     title: card.title,
     description: card.description,
-    miroLink: `https://miro.com/app/board/${boardId}/?moveToWidget=${card.id}&cot=14`,
+    miroLink: `https://miro.com/app/board/${boardId}/?moveToWidget=${card.id}`,
     path: metadata.path,
     symbol: metadata.symbol,
     codeLink: metadata.codeLink,
-    symbolPosition: metadata.symbolPosition,
   };
 }
 
-miro.board.ui.on("icon:click", async () => {
+miro.board.ui.on("icon:click", async function openSidebar() {
   await miro.board.ui.openPanel({ url: "/sidebar.html" });
 });

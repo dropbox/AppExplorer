@@ -9,6 +9,7 @@ export const makeAttachCardHandler
   waitForConnections,
   emit,
   selectedCards,
+  allCards,
 }: HandlerContext) => {
 
   return async function () {
@@ -22,9 +23,11 @@ export const makeAttachCardHandler
 
       if (selectedCards.length === 1) {
         const cardData = await makeCardData(editor);
-  
-        if (cardData && cardData.symbol) {
+        if (cardData) {
           emit("attachCard", cardData);
+          if (cardData.miroLink) {
+            allCards.set(cardData.miroLink, cardData)
+          }
         }
       } else {
         vscode.window.showInformationMessage("Please select a single card to attach");

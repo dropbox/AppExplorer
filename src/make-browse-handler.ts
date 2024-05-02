@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
-import { HandlerContext } from "./extension";
+import { HandlerContext, selectRangeInEditor } from "./extension";
 import { CardData } from "./EventTypes";
 import { getRelativePath } from "./get-relative-path";
+import { readSymbols } from "./make-new-card-handler";
 
 export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
   async function () {
@@ -13,11 +14,9 @@ export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
     const curentPath = activeEditor
       ? getRelativePath(activeEditor.document.uri)
       : null;
-    console.log("curentPath", curentPath);
 
     const items: CardQuickPickItem[] = [...allCards.values()]
       .sort((a, b) => {
-        console.log("a", a.path);
         if (a.path !== b.path) {
           if (a.path === curentPath) return -1;
           if (b.path === curentPath) return 1;
@@ -54,10 +53,14 @@ export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
         if (rootUri) {
           // Append the relative path to the root directory's URI
           const uri = rootUri.with({ path: rootUri.path + "/" + path });
-          await vscode.window.showTextDocument(uri);
+          const editor = await vscode.window.showTextDocument(uri);
+          const symbols = await readSymbols(editor);
+          const symbol = symbols.find((symbol) => symbol.label === card.symbol);
+
+          if (symbol && symbol.range) {
+            selectRangeInEditor(symbol.range, editor);
+          }
         }
       }
     }
-
-    console.log("selected", selected);
   };

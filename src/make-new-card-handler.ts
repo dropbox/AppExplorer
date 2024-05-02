@@ -5,6 +5,12 @@ import { CardData } from "./EventTypes";
 import { selectRangeInEditor } from "./extension";
 import { getGitHubUrl } from "./get-github-url";
 
+function invariant(condition: unknown, message: string) {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
 const cancel = Symbol("cancel");
 
 const rangeOf = (symbol: vscode.SymbolInformation | vscode.DocumentSymbol) => {
@@ -41,19 +47,19 @@ export async function makeCardData(
   const document = editor.document;
   const position = editor.selection.active;
 
-  const symbol = await showSymbolPicker(editor, position);
-  if (symbol === cancel) {
+  const anchor = await showSymbolPicker(editor, position);
+  if (anchor === cancel) {
     return null;
   }
 
-  if (symbol) {
-    selectRangeInEditor(rangeOf(symbol), editor);
+  if (anchor && anchor.range) {
+    selectRangeInEditor(anchor.range, editor);
   }
   const lineAt = document.lineAt(position);
   const title = await vscode.window.showInputBox({
     title: "Card Title 2/2",
-    prompt: "Card title" + (symbol ? ` (${symbol.name})` : ""),
-    value: symbol?.name ?? document.getText(lineAt.range),
+    prompt: "Card title" + (anchor ? ` (${anchor.label})` : ""),
+    value: anchor?.label ?? document.getText(lineAt.range),
   });
   if (!title) {
     return null;
@@ -63,40 +69,32 @@ export async function makeCardData(
     targetUri: document.uri,
     targetRange: lineAt.range,
   };
-  if (symbol) {
-    let uri = document.uri;
-    if ("location" in symbol) {
-      uri = symbol.location.uri;
-    }
+  if (anchor && anchor.uri) {
+    const uri = anchor.uri;
+
+    invariant(anchor.range, "Symbol must have a range");
 
     def = {
       targetUri: uri,
-      targetRange: rangeOf(symbol),
+      targetRange: anchor.range,
     };
   }
 
   const path = getRelativePath(def.targetUri)!;
 
-  return {
+  const cardData = {
     title,
     path,
-    symbol: symbol?.name,
+    symbol: anchor?.label,
     codeLink: await getGitHubUrl(def),
-    symbolPosition: def.targetRange,
   };
+  return cardData;
 }
 
 async function showSymbolPicker(
   editor: vscode.TextEditor,
   position: vscode.Position
-): Promise<
-  vscode.SymbolInformation | vscode.DocumentSymbol | undefined | typeof cancel
-> {
-  const definitions =
-    (await vscode.commands.executeCommand<
-      Array<vscode.LocationLink | vscode.Location>
-    >("vscode.executeDefinitionProvider", editor.document.uri, position)) ?? [];
-
+): Promise<Anchor | undefined | typeof cancel> {
   const sortedSymbols = await readSymbols(editor, position);
 
   type TaggedQuickPickItem<T, D> = vscode.QuickPickItem & {
@@ -108,55 +106,20 @@ async function showSymbolPicker(
     label: "(None)",
     target: undefined,
   };
-  type SymbolOption = TaggedQuickPickItem<
-    "symbol",
-    vscode.SymbolInformation | vscode.DocumentSymbol
-  >;
+  type SymbolOption = TaggedQuickPickItem<"symbol", Anchor>;
 
-  type OptionTypes =
-    | typeof none
-    | TaggedQuickPickItem<"definition", vscode.LocationLink | vscode.Location>
-    | SymbolOption;
+  type OptionTypes = typeof none | SymbolOption;
 
   const items: Array<OptionTypes> = [
     none,
-    ...definitions.map((def, index) => {
-      if ("uri" in def) {
-        return {
-          type: "definition",
-          label: `(reference) ${def.uri.path} ${def.range.start.line}-${def.range.end.line}`,
-          target: def,
-          picked: index === 0,
-        } as const;
-      } else {
-        const text = editor.document.getText(def.originSelectionRange);
-        return {
-          type: "definition",
-          label: `(reference) ${text} ${def.targetUri.path}`,
-          target: def,
-          picked: index === 0,
-        } as const;
-      }
-    }),
-    ...sortedSymbols.flatMap(function optionFromSymbol(
-      this: void | undefined,
-      symbol
-    ): SymbolOption[] {
-      let range;
-      if ("location" in symbol) {
-        range = symbol.location.range;
-      } else {
-        range = symbol.range;
-      }
-
+    ...sortedSymbols.map((symbol): SymbolOption => {
       const item: SymbolOption = {
-        type: "symbol",
-        label: `(symbol) ${symbol.name}`,
+        type: symbol.type,
+        label: `(symbol) ${symbol.label}`,
         target: symbol,
-        picked: range.start.line === position.line,
+        picked: symbol.range?.start.line === position.line,
       };
-
-      return [item];
+      return item;
     }),
   ];
 
@@ -164,20 +127,8 @@ async function showSymbolPicker(
     title: "Choose a symbol step 1/2",
     placeHolder: `Choose a symbol to anchor the card to`,
     onDidSelectItem: (item: OptionTypes) => {
-      if (item.type === "symbol") {
-        selectRangeInEditor(rangeOf(item.target), editor);
-      }
-      if (item.type === "definition") {
-        if ("uri" in item.target) {
-          selectRangeInEditor(item.target.range, editor);
-        } else {
-          selectRangeInEditor(
-            item.target.originSelectionRange ??
-              item.target.targetSelectionRange ??
-              item.target.targetRange,
-            editor
-          );
-        }
+      if (item.target) {
+        selectRangeInEditor(item.target.range, editor);
       }
     },
   });
@@ -185,34 +136,28 @@ async function showSymbolPicker(
     return cancel;
   } else if (selected === none) {
     return; /* Do not attach to a symbol, just use the line number */
-  } else if (selected.type === "definition") {
-    const def = selected.target;
-    if ("uri" in def) {
-      let editor = vscode.window.visibleTextEditors.find((editor) => {
-        return editor.document.uri.toString() === def.uri.toString();
-      });
-      if (!editor) {
-        const document = await vscode.workspace.openTextDocument(def.uri);
-        editor = await vscode.window.showTextDocument(document);
-      }
-      selectRangeInEditor(def.range, editor);
-      const text = editor.document.getText(def.range);
-      const symbols = await vscode.commands.executeCommand<
-        vscode.SymbolInformation[]
-      >("vscode.executeDocumentSymbolProvider", editor.document.uri);
-
-      return symbols.find((s) => s.name === text);
-    }
   } else if (selected.type === "symbol") {
     return selected.target;
   }
   return;
 }
 
-export async function readSymbols(editor: vscode.TextEditor, position: vscode.Position) {
-  const symbols = (await vscode.commands.executeCommand<
-    Array<vscode.SymbolInformation | vscode.DocumentSymbol>
-  >("vscode.executeDocumentSymbolProvider", editor.document.uri)) || [];
+type Anchor = {
+  type: "symbol";
+  label: string;
+  range: vscode.Range;
+  target: vscode.SymbolInformation | vscode.DocumentSymbol;
+  uri: vscode.Uri;
+};
+
+export async function readSymbols(
+  editor: vscode.TextEditor,
+  position: vscode.Position = editor.selection.active
+): Promise<Array<Anchor>> {
+  const symbols =
+    (await vscode.commands.executeCommand<
+      Array<vscode.SymbolInformation | vscode.DocumentSymbol>
+    >("vscode.executeDocumentSymbolProvider", editor.document.uri)) || [];
 
   const sortedSymbols = [...symbols].sort((a, b) => {
     if (rangeOf(a).contains(position)) {
@@ -223,18 +168,40 @@ export async function readSymbols(editor: vscode.TextEditor, position: vscode.Po
     }
     return 0;
   });
-  return sortedSymbols.flatMap(function optionFromSymbol(
+  const allSymbols = sortedSymbols.flatMap(function optionFromSymbol(
     this: void | undefined,
-    symbol) {
-      let children: Array<vscode.SymbolInformation | vscode.DocumentSymbol> = [];
-      if ("children" in symbol) {
-        children = symbol.children.flatMap((s) =>
-          optionFromSymbol({
-            ...s,
-            name: `${symbol.name}/${s.name}`,
-          })
-        );
-      }
-      return [symbol, ...children]
+    symbol
+  ): Anchor[] {
+    let children: Array<Anchor> = [];
+    if ("children" in symbol) {
+      children = symbol.children.flatMap((s) =>
+        optionFromSymbol({
+          ...s,
+          name: `${symbol.name}/${s.name}`,
+        })
+      );
+    }
+    let range;
+    let uri;
+    if ("location" in symbol) {
+      range = symbol.location.range;
+      uri = symbol.location.uri;
+    } else {
+      range = symbol.range;
+      uri = editor.document.uri;
+    }
+
+    return [
+      {
+        type: "symbol",
+        label: symbol.name,
+        range,
+        uri,
+        target: symbol,
+      },
+      ...children,
+    ];
   });
+
+  return allSymbols;
 }

@@ -156,7 +156,6 @@ export async function getReferencesInFile(
   const symbols = await vscode.commands.executeCommand<
     vscode.SymbolInformation[]
   >("vscode.executeDocumentSymbolProvider", document.uri);
-  console.log("symbols", symbols);
   const references: vscode.Location[] = [];
   for (const symbol of symbols) {
     const locations = await vscode.commands.executeCommand<vscode.Location[]>(
