@@ -1,10 +1,5 @@
 /* global miro */
 
-function invariant(condition, message) {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
 /**
  * @typedef {Object} MetaData
  * @property {string} path
@@ -59,14 +54,6 @@ async function updateCard(card, data) {
   }
   card.fields = fields;
   await card.sync();
-
-  const data2 = await extractCardData(card);
-  invariant(data2.title === data.title, "title mismatch");
-  invariant(data2.path === data.path, "path mismatch");
-  invariant(data2.symbol === data.symbol, "symbol mismatch");
-  invariant(data2.codeLink === data.codeLink, "codeLink mismatch");
-  invariant(data2.description === data.description, "description mismatch");
-  invariant(data2.miroLink === data.miroLink, "miroLink mismatch");
 
   return card;
 }

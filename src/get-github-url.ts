@@ -47,12 +47,16 @@ export async function getGitHubUrl(
   const gitRepoOwner = gitRemoteUrlParts[1];
   const gitRepoName = gitRemoteUrlParts[2];
 
-  const lineNumber =
-    locationLink.targetSelectionRange?.start.line ??
-    locationLink.targetRange.start.line;
+  const range = locationLink.targetSelectionRange ?? locationLink.targetRange;
 
-  // Construct the GitHub URL for the current file and line number
-  const gitHubUrl = `https://github.com/${gitRepoOwner}/${gitRepoName}/blob/${gitHash}/${relativeFilePath}#L${lineNumber}`;
+  const lineNumber = range.start.line + 1;
+  const endLine = range.end.line + 1;
+  const hash =
+    lineNumber === endLine ? `#L${lineNumber}` : `#L${lineNumber}-L${endLine}`;
 
-  return gitHubUrl;
+  const url = new URL("https://github.com");
+  url.pathname = `${gitRepoOwner}/${gitRepoName}/blob/${gitHash}/${relativeFilePath}`;
+  url.hash = hash;
+
+  return url.toString();
 }
