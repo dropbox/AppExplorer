@@ -11,7 +11,6 @@ export type CardData = {
   title: string;
   path: string;
   symbol?: string;
-  description?: string;
   miroLink?: string;
   codeLink: string | null;
   symbolPosition: {
@@ -22,8 +21,9 @@ export type CardData = {
 
 export type RequestEvents = {
   newCard: (data: CardData) => void;
-  updateCard: (miroLink: string, data: CardData) => void;
-  activeEditor: (uri: string) => void;
+  // activeEditor: (uri: string) => void;
+  queryBoard: () => void;
+  hoverCard: (miroLink: string) => void;
   jump: (data: {
     lastUri: string;
     lastPosition: vscode.Position;
@@ -34,6 +34,7 @@ export type RequestEvents = {
 export type ResponseEvents = {
   cardsInEditor: (data: { path: string; cards: CardData[] }) => void;
   selectedCards: (data: { data: CardData[] }) => void;
+  card: (data: CardData) => void;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -5,13 +5,12 @@ import compression = require("compression");
 import express = require("express");
 import morgan = require("morgan");
 import { Server } from "socket.io";
-import { Handler, RequestEvents, ResponseEvents } from "./EventTypes";
+import { RequestEvents, ResponseEvents } from "./EventTypes";
 import { HandlerContext } from "./extension";
 import { getRelativePath } from "./get-relative-path";
 
 export function makeExpressServer(
-  cardsInEditor: Handler<ResponseEvents["cardsInEditor"]>,
-  { sockets, statusBar }: HandlerContext
+  { sockets, statusBar, allCards }: HandlerContext
 ) {
   const app = express();
   const httpServer = createServer(app);
@@ -21,9 +20,26 @@ export function makeExpressServer(
     if (sockets.size == 0) {
       statusBar.backgroundColor = "red";
     }
-    statusBar.text = `AppExplorer (${sockets.size})`;
+
+    let cardsInEditor = [];
+    const uri = vscode.window.activeTextEditor?.document.uri;
+    if (uri) {
+      const path = getRelativePath(uri);
+      if (path) {
+        cardsInEditor = [...allCards.values()].filter(card => card.path === path)
+      }
+    }
+
+    if (cardsInEditor.length > 0) {
+      statusBar.text = `AppExplorer (${cardsInEditor.length} in file)`;
+    } else if (allCards.size > 0) {
+      statusBar.text = `AppExplorer (${allCards.size} cards)`;
+    } else {
+      statusBar.text = `AppExplorer (${sockets.size} sockets)`;
+    }
     statusBar.show();
   }
+  statusBar.command = "app-explorer.browseCards"
 
   renderStatusBar();
 
@@ -39,15 +55,13 @@ export function makeExpressServer(
       `AppExplorer Connected at socket - ${socket.id}`
     );
 
-    const uri = vscode.window.activeTextEditor?.document.uri;
-    if (uri) {
-      const path = getRelativePath(uri);
-      if (path) {
-        io.emit("activeEditor", path);
+    socket.on("card", (card) => {
+      if(card.miroLink) {
+        allCards.set(card.miroLink, card);
+        renderStatusBar();
       }
-    }
-
-    socket.on("cardsInEditor", cardsInEditor);
+    });
+    socket.emit("queryBoard");
   });
 
   app.use(compression());

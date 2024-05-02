@@ -19,6 +19,10 @@
  * @returns {Promise<Card>} The updated card.
  */
 async function updateCard(card, data) {
+  await card.setMetadata("codeLink", data.codeLink);
+  await card.setMetadata("path", data.path);
+  await card.setMetadata("symbol", data.symbol);
+
   if (data.title && !card.title) {
     card.title = data.title;
   }
@@ -59,9 +63,10 @@ async function updateCard(card, data) {
  * @param {Card[]} items
  * @returns {BoundingBox}
  */
-function boundingBox(items) {
+async function boundingBox(items) {
   return items.reduce(
-    (box, item) => {
+    async (p, item) => {
+      const box = await p;
       const x = item.x;
       const y = item.y;
       const halfWidth = item.width / 2;
@@ -70,6 +75,24 @@ function boundingBox(items) {
       box.min.y = Math.min(box.min.y, y - halfHeight);
       box.max.x = Math.max(box.max.x, x + halfWidth);
       box.max.y = Math.max(box.max.y, y + halfHeight);
+
+      let currentItem = item;
+      while (currentItem && currentItem.parentId) {
+        currentItem = await miro.board.getById(currentItem.parentId);
+        console.log("parent", currentItem);
+        if (currentItem) {
+          box.min.x += currentItem.x;
+          box.min.y += currentItem.y;
+          box.max.x += currentItem.x;
+          box.max.y += currentItem.y;
+          if (currentItem.origin === "center") {
+            box.min.x -= currentItem.width / 2;
+            box.min.y -= currentItem.height / 2;
+            box.max.x -= currentItem.width / 2;
+            box.max.y -= currentItem.height / 2;
+          }
+        }
+      }
       return box;
     },
     {
@@ -84,8 +107,8 @@ function boundingBox(items) {
  * @param {Card[]} cards
  * @returns {import('@mirohq/websdk-types').Rect}
  */
-function makeRect(cards) {
-  const box = boundingBox(cards);
+async function makeRect(cards) {
+  const box = await boundingBox(cards);
   return {
     x: box.min.x,
     y: box.min.y,
@@ -113,7 +136,7 @@ async function nextCardLocation() {
     return box;
   }
 
-  const box = makeRect(selection);
+  const box = await makeRect(selection);
 
   const gap = 200;
 
@@ -155,7 +178,7 @@ const newCard = async (data) => {
   return card;
 };
 async function zoomIntoCards(cards) {
-  const viewport = makeRect(cards);
+  const viewport = await makeRect(cards);
   const padding = 50;
   await miro.board.viewport.set({
     viewport: viewport,
@@ -171,6 +194,59 @@ export function attachToSocket(socket) {
     newCard(event).then(async (card) => {
       await miro.board.deselect();
       await miro.board.select({ id: card.id });
+    });
+  });
+  socket.on("hoverCard", async (cardUrl) => {
+    const url = new URL(cardUrl);
+    const id = url.searchParams.get("moveToWidget");
+
+    const card = await miro.board.getById(id);
+    await zoomIntoCards([card]);
+  });
+
+  socket.on("queryBoard", async () => {
+    const cards = await miro.board.get({ type: ["card", "app_card"] });
+
+    const data = await Promise.all(
+      cards.map(
+        /**
+         * @returns {CardData}
+         */
+        async function makeCardData(card) {
+          let path = await card.getMetadata("path");
+          let symbol = await card.getMetadata("symbol");
+          let codeLink = await card.getMetadata("codeLink");
+          if (!path || !symbol) {
+            await Promise.all(
+              card.fields.map(({ value, tooltip }) => {
+                if (!symbol && tooltip === "Symbol") {
+                  symbol = value;
+                  return card.setMetadata("symbol", symbol);
+                } else if (!path && value === tooltip) {
+                  path = value;
+                  return card.setMetadata("path", path);
+                }
+              })
+            );
+          }
+          if (!codeLink && card.description) {
+            codeLink = card.description;
+            await card.setMetadata("codeLink", codeLink);
+          }
+
+          const cardData = {
+            title: card.title,
+            codeLink,
+            miroLink: `https://miro.com/app/board/${miro.board.id}/?moveToWidget=${card.id}`,
+            path,
+            symbol,
+          };
+          return cardData;
+        }
+      )
+    );
+    data.forEach((card) => {
+      socket.emit("card", card);
     });
   });
 

@@ -102,17 +102,7 @@ async function showSymbolPicker(
       Array<vscode.SymbolInformation | vscode.DocumentSymbol>
     >("vscode.executeDocumentSymbolProvider", editor.document.uri)) || [];
 
-  const handleChildren = (
-    symbol: vscode.SymbolInformation | vscode.DocumentSymbol
-  ): Array<vscode.SymbolInformation | vscode.DocumentSymbol> => {
-    if ("children" in symbol) {
-      return [symbol, ...symbol.children.flatMap(handleChildren)];
-    } else {
-      return [symbol];
-    }
-  };
-
-  const sortedSymbols = [...symbols].flatMap(handleChildren).sort((a, b) => {
+  const sortedSymbols = [...symbols].sort((a, b) => {
     if (rangeOf(a).contains(position)) {
       return -1;
     }
@@ -131,13 +121,15 @@ async function showSymbolPicker(
     label: "(None)",
     target: undefined,
   };
+  type SymbolOption = TaggedQuickPickItem<
+    "symbol",
+    vscode.SymbolInformation | vscode.DocumentSymbol
+  >;
+
   type OptionTypes =
     | typeof none
     | TaggedQuickPickItem<"definition", vscode.LocationLink | vscode.Location>
-    | TaggedQuickPickItem<
-        "symbol",
-        vscode.SymbolInformation | vscode.DocumentSymbol
-      >;
+    | SymbolOption;
 
   const items: Array<OptionTypes> = [
     none,
@@ -159,28 +151,36 @@ async function showSymbolPicker(
         } as const;
       }
     }),
-    ...sortedSymbols.map(
-      (
-        symbol
-      ): TaggedQuickPickItem<
-        "symbol",
-        vscode.SymbolInformation | vscode.DocumentSymbol
-      > => {
-        let range;
-        if ("location" in symbol) {
-          range = symbol.location.range;
-        } else {
-          range = symbol.range;
-        }
-
-        return {
-          type: "symbol",
-          label: `(symbol) ${symbol.name}`,
-          target: symbol,
-          picked: range.start.line === position.line,
-        } as const;
+    ...sortedSymbols.flatMap(function optionFromSymbol(
+      this: void | undefined,
+      symbol
+    ): SymbolOption[] {
+      let range;
+      if ("location" in symbol) {
+        range = symbol.location.range;
+      } else {
+        range = symbol.range;
       }
-    ),
+
+      const item: SymbolOption = {
+        type: "symbol",
+        label: `(symbol) ${symbol.name}`,
+        target: symbol,
+        picked: range.start.line === position.line,
+      };
+
+      let children: SymbolOption[] = [];
+      if ("children" in symbol) {
+        children = symbol.children.flatMap((s) =>
+          optionFromSymbol({
+            ...s,
+            name: `${symbol.name}/${s.name}`,
+          })
+        );
+      }
+
+      return [item, ...children];
+    }),
   ];
 
   const selected = await vscode.window.showQuickPick(items, {

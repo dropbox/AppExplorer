@@ -1,16 +1,17 @@
 import * as vscode from "vscode";
 import { makeExpressServer } from "./server";
-import { CardData, RequestEvents, ResponseEvents } from "./EventTypes";
+import { CardData, RequestEvents } from "./EventTypes";
 import { Socket } from "socket.io";
 import { makeHoverProvider } from "./make-hover-provider";
 import { makeNewCardHandler } from "./make-new-card-handler";
 import { makeActiveTextEditorHandler } from "./make-active-text-editor-handler";
 import { makeTextSelectionHandler } from "./make-text-selection-handler";
-import { getRelativePath } from "./get-relative-path";
+import { makeBrowseHandler } from "./make-browse-handler";
 
 export type HandlerContext = {
   statusBar: vscode.StatusBarItem;
   sockets: Map<string, Socket>;
+  allCards: Map<CardData["miroLink"], CardData>
   lastPosition: vscode.Position | undefined;
   lastUri: vscode.Uri | undefined;
   waitForConnections: () => Promise<void>;
@@ -28,52 +29,14 @@ export function activate(context: vscode.ExtensionContext) {
   // myStatusBarItem.command = myCommandId;
   context.subscriptions.push(statusBar);
 
-  const cardDecoration = vscode.window.createTextEditorDecorationType({
-    // gutterIconPath: path.join(__filename, "..", "images", "card.svg"),
-    // gutterIconSize: "contain",
-    overviewRulerColor: "blue",
-    overviewRulerLane: vscode.OverviewRulerLane.Right,
-    isWholeLine: true,
-    light: {
-      textDecoration: "underline wavy rgba(0, 255, 0, 0.9)",
-    },
-    dark: {
-      textDecoration: "underline wavy rgba(0, 255, 0, 0.3)",
-    },
-  });
 
   const editorCards = makeHoverProvider(context);
 
-  const cardsInEditor: ResponseEvents["cardsInEditor"] = ({ path, cards }) => {
-    // console.log("on cardsInEditor", uri, cards);
-    // Find the editor with this URI
-    const editor = vscode.window.visibleTextEditors.find(
-      (editor) => getRelativePath(editor.document.uri) === path
-    );
-    if (editor) {
-      editorCards.set(editor, cards);
-      const decorations: vscode.DecorationOptions[] = [];
-      cards.forEach((card: CardData) => {
-        decorations.push({
-          range: new vscode.Range(
-            card.symbolPosition.start.line,
-            card.symbolPosition.start.character,
-            card.symbolPosition.end.line,
-            card.symbolPosition.end.character
-          ),
-          renderOptions: {},
-        });
-      });
-      editor.setDecorations(cardDecoration, decorations);
-    }
-    vscode.window.showInformationMessage(
-      `Found ${cards.length} cards in ${path}`
-    );
-  };
-
   const sockets = new Map<string, Socket>();
+  const allCards = new Map<CardData["miroLink"], CardData>();
 
   const handlerContext: HandlerContext = {
+    allCards,
     statusBar,
     lastPosition: undefined,
     lastUri: undefined,
@@ -102,7 +65,7 @@ export function activate(context: vscode.ExtensionContext) {
     },
     sockets,
   };
-  const io = makeExpressServer(cardsInEditor, handlerContext);
+  const io = makeExpressServer(handlerContext);
   context.subscriptions.push(
     vscode.commands.registerCommand("app-explorer.connect", () => {
       // This command doesn't really need to do anything. By activating the
@@ -113,6 +76,12 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "app-explorer.browseCards",
+      makeBrowseHandler(handlerContext)
+    )
+  );
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.createCard",
@@ -128,7 +97,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(
-      makeActiveTextEditorHandler(handlerContext)
+      makeActiveTextEditorHandler(handlerContext, editorCards)
     )
   );
 }
