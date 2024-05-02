@@ -5,6 +5,12 @@ function invariant(condition, message) {
     throw new Error(message);
   }
 }
+/**
+ * @typedef {Object} MetaData
+ * @property {string} path
+ * @property {string} symbol
+ * @property {string} codeLink
+ */
 
 /**
  * @typedef {import('@mirohq/websdk-types').Miro} Miro
@@ -26,11 +32,13 @@ function invariant(condition, message) {
  * @returns {Promise<Card>} The updated card.
  */
 async function updateCard(card, data) {
-  await card.setMetadata("app-explorer", {
+  /** @type {MetaData} */
+  const metaData = {
     path: data.path,
     symbol: data.symbol,
     codeLink: data.codeLink,
-  });
+  };
+  await card.setMetadata("app-explorer", metaData);
   card.linkedTo = data.codeLink;
 
   card.title = data.title;
@@ -222,13 +230,19 @@ export function attachToSocket(socket) {
       socket.emit("card", extractCardData(card));
     }
   });
+  socket.on("selectCard", async (cardUrl) => {
+    const url = new URL(cardUrl);
+    const id = url.searchParams.get("moveToWidget");
+    const card = await miro.board.getById(id);
+    await miro.board.deselect();
+    await miro.board.select({ id });
+    await zoomIntoCards([card]);
+  });
   socket.on("hoverCard", async (cardUrl) => {
     const url = new URL(cardUrl);
     const id = url.searchParams.get("moveToWidget");
 
     const card = await miro.board.getById(id);
-    await miro.board.deselect();
-    await miro.board.select({ id });
     await zoomIntoCards([card]);
   });
 
@@ -238,15 +252,21 @@ export function attachToSocket(socket) {
     await cards.reduce(async (promise, card) => {
       await promise;
       const data = await extractCardData(card);
-      socket.emit("card", data);
+      if (data) {
+        socket.emit("card", data);
+      }
     }, Promise.resolve(null));
   });
 
   miro.board.ui.on("selection:update", async function selectionUpdate(event) {
     const selectedItems = event.items;
     const cards = selectedItems.filter((item) => item.type === "card");
-    const data = await Promise.all(cards.map(extractCardData));
-    socket.emit("selectedCards", { data });
+    let data = await Promise.all(cards.map(extractCardData));
+    data = data.filter((d) => d != null);
+
+    if (data.length > 0) {
+      socket.emit("selectedCards", { data });
+    }
   });
 }
 
@@ -256,22 +276,25 @@ export function attachToSocket(socket) {
  * @returns {Promise<CardData>}
  */
 async function extractCardData(card) {
+  /** @type {MetaData} */
   const metadata = await card.getMetadata("app-explorer");
+  if (metadata) {
+    const boardId = await miro.board.getInfo().then((info) => info.id);
+    if (card.linkedTo !== metadata.codeLink) {
+      card.linkedTo = metadata.codeLink;
+      await card.sync();
+    }
 
-  const boardId = await miro.board.getInfo().then((info) => info.id);
-  if (card.linkedTo !== metadata.codeLink) {
-    card.linkedTo = metadata.codeLink;
-    await card.sync();
+    return {
+      title: card.title,
+      description: card.description,
+      miroLink: `https://miro.com/app/board/${boardId}/?moveToWidget=${card.id}`,
+      path: metadata.path,
+      symbol: metadata.symbol,
+      codeLink: metadata.codeLink,
+    };
   }
-
-  return {
-    title: card.title,
-    description: card.description,
-    miroLink: `https://miro.com/app/board/${boardId}/?moveToWidget=${card.id}`,
-    path: metadata.path,
-    symbol: metadata.symbol,
-    codeLink: metadata.codeLink,
-  };
+  return null;
 }
 
 miro.board.ui.on("icon:click", async function openSidebar() {

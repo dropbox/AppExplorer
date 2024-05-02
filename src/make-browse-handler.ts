@@ -45,22 +45,33 @@ export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
 
     if (selected) {
       const card = allCards.get(selected.miroLink);
-
-      if (card && card.path) {
-        const { path } = card;
-        // Get the root directory's URI
-        const rootUri = vscode.workspace.workspaceFolders?.[0].uri;
-        if (rootUri) {
-          // Append the relative path to the root directory's URI
-          const uri = rootUri.with({ path: rootUri.path + "/" + path });
-          const editor = await vscode.window.showTextDocument(uri);
-          const symbols = await readSymbols(editor);
-          const symbol = symbols.find((symbol) => symbol.label === card.symbol);
-
-          if (symbol && symbol.range) {
-            selectRangeInEditor(symbol.range, editor);
-          }
-        }
+      if (card) {
+        emit("selectCard", card.miroLink!)
+        // await goToCardCode(card);
       }
     }
   };
+
+export async function goToCardCode(card: CardData) {
+  if (card.path) {
+    const { path } = card;
+    // Get the root directory's URI
+    const rootUri = vscode.workspace.workspaceFolders?.[0].uri;
+    if (rootUri) {
+      // Append the relative path to the root directory's URI
+      const uri = rootUri.with({ path: rootUri.path + "/" + path });
+      const editor = await vscode.window.showTextDocument(uri);
+      let symbols = await readSymbols(editor);
+      // It seems like when opening a new file, the symbols are not
+      // immediately available.
+      if (symbols.length === 0) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        symbols = await readSymbols(editor);
+      }
+      const symbol = symbols.find((symbol) => symbol.label === card.symbol);
+      if (symbol && symbol.range) {
+        selectRangeInEditor(symbol.range, editor);
+      }
+    }
+  }
+}

@@ -7,6 +7,7 @@ import morgan = require("morgan");
 import { Server } from "socket.io";
 import { RequestEvents, ResponseEvents } from "./EventTypes";
 import { HandlerContext } from "./extension";
+import { goToCardCode } from "./make-browse-handler";
 
 export function makeExpressServer(
   { sockets, renderStatusBar, allCards, selectedCards }: HandlerContext
@@ -32,6 +33,10 @@ export function makeExpressServer(
     socket.on("selectedCards", (event) => {
       selectedCards.length = 0
       selectedCards.push(...event.data.map((card) => card.miroLink));
+      if (selectedCards.length === 1) {
+        const card = event.data[0];
+        goToCardCode(card)
+      }
     })
 
     socket.on("card", (card) => {

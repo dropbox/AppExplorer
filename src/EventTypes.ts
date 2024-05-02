@@ -21,6 +21,7 @@ export type RequestEvents = {
   // activeEditor: (uri: string) => void;
   queryBoard: () => void;
   hoverCard: (miroLink: string) => void;
+  selectCard: (miroLink: string) => void;
   jump: (data: {
     lastUri: string;
     lastPosition: vscode.Position;
