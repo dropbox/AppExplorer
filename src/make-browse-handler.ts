@@ -1,22 +1,37 @@
 import * as vscode from "vscode";
 import { HandlerContext } from "./extension";
 import { CardData } from "./EventTypes";
+import { getRelativePath } from "./get-relative-path";
 
 export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
   async function () {
     type CardQuickPickItem = vscode.QuickPickItem & {
       miroLink: string;
     };
-    const items: CardQuickPickItem[] = [...allCards.values()].map(
-      (card: CardData) => {
+
+    const activeEditor = vscode.window.activeTextEditor;
+    const curentPath = activeEditor
+      ? getRelativePath(activeEditor.document.uri)
+      : null;
+    console.log("curentPath", curentPath);
+
+    const items: CardQuickPickItem[] = [...allCards.values()]
+      .sort((a, b) => {
+        console.log("a", a.path);
+        if (a.path !== b.path) {
+          if (a.path === curentPath) return -1;
+          if (b.path === curentPath) return 1;
+        }
+        return a.path.localeCompare(b.path) || a.title.localeCompare(b.title);
+      })
+      .map((card: CardData) => {
         return {
           label: card.title.trim(),
           detail: card.path,
-          description: card.symbol,
+          description: card.symbol ? card.symbol : "$(debug-disconnect)",
           miroLink: card.miroLink!,
         };
-      }
-    );
+      });
 
     const selected = await vscode.window.showQuickPick(items, {
       title: "Browse Cards",

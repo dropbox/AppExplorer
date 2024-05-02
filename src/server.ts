@@ -7,39 +7,13 @@ import morgan = require("morgan");
 import { Server } from "socket.io";
 import { RequestEvents, ResponseEvents } from "./EventTypes";
 import { HandlerContext } from "./extension";
-import { getRelativePath } from "./get-relative-path";
 
 export function makeExpressServer(
-  { sockets, statusBar, allCards }: HandlerContext
+  { sockets, renderStatusBar, allCards, selectedCards }: HandlerContext
 ) {
   const app = express();
   const httpServer = createServer(app);
   const io = new Server<ResponseEvents, RequestEvents>(httpServer);
-
-  function renderStatusBar() {
-    if (sockets.size == 0) {
-      statusBar.backgroundColor = "red";
-    }
-
-    let cardsInEditor = [];
-    const uri = vscode.window.activeTextEditor?.document.uri;
-    if (uri) {
-      const path = getRelativePath(uri);
-      if (path) {
-        cardsInEditor = [...allCards.values()].filter(card => card.path === path)
-      }
-    }
-
-    if (cardsInEditor.length > 0) {
-      statusBar.text = `AppExplorer (${cardsInEditor.length} in file)`;
-    } else if (allCards.size > 0) {
-      statusBar.text = `AppExplorer (${allCards.size} cards)`;
-    } else {
-      statusBar.text = `AppExplorer (${sockets.size} sockets)`;
-    }
-    statusBar.show();
-  }
-  statusBar.command = "app-explorer.browseCards"
 
   renderStatusBar();
 
@@ -54,6 +28,11 @@ export function makeExpressServer(
     vscode.window.showInformationMessage(
       `AppExplorer Connected at socket - ${socket.id}`
     );
+
+    socket.on("selectedCards", (event) => {
+      selectedCards.length = 0
+      selectedCards.push(...event.data.map((card) => card.miroLink));
+    })
 
     socket.on("card", (card) => {
       if(card.miroLink) {

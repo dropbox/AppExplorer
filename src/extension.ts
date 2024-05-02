@@ -7,11 +7,15 @@ import { makeNewCardHandler } from "./make-new-card-handler";
 import { makeActiveTextEditorHandler } from "./make-active-text-editor-handler";
 import { makeTextSelectionHandler } from "./make-text-selection-handler";
 import { makeBrowseHandler } from "./make-browse-handler";
+import { makeAttachCardHandler } from "./make-attach-card-handler";
+import { getRelativePath } from "./get-relative-path";
 
 export type HandlerContext = {
   statusBar: vscode.StatusBarItem;
   sockets: Map<string, Socket>;
   allCards: Map<CardData["miroLink"], CardData>
+  selectedCards: CardData['miroLink'][];
+  renderStatusBar: () => void,
   lastPosition: vscode.Position | undefined;
   lastUri: vscode.Uri | undefined;
   waitForConnections: () => Promise<void>;
@@ -35,9 +39,36 @@ export function activate(context: vscode.ExtensionContext) {
   const sockets = new Map<string, Socket>();
   const allCards = new Map<CardData["miroLink"], CardData>();
 
+  function renderStatusBar() {
+    if (sockets.size == 0) {
+      statusBar.backgroundColor = "red";
+    }
+
+    let cardsInEditor = [];
+    const uri = vscode.window.activeTextEditor?.document.uri;
+    if (uri) {
+      const path = getRelativePath(uri);
+      if (path) {
+        cardsInEditor = [...allCards.values()].filter(card => card.path === path)
+      }
+    }
+
+    if (cardsInEditor.length > 0) {
+      statusBar.text = `AppExplorer (${cardsInEditor.length} in file)`;
+    } else if (allCards.size > 0) {
+      statusBar.text = `AppExplorer (${allCards.size} cards)`;
+    } else {
+      statusBar.text = `AppExplorer (${sockets.size} sockets)`;
+    }
+    statusBar.show();
+  }
+  statusBar.command = "app-explorer.browseCards"
+
   const handlerContext: HandlerContext = {
     allCards,
     statusBar,
+    renderStatusBar,
+    selectedCards: [],
     lastPosition: undefined,
     lastUri: undefined,
     emit: (t, ...data) => io.emit(t, ...data),
@@ -89,6 +120,12 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "app-explorer.attachCard",
+      makeAttachCardHandler(handlerContext)
+    )
+  );
   context.subscriptions.push(
     vscode.window.onDidChangeTextEditorSelection(
       makeTextSelectionHandler(handlerContext)

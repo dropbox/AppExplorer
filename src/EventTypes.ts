@@ -21,6 +21,7 @@ export type CardData = {
 
 export type RequestEvents = {
   newCard: (data: CardData) => void;
+  attachCard: (data: CardData) => void;
   // activeEditor: (uri: string) => void;
   queryBoard: () => void;
   hoverCard: (miroLink: string) => void;

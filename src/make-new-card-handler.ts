@@ -35,7 +35,7 @@ export const makeNewCardHandler = ({
     }
   };
 
-async function makeCardData(
+export async function makeCardData(
   editor: vscode.TextEditor
 ): Promise<CardData | null> {
   const document = editor.document;
@@ -97,20 +97,7 @@ async function showSymbolPicker(
       Array<vscode.LocationLink | vscode.Location>
     >("vscode.executeDefinitionProvider", editor.document.uri, position)) ?? [];
 
-  const symbols =
-    (await vscode.commands.executeCommand<
-      Array<vscode.SymbolInformation | vscode.DocumentSymbol>
-    >("vscode.executeDocumentSymbolProvider", editor.document.uri)) || [];
-
-  const sortedSymbols = [...symbols].sort((a, b) => {
-    if (rangeOf(a).contains(position)) {
-      return -1;
-    }
-    if (rangeOf(b).contains(position)) {
-      return 1;
-    }
-    return 0;
-  });
+  const sortedSymbols = await readSymbols(editor, position);
 
   type TaggedQuickPickItem<T, D> = vscode.QuickPickItem & {
     type: T;
@@ -169,17 +156,7 @@ async function showSymbolPicker(
         picked: range.start.line === position.line,
       };
 
-      let children: SymbolOption[] = [];
-      if ("children" in symbol) {
-        children = symbol.children.flatMap((s) =>
-          optionFromSymbol({
-            ...s,
-            name: `${symbol.name}/${s.name}`,
-          })
-        );
-      }
-
-      return [item, ...children];
+      return [item];
     }),
   ];
 
@@ -230,4 +207,34 @@ async function showSymbolPicker(
     return selected.target;
   }
   return;
+}
+
+export async function readSymbols(editor: vscode.TextEditor, position: vscode.Position) {
+  const symbols = (await vscode.commands.executeCommand<
+    Array<vscode.SymbolInformation | vscode.DocumentSymbol>
+  >("vscode.executeDocumentSymbolProvider", editor.document.uri)) || [];
+
+  const sortedSymbols = [...symbols].sort((a, b) => {
+    if (rangeOf(a).contains(position)) {
+      return -1;
+    }
+    if (rangeOf(b).contains(position)) {
+      return 1;
+    }
+    return 0;
+  });
+  return sortedSymbols.flatMap(function optionFromSymbol(
+    this: void | undefined,
+    symbol) {
+      let children: Array<vscode.SymbolInformation | vscode.DocumentSymbol> = [];
+      if ("children" in symbol) {
+        children = symbol.children.flatMap((s) =>
+          optionFromSymbol({
+            ...s,
+            name: `${symbol.name}/${s.name}`,
+          })
+        );
+      }
+      return [symbol, ...children]
+  });
 }

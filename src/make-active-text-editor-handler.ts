@@ -3,28 +3,19 @@ import { HandlerContext } from "./extension";
 import { getRelativePath } from "./get-relative-path";
 import { makeHoverProvider } from "./make-hover-provider";
 import { CardData } from "./EventTypes";
+import { readSymbols } from "./make-new-card-handler";
 
-
-export const makeActiveTextEditorHandler =
-  (
-    handlerContext: HandlerContext,
-    editorCards: ReturnType<typeof makeHoverProvider>
-  ) => {
+export const makeActiveTextEditorHandler = (
+  handlerContext: HandlerContext,
+  editorCards: ReturnType<typeof makeHoverProvider>
+) => {
+  const color = "editorInlayHint.foreground";
 
   const cardDecoration = vscode.window.createTextEditorDecorationType({
-    // gutterIconPath: path.join(__filename, "..", "images", "card.svg"),
-    // gutterIconSize: "contain",
-    overviewRulerColor: "blue",
-    overviewRulerLane: vscode.OverviewRulerLane.Right,
     isWholeLine: true,
-    light: {
-      textDecoration: "underline wavy rgba(0, 255, 0, 0.9)",
-    },
-    dark: {
-      textDecoration: "underline wavy rgba(0, 255, 0, 0.3)",
-    },
   });
-  return (editor: vscode.TextEditor | undefined) => {
+  async function decordateEditor(editor: vscode.TextEditor | undefined) {
+    handlerContext.renderStatusBar();
     if (editor) {
       const uri = editor.document.uri;
       const path = getRelativePath(uri);
@@ -33,17 +24,42 @@ export const makeActiveTextEditorHandler =
           (card) => card.path === path
         );
         editorCards.set(editor, cards);
+        console.log("cards", cards);
         const decorations: vscode.DecorationOptions[] = [];
+
+        const position = editor.selection.active;
+        const symbols = await readSymbols(editor, position);
         cards.forEach((card: CardData) => {
-          decorations.push({
-            range: new vscode.Range(
-              card.symbolPosition.start.line,
-              card.symbolPosition.start.character,
-              card.symbolPosition.end.line,
-              card.symbolPosition.end.character
-            ),
-            renderOptions: {},
-          });
+          if (card.symbol) {
+            const symbol = symbols.find(
+              (symbol) => symbol.name === card.symbol
+            );
+
+            if (symbol) {
+              let range;
+              if ("location" in symbol) {
+                range = symbol.location.range;
+              } else {
+                range = symbol.range;
+              }
+
+              range = new vscode.Range(range.start, range.start);
+
+              decorations.push({
+                range,
+                renderOptions: {
+                  after: {
+                    contentText: `  AppExplorer: ${card.title}`,
+                    color: color,
+                    fontWeight: "bold",
+                  },
+                },
+              });
+            } else {
+              console.warn(`Symbol ${card.symbol} not found in ${path}`);
+              console.warn("symbols", symbols);
+            }
+          }
         });
         editor.setDecorations(cardDecoration, decorations);
         vscode.window.showInformationMessage(
@@ -53,5 +69,7 @@ export const makeActiveTextEditorHandler =
 
       handlerContext.lastUri = uri;
     }
-  };
   }
+
+  return decordateEditor;
+};

@@ -179,7 +179,8 @@ const newCard = async (data) => {
 };
 async function zoomIntoCards(cards) {
   const viewport = await makeRect(cards);
-  const padding = 50;
+  const padding = Math.max(viewport.width, viewport.height);
+  console.log("viewport", viewport, padding);
   await miro.board.viewport.set({
     viewport: viewport,
     padding: { top: padding, right: padding, bottom: padding, left: padding },
@@ -195,6 +196,16 @@ export function attachToSocket(socket) {
       await miro.board.deselect();
       await miro.board.select({ id: card.id });
     });
+  });
+  socket.on("attachCard", async (cardData) => {
+    const selection = await miro.board.getSelection();
+    const card = selection[0];
+    if (selection.length === 1 && card.type === "card") {
+      await updateCard(card, cardData);
+      await miro.board.deselect();
+      await miro.board.select({ id: card.id });
+      socket.emit("card", cardData);
+    }
   });
   socket.on("hoverCard", async (cardUrl) => {
     const url = new URL(cardUrl);
