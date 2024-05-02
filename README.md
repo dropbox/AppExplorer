@@ -64,7 +64,7 @@ with newer changes in `src`.
 
 ## Release Notes
 
-- 0.0.5 - Code Navigation
+- 0.0.6 - Code Navigation
   - Selecting a single card in Miro will bring you to the code
   - Clicking `App Explorer (# cards)` on the status bar lets you QuickPick a card
     - Miro will move to show yoy the cards as you search
