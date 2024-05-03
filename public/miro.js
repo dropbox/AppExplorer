@@ -30,7 +30,7 @@ async function updateCard(card, data) {
   /** @type {MetaData} */
   const metaData = {
     path: data.path,
-    symbol: data.symbol,
+    symbol: data.symbol ?? null,
     codeLink: data.codeLink,
   };
   await card.setMetadata("app-explorer", metaData);
@@ -128,7 +128,7 @@ async function nextCardLocation() {
     /**
      * @returns {item is Card}
      */
-    (item) => item.type === "card"
+    (item) => item.type === "card" || item.type === "app_card"
   );
   const width = 300;
   const height = 200;
@@ -159,10 +159,13 @@ async function nextCardLocation() {
  */
 const newCard = async (data) => {
   const selection = (await miro.board.getSelection()).filter(
-    (item) => item.type === "card"
+    (item) => item.type === "card" || item.type === "app_card"
   );
 
-  const card = await miro.board.createCard(await nextCardLocation());
+  const card = await miro.board.createAppCard({
+    ...(await nextCardLocation()),
+    status: "connected",
+  });
   zoomIntoCards([selection, card].flat());
   await updateCard(card, data);
 
@@ -210,7 +213,10 @@ export function attachToSocket(socket) {
   socket.on("attachCard", async (cardData) => {
     const selection = await miro.board.getSelection();
     const card = selection[0];
-    if (selection.length === 1 && card.type === "card") {
+    if (
+      selection.length === 1 &&
+      (card.type === "card" || card.type === "app_card")
+    ) {
       await updateCard(card, cardData);
       await miro.board.deselect();
       await miro.board.select({ id: card.id });
@@ -224,6 +230,56 @@ export function attachToSocket(socket) {
     await miro.board.deselect();
     await miro.board.select({ id });
     await zoomIntoCards([card]);
+  });
+  socket.on("cardStatus", async ({ miroLink, status }) => {
+    const url = new URL(miroLink);
+    const id = url.searchParams.get("moveToWidget");
+    let card = await miro.board.getById(id);
+    // 0.0.7 - Migrate cards to app cards
+    if (card.type === "card") {
+      try {
+        await miro.board.deselect();
+        const data = await extractCardData(card);
+        const appCard = await newCard(data);
+
+        // I can't seem to get the card to move to the correct location.
+        // const { x, y } = boundingBox([card]);
+        // (appCard.x = x), (appCard.y = y);
+        // await appCard.sync();
+        // await zoomIntoCards([appCard]);
+
+        const connectors = await card.getConnectors();
+        await connectors.reduce(async (promise, connector) => {
+          if (connector.start?.item === card.id) {
+            connector.start.item = appCard.id;
+          }
+          if (connector.end?.item === card.id) {
+            connector.end.item = appCard.id;
+          }
+          await connector.sync();
+          await promise;
+        }, Promise.resolve(null));
+
+        await miro.board.deselect();
+        await miro.board.select({ id: appCard.id });
+        await card.setMetadata("app-explorer", null);
+        card.title = `(migrated) ${card.title}`;
+        await card.sync();
+
+        // This delete doesn't work, IDK why
+        await miro.board.remove(card);
+        card = appCard;
+        await zoomIntoCards([card]);
+      } catch (e) {
+        console.error("Error disconnecting card", e);
+        throw e;
+      }
+    }
+
+    if (card.type === "app_card") {
+      card.status = status;
+      await card.sync();
+    }
   });
   socket.on("hoverCard", async (cardUrl) => {
     const url = new URL(cardUrl);
@@ -247,7 +303,9 @@ export function attachToSocket(socket) {
 
   miro.board.ui.on("selection:update", async function selectionUpdate(event) {
     const selectedItems = event.items;
-    const cards = selectedItems.filter((item) => item.type === "card");
+    const cards = selectedItems.filter(
+      (item) => item.type === "card" || item.type === "app_card"
+    );
     let data = await Promise.all(cards.map(extractCardData));
     data = data.filter((d) => d != null);
 

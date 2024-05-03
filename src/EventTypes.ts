@@ -22,6 +22,10 @@ export type RequestEvents = {
   queryBoard: () => void;
   hoverCard: (miroLink: string) => void;
   selectCard: (miroLink: string) => void;
+  cardStatus: (data: {
+    miroLink: string;
+    status: "connected" | "disconnected";
+  }) => void;
   jump: (data: {
     lastUri: string;
     lastPosition: vscode.Position;

@@ -30,12 +30,19 @@ export function makeExpressServer(
       `AppExplorer Connected at socket - ${socket.id}`
     );
 
-    socket.on("selectedCards", (event) => {
+    socket.on("selectedCards", async (event) => {
       selectedCards.length = 0
       selectedCards.push(...event.data.map((card) => card.miroLink));
       if (selectedCards.length === 1) {
         const card = event.data[0];
-        goToCardCode(card)
+
+        const status = await goToCardCode(card) ? 'connected' : 'disconnected'
+        if (card.miroLink) {
+          socket.emit('cardStatus', {
+            miroLink: card.miroLink,
+            status
+          })
+        }
       }
     })
 

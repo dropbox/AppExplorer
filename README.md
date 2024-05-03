@@ -72,3 +72,8 @@ with newer changes in `src`.
       - Selecting the card will also navigate to the code.
   - All cards on the board use Miro's native linking feature for permalinks.
   - If you have a card selected in miro, you can `AppExplorer: Attach Card to Code` to reattach it to a symbol you're looking at.
+- 0.0.7 - AppCards
+  - Up through version 0.0.6 I've been using Miro Cards that can be edited on the board. This makes it too easy to accidentally overwrite titles.
+  - When selecting a card from an older version, it will be migrated to a new AppCard and then removed.
+    - I couldn't get it to reliably place the new card over the old one, so it just puts it in the center of the viewport.
+  - All new cards are AppCards

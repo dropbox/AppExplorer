@@ -46,7 +46,7 @@ export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
     if (selected) {
       const card = allCards.get(selected.miroLink);
       if (card) {
-        emit("selectCard", card.miroLink!)
+        emit("selectCard", card.miroLink!);
         // await goToCardCode(card);
       }
     }
@@ -65,13 +65,15 @@ export async function goToCardCode(card: CardData) {
       // It seems like when opening a new file, the symbols are not
       // immediately available.
       if (symbols.length === 0) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
         symbols = await readSymbols(editor);
       }
       const symbol = symbols.find((symbol) => symbol.label === card.symbol);
       if (symbol && symbol.range) {
         selectRangeInEditor(symbol.range, editor);
+        return true;
       }
     }
   }
+  return false;
 }
