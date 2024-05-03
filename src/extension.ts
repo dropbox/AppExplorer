@@ -13,9 +13,9 @@ import { getRelativePath } from "./get-relative-path";
 export type HandlerContext = {
   statusBar: vscode.StatusBarItem;
   sockets: Map<string, Socket>;
-  allCards: Map<CardData["miroLink"], CardData>
-  selectedCards: CardData['miroLink'][];
-  renderStatusBar: () => void,
+  allCards: Map<CardData["miroLink"], CardData>;
+  selectedCards: CardData["miroLink"][];
+  renderStatusBar: () => void;
   lastPosition: vscode.Position | undefined;
   lastUri: vscode.Uri | undefined;
   waitForConnections: () => Promise<void>;
@@ -33,7 +33,6 @@ export function activate(context: vscode.ExtensionContext) {
   // myStatusBarItem.command = myCommandId;
   context.subscriptions.push(statusBar);
 
-
   const editorCards = makeHoverProvider(context);
 
   const sockets = new Map<string, Socket>();
@@ -49,12 +48,14 @@ export function activate(context: vscode.ExtensionContext) {
     if (uri) {
       const path = getRelativePath(uri);
       if (path) {
-        cardsInEditor = [...allCards.values()].filter(card => card.path === path)
+        cardsInEditor = [...allCards.values()].filter(
+          (card) => card.path === path
+        );
       }
     }
 
     if (cardsInEditor.length > 0) {
-      statusBar.text = `AppExplorer (${cardsInEditor.length} in file)`;
+      statusBar.text = `AppExplorer (${cardsInEditor.length}/${allCards.size} cards)`;
     } else if (allCards.size > 0) {
       statusBar.text = `AppExplorer (${allCards.size} cards)`;
     } else {
@@ -62,7 +63,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
     statusBar.show();
   }
-  statusBar.command = "app-explorer.browseCards"
+  statusBar.command = "app-explorer.browseCards";
 
   const handlerContext: HandlerContext = {
     allCards,

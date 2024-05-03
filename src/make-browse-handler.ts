@@ -60,6 +60,18 @@ export async function goToCardCode(card: CardData) {
     if (rootUri) {
       // Append the relative path to the root directory's URI
       const uri = rootUri.with({ path: rootUri.path + "/" + path });
+      // Check if this URI exists
+      try {
+        if (
+          (await vscode.workspace.fs.stat(uri)).type !== vscode.FileType.File
+        ) {
+          return false;
+        }
+      } catch (e) {
+        // stat throws if the file doesn't exist.
+        return false;
+      }
+
       const editor = await vscode.window.showTextDocument(uri);
       let symbols = await readSymbols(editor);
       // It seems like when opening a new file, the symbols are not

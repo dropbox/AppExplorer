@@ -9,9 +9,12 @@ import { RequestEvents, ResponseEvents } from "./EventTypes";
 import { HandlerContext } from "./extension";
 import { goToCardCode } from "./make-browse-handler";
 
-export function makeExpressServer(
-  { sockets, renderStatusBar, allCards, selectedCards }: HandlerContext
-) {
+export function makeExpressServer({
+  sockets,
+  renderStatusBar,
+  allCards,
+  selectedCards,
+}: HandlerContext) {
   const app = express();
   const httpServer = createServer(app);
   const io = new Server<ResponseEvents, RequestEvents>(httpServer);
@@ -31,26 +34,35 @@ export function makeExpressServer(
     );
 
     socket.on("selectedCards", async (event) => {
-      selectedCards.length = 0
+      selectedCards.length = 0;
       selectedCards.push(...event.data.map((card) => card.miroLink));
+
+      event.data.forEach((card) => {
+        allCards.set(card.miroLink, card);
+      });
+
       if (selectedCards.length === 1) {
         const card = event.data[0];
 
-        const status = await goToCardCode(card) ? 'connected' : 'disconnected'
+        const status = (await goToCardCode(card))
+          ? "connected"
+          : "disconnected";
         if (card.miroLink) {
-          socket.emit('cardStatus', {
+          socket.emit("cardStatus", {
             miroLink: card.miroLink,
-            status
-          })
+            status,
+          });
         }
       }
-    })
+    });
 
-    socket.on("card", (card) => {
-      if(card.miroLink) {
-        allCards.set(card.miroLink, card);
-        renderStatusBar();
+    socket.on("card", (miroLink, card) => {
+      if (card == null) {
+        allCards.delete(miroLink);
+      } else {
+        allCards.set(miroLink, card);
       }
+      renderStatusBar();
     });
     socket.emit("queryBoard");
   });

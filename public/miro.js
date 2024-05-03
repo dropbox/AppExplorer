@@ -31,7 +31,7 @@ async function updateCard(card, data) {
   const metaData = {
     path: data.path,
     symbol: data.symbol ?? null,
-    codeLink: data.codeLink,
+    codeLink: data.codeLink ?? null,
   };
   await card.setMetadata("app-explorer", metaData);
   card.linkedTo = data.codeLink;
@@ -220,7 +220,8 @@ export function attachToSocket(socket) {
       await updateCard(card, cardData);
       await miro.board.deselect();
       await miro.board.select({ id: card.id });
-      socket.emit("card", extractCardData(card));
+      const data = await extractCardData(card);
+      socket.emit("card", data.miroLink, data);
     }
   });
   socket.on("selectCard", async (cardUrl) => {
@@ -238,6 +239,7 @@ export function attachToSocket(socket) {
     // 0.0.7 - Migrate cards to app cards
     if (card.type === "card") {
       try {
+        await zoomIntoCards([card]);
         await miro.board.deselect();
         const data = await extractCardData(card);
         const appCard = await newCard(data);
@@ -269,7 +271,6 @@ export function attachToSocket(socket) {
         // This delete doesn't work, IDK why
         await miro.board.remove(card);
         card = appCard;
-        await zoomIntoCards([card]);
       } catch (e) {
         console.error("Error disconnecting card", e);
         throw e;
@@ -296,9 +297,21 @@ export function attachToSocket(socket) {
       await promise;
       const data = await extractCardData(card);
       if (data) {
-        socket.emit("card", data);
+        socket.emit("card", data.miroLink, data);
       }
     }, Promise.resolve(null));
+  });
+
+  miro.board.ui.on("items:delete", async function (event) {
+    return event.items.reduce(async (promise, item) => {
+      await promise;
+      if (item.type === "card" || item.type === "app_card") {
+        const data = await extractCardData(item);
+        if (data) {
+          socket.emit("card", data.miroLink, null);
+        }
+      }
+    });
   });
 
   miro.board.ui.on("selection:update", async function selectionUpdate(event) {
