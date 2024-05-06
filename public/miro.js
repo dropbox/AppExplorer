@@ -302,6 +302,24 @@ export function attachToSocket(socket) {
     }, Promise.resolve(null));
   });
 
+  socket.on("query", async ({ name, requestId }) => {
+    switch (name) {
+      case "cards": {
+        const cards = await miro.board.get({ type: ["card", "app_card"] });
+        const response = await Promise.all(cards.map(extractCardData));
+        socket.emit("queryResult", { requestId, response });
+        break;
+      }
+    }
+  });
+  miro.board.ui.on("app_card:open", async (event) => {
+    const { appCard } = event;
+    const data = await extractCardData(appCard);
+    if (data) {
+      socket.emit("navigateTo", data);
+    }
+  });
+
   miro.board.ui.on("items:delete", async function (event) {
     return event.items.reduce(async (promise, item) => {
       await promise;

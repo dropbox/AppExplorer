@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { makeExpressServer } from "./server";
-import { CardData, RequestEvents } from "./EventTypes";
+import { CardData, Queries, RequestEvents, ResponseEvents } from "./EventTypes";
 import { Socket } from "socket.io";
 import { makeHoverProvider } from "./make-hover-provider";
 import { makeNewCardHandler } from "./make-new-card-handler";
@@ -19,6 +19,11 @@ export type HandlerContext = {
   lastPosition: vscode.Position | undefined;
   lastUri: vscode.Uri | undefined;
   waitForConnections: () => Promise<void>;
+  query: <Req extends keyof Queries, Res extends ReturnType<Queries[Req]>>(
+    socket: Socket<ResponseEvents, RequestEvents>,
+    request: Req,
+    ...data: Parameters<Queries[Req]>
+  ) => Promise<Res>;
   emit: <T extends keyof RequestEvents>(
     event: T,
     ...data: Parameters<RequestEvents[T]>
@@ -73,6 +78,32 @@ export function activate(context: vscode.ExtensionContext) {
     lastPosition: undefined,
     lastUri: undefined,
     emit: (t, ...data) => io.emit(t, ...data),
+    query: function <
+      Req extends keyof Queries,
+      Res extends ReturnType<Queries[Req]>
+    >(
+      socket: Socket<ResponseEvents, RequestEvents>,
+      request: Req, 
+      ...data: Parameters<Queries[Req]>
+    ): Promise<Res> {
+      const requestId = Math.random().toString();
+      return new Promise<Res>((resolve) => {
+        const captureResponse: ResponseEvents["queryResult"] = (response) => {
+          if (response.requestId === requestId) {
+            io.off("queryResult", captureResponse);
+            resolve(response.response as Res);
+          }
+        };
+
+        socket.on("queryResult", captureResponse);
+
+        socket.emit("query", {
+          name: request,
+          requestId,
+          data,
+        });
+      });
+    },
     async waitForConnections() {
       if (sockets.size > 0) {
         return;

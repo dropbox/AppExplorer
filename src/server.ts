@@ -14,6 +14,7 @@ export function makeExpressServer({
   renderStatusBar,
   allCards,
   selectedCards,
+  query,
 }: HandlerContext) {
   const app = express();
   const httpServer = createServer(app);
@@ -21,7 +22,7 @@ export function makeExpressServer({
 
   renderStatusBar();
 
-  io.on("connection", (socket) => {
+  io.on("connection", async (socket) => {
     sockets.set(socket.id, socket);
     renderStatusBar();
     socket.on("disconnect", () => {
@@ -33,6 +34,15 @@ export function makeExpressServer({
       `AppExplorer Connected at socket - ${socket.id}`
     );
 
+    socket.on("navigateTo", async (card) => {
+      const status = (await goToCardCode(card)) ? "connected" : "disconnected";
+      if (card.miroLink) {
+        socket.emit("cardStatus", {
+          miroLink: card.miroLink,
+          status,
+        });
+      }
+    });
     socket.on("selectedCards", async (event) => {
       selectedCards.length = 0;
       selectedCards.push(...event.data.map((card) => card.miroLink));
@@ -40,31 +50,14 @@ export function makeExpressServer({
       event.data.forEach((card) => {
         allCards.set(card.miroLink, card);
       });
-
-      if (selectedCards.length === 1) {
-        const card = event.data[0];
-
-        const status = (await goToCardCode(card))
-          ? "connected"
-          : "disconnected";
-        if (card.miroLink) {
-          socket.emit("cardStatus", {
-            miroLink: card.miroLink,
-            status,
-          });
-        }
-      }
     });
 
-    socket.on("card", (miroLink, card) => {
-      if (card == null) {
-        allCards.delete(miroLink);
-      } else {
-        allCards.set(miroLink, card);
-      }
-      renderStatusBar();
+    const cards = await query(socket, "cards");
+    console.log("cards", cards);
+    cards.forEach((card) => {
+      allCards.set(card.miroLink, card);
     });
-    socket.emit("queryBoard");
+    renderStatusBar();
   });
 
   app.use(compression());

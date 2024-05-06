@@ -15,6 +15,10 @@ export type CardData = {
   codeLink: string | null;
 };
 
+export type Queries = {
+  cards: () => CardData[]
+};
+
 export type RequestEvents = {
   newCard: (data: CardData) => void;
   attachCard: (data: CardData) => void;
@@ -26,6 +30,11 @@ export type RequestEvents = {
     miroLink: string;
     status: "connected" | "disconnected";
   }) => void;
+  query: <N extends keyof Queries>(data: {
+    name: N;
+    requestId: string;
+    data: Parameters<Queries[N]>;
+  }) => void;
   jump: (data: {
     lastUri: string;
     lastPosition: vscode.Position;
@@ -36,7 +45,12 @@ export type RequestEvents = {
 export type ResponseEvents = {
   cardsInEditor: (data: { path: string; cards: CardData[] }) => void;
   selectedCards: (data: { data: CardData[] }) => void;
+  navigateTo: (card: CardData) => void;
   card: (url: string, data: CardData) => void;
+  queryResult: <N extends keyof Queries>(data: {
+    requestId: string,
+    response: Queries[N],
+  }) => void;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
