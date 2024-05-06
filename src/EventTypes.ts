@@ -1,4 +1,4 @@
-import { TagColor } from "@mirohq/websdk-types";
+import { AppCard, TagColor } from "@mirohq/websdk-types";
 import * as vscode from "vscode";
 
 export type CardGutter = { startLine: number; endLine: number };
@@ -11,9 +11,10 @@ export type JSPosition = {
 export type CardData = {
   title: string;
   path: string;
-  symbol?: string;
+  symbol: string;
   miroLink?: string;
   codeLink: string | null;
+  status: AppCard['status'];
 };
 
 export const allColors = [
@@ -47,8 +48,6 @@ export type Queries = {
 export type RequestEvents = {
   newCard: (data: CardData) => void;
   attachCard: (data: CardData) => void;
-  // activeEditor: (uri: string) => void;
-  queryBoard: () => void;
   hoverCard: (miroLink: string) => void;
   selectCard: (miroLink: string) => void;
   cardStatus: (data: {
@@ -78,7 +77,7 @@ export type ResponseEvents = {
   cardsInEditor: (data: { path: string; cards: CardData[] }) => void;
   selectedCards: (data: { data: CardData[] }) => void;
   navigateTo: (card: CardData) => void;
-  card: (url: string, data: CardData) => void;
+  card: (data: { url: string, card: CardData }) => void;
   queryResult: <N extends keyof Queries>(data: {
     requestId: string,
     response: Queries[N],

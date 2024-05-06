@@ -13,7 +13,6 @@ export function makeExpressServer({
   sockets,
   renderStatusBar,
   allCards,
-  selectedCards,
   query,
 }: HandlerContext) {
   const app = express();
@@ -43,13 +42,8 @@ export function makeExpressServer({
         });
       }
     });
-    socket.on("selectedCards", async (event) => {
-      selectedCards.length = 0;
-      selectedCards.push(...event.data.map((card) => card.miroLink));
-
-      event.data.forEach((card) => {
-        allCards.set(card.miroLink, card);
-      });
+    socket.on("card", async ({ url, card }) => {
+      allCards.set( url, card );
     });
 
     const cards = await query(socket, "cards");

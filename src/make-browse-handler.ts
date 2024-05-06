@@ -27,7 +27,9 @@ export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
         return {
           label: card.title.trim(),
           detail: card.path,
-          description: card.symbol ? card.symbol : "$(debug-disconnect)",
+          description:
+            card.symbol +
+            (card.status === "disconnected" ? "$(debug-disconnect)" : ""),
           miroLink: card.miroLink!,
         };
       });
@@ -47,7 +49,13 @@ export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
       const card = allCards.get(selected.miroLink);
       if (card) {
         emit("selectCard", card.miroLink!);
-        // await goToCardCode(card);
+      const status = (await goToCardCode(card)) ? "connected" : "disconnected";
+      if (card.miroLink) {
+        emit("cardStatus", {
+          miroLink: card.miroLink,
+          status,
+        });
+      }
       }
     }
   };

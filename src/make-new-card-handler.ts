@@ -48,13 +48,11 @@ export async function makeCardData(
   const position = editor.selection.active;
 
   const anchor = await showSymbolPicker(editor, position);
-  if (anchor === cancel) {
+  if (anchor === cancel || !anchor) {
     return null;
   }
 
-  if (anchor && anchor.range) {
-    selectRangeInEditor(anchor.range, editor);
-  }
+  selectRangeInEditor(anchor.range, editor);
   const lineAt = document.lineAt(position);
   const title = await vscode.window.showInputBox({
     title: "Card Title 2/2",
@@ -85,9 +83,10 @@ export async function makeCardData(
   const cardData = {
     title,
     path,
-    symbol: anchor?.label,
+    symbol: anchor.label,
     codeLink: await getGitHubUrl(def),
-  };
+    status: 'disconnected',
+  } as const;
   return cardData;
 }
 
