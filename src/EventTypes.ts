@@ -1,3 +1,4 @@
+import { TagColor } from "@mirohq/websdk-types";
 import * as vscode from "vscode";
 
 export type CardGutter = { startLine: number; endLine: number };
@@ -15,8 +16,32 @@ export type CardData = {
   codeLink: string | null;
 };
 
+export const allColors = [
+  "red",
+  "magenta",
+  "violet",
+  "light_green",
+  "green",
+  "dark_green",
+  "cyan",
+  "blue",
+  "dark_blue",
+  "yellow",
+  "gray",
+  "black",
+] as TagColor[];
+
+
+export type Tag = {
+  title: string;
+  id: string;
+  color: TagColor;
+};
+
 export type Queries = {
+  tags: () => Tag[];
   cards: () => CardData[]
+  selected: () => CardData[];
 };
 
 export type RequestEvents = {
@@ -29,6 +54,13 @@ export type RequestEvents = {
   cardStatus: (data: {
     miroLink: string;
     status: "connected" | "disconnected";
+  }) => void;
+  tagCards: (data: {
+    miroLink: string[];
+    tag: string | {
+      color: TagColor;
+      title: string;
+    }
   }) => void;
   query: <N extends keyof Queries>(data: {
     name: N;

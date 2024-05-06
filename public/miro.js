@@ -302,13 +302,61 @@ export function attachToSocket(socket) {
     }, Promise.resolve(null));
   });
 
+  socket.on("tagCards", async ({ miroLink: links, tag }) => {
+    /**
+     * @type {import('@mirohq/websdk-types').Tag}
+     */
+    let tagObject;
+    if (typeof tag === "string") {
+      tagObject = await miro.board.getById(tag);
+    } else {
+      tagObject = await miro.board.createTag({
+        color: tag.color,
+        title: tag.title,
+      });
+    }
+
+    await links.reduce(async (p, miroLink) => {
+      await p;
+      const url = new URL(miroLink);
+      const id = url.searchParams.get("moveToWidget");
+      let card = await miro.board.getById(id);
+
+      if (card.tagIds.includes(tagObject.id)) {
+        card.tagIds = card.tagIds.filter((id) => id !== tagObject.id);
+      } else {
+        card.tagIds.push(tagObject.id);
+      }
+      await card.sync();
+    }, Promise.resolve());
+  });
+
   socket.on("query", async ({ name, requestId }) => {
     switch (name) {
       case "cards": {
         const cards = await miro.board.get({ type: ["card", "app_card"] });
-        const response = await Promise.all(cards.map(extractCardData));
-        socket.emit("queryResult", { requestId, response });
-        break;
+        const response = await Promise.all(
+          cards.map(extractCardData).filter(notEmpty)
+        );
+        return socket.emit("queryResult", { requestId, response });
+      }
+      case "tags": {
+        const selection = await miro.board.get({ type: "tag" });
+        const response = await Promise.all(
+          selection.map((tag) => ({
+            id: tag.id,
+            title: tag.title,
+            color: tag.color,
+          }))
+        );
+        return socket.emit("queryResult", { requestId, response });
+      }
+      case "selected": {
+        const selection = await miro.board.getSelection();
+        const response = await Promise.all(
+          selection.map(extractCardData).filter(notEmpty)
+        );
+        return socket.emit("queryResult", { requestId, response });
       }
     }
   });
@@ -344,6 +392,16 @@ export function attachToSocket(socket) {
       socket.emit("selectedCards", { data });
     }
   });
+}
+
+/**
+ *
+ * @template T
+ * @param {T | null} t
+ * @returns  {t is T}
+ */
+function notEmpty(t) {
+  return t != null;
 }
 
 /**

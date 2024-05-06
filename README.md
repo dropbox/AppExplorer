@@ -77,3 +77,12 @@ with newer changes in `src`.
   - When selecting a card from an older version, it will be migrated to a new AppCard and then removed.
     - I couldn't get it to reliably place the new card over the old one, so it just puts it in the center of the viewport.
   - All new cards are AppCards
+- 0.1.0 - Improved Navigation
+
+  - This version uses Miro's normal `app_card:open` event (round button in the
+    top-right corner of the card) to navigate. The previous version was navigating
+    when you select a single card.
+  - ![image](https://github.com/dropbox/AppExplorer/assets/324999/217b86f3-c026-4567-adf9-4b0b5d84b52a)
+
+- Tag Selected Cards
+  - Create or remove Miro tags on AppCards.

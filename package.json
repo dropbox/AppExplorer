@@ -23,6 +23,10 @@
         "title": "AppExplorer: Attach Card to Code"
       },
       {
+        "command": "app-explorer.tagCard",
+        "title": "AppExplorer: Tag Selected Cards"
+      },
+      {
         "command": "app-explorer.connect",
         "title": "AppExplorer: Connect"
       }

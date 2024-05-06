@@ -53,7 +53,6 @@ export function makeExpressServer({
     });
 
     const cards = await query(socket, "cards");
-    console.log("cards", cards);
     cards.forEach((card) => {
       allCards.set(card.miroLink, card);
     });

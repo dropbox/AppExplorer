@@ -9,6 +9,7 @@ import { makeTextSelectionHandler } from "./make-text-selection-handler";
 import { makeBrowseHandler } from "./make-browse-handler";
 import { makeAttachCardHandler } from "./make-attach-card-handler";
 import { getRelativePath } from "./get-relative-path";
+import { makeTagCardHandler } from "./make-tag-card-handler";
 
 export type HandlerContext = {
   statusBar: vscode.StatusBarItem;
@@ -156,6 +157,13 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "app-explorer.attachCard",
       makeAttachCardHandler(handlerContext)
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "app-explorer.tagCard",
+      makeTagCardHandler(handlerContext)
     )
   );
   context.subscriptions.push(
