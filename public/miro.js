@@ -356,6 +356,13 @@ export function attachToSocket(socket) {
       socket.emit("navigateTo", data);
     }
   });
+  miro.board.ui.on("app_card:connect", async (event) => {
+    const { appCard } = event;
+    const data = await extractCardData(appCard);
+    if (data) {
+      socket.emit("navigateTo", data);
+    }
+  });
 
   miro.board.ui.on("items:delete", async function (event) {
     return event.items.reduce(async (promise, item) => {

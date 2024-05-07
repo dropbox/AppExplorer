@@ -31,7 +31,7 @@ export const makeActiveTextEditorHandler = (
         editorCards.set(editor, cards);
         const decorations: vscode.DecorationOptions[] = [];
 
-        const symbols = await readSymbols(editor);
+        const symbols = await readSymbols(editor.document.uri);
         cards.forEach((card: CardData) => {
           if (card.symbol) {
             const symbol = symbols.find(

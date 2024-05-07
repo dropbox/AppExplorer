@@ -49,18 +49,20 @@ export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
       const card = allCards.get(selected.miroLink);
       if (card) {
         emit("selectCard", card.miroLink!);
-      const status = (await goToCardCode(card)) ? "connected" : "disconnected";
-      if (card.miroLink) {
-        emit("cardStatus", {
-          miroLink: card.miroLink,
-          status,
-        });
-      }
+        const status = (await goToCardCode(card))
+          ? "connected"
+          : "disconnected";
+        if (card.miroLink) {
+          emit("cardStatus", {
+            miroLink: card.miroLink,
+            status,
+          });
+        }
       }
     }
   };
 
-export async function goToCardCode(card: CardData) {
+export async function findSymbolFromCard(card: CardData) {
   if (card.path) {
     const { path } = card;
     // Get the root directory's URI
@@ -73,27 +75,33 @@ export async function goToCardCode(card: CardData) {
         if (
           (await vscode.workspace.fs.stat(uri)).type !== vscode.FileType.File
         ) {
-          return false;
+          return null
         }
       } catch (e) {
         // stat throws if the file doesn't exist.
-        return false;
+        return null
       }
 
-      const editor = await vscode.window.showTextDocument(uri);
-      let symbols = await readSymbols(editor);
+      let symbols = await readSymbols(uri);
       // It seems like when opening a new file, the symbols are not
       // immediately available.
       if (symbols.length === 0) {
         await new Promise((resolve) => setTimeout(resolve, 100));
-        symbols = await readSymbols(editor);
+        symbols = await readSymbols(uri);
       }
       const symbol = symbols.find((symbol) => symbol.label === card.symbol);
-      if (symbol && symbol.range) {
-        selectRangeInEditor(symbol.range, editor);
-        return true;
-      }
+      return symbol;
     }
   }
-  return false;
+  return null
+}
+
+export async function goToCardCode(card: CardData) {
+  const symbol = await findSymbolFromCard(card);
+  if (symbol && symbol.range) {
+    const editor = await vscode.window.showTextDocument(symbol.uri);
+    selectRangeInEditor(symbol.range, editor);
+    return true;
+  }
+  return false
 }

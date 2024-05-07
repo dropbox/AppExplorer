@@ -94,7 +94,7 @@ async function showSymbolPicker(
   editor: vscode.TextEditor,
   position: vscode.Position
 ): Promise<Anchor | undefined | typeof cancel> {
-  const sortedSymbols = await readSymbols(editor, position);
+  const sortedSymbols = await readSymbols(editor.document.uri, position);
 
   type TaggedQuickPickItem<T, D> = vscode.QuickPickItem & {
     type: T;
@@ -150,19 +150,19 @@ type Anchor = {
 };
 
 export async function readSymbols(
-  editor: vscode.TextEditor,
-  position: vscode.Position = editor.selection.active
+  uri: vscode.Uri,
+  position?: vscode.Position
 ): Promise<Array<Anchor>> {
   const symbols =
     (await vscode.commands.executeCommand<
       Array<vscode.SymbolInformation | vscode.DocumentSymbol>
-    >("vscode.executeDocumentSymbolProvider", editor.document.uri)) || [];
+    >("vscode.executeDocumentSymbolProvider", uri)) || [];
 
   const sortedSymbols = [...symbols].sort((a, b) => {
-    if (rangeOf(a).contains(position)) {
+    if (position && rangeOf(a).contains(position)) {
       return -1;
     }
-    if (rangeOf(b).contains(position)) {
+    if (position && rangeOf(b).contains(position)) {
       return 1;
     }
     return 0;
@@ -181,13 +181,11 @@ export async function readSymbols(
       );
     }
     let range;
-    let uri;
     if ("location" in symbol) {
       range = symbol.location.range;
       uri = symbol.location.uri;
     } else {
       range = symbol.range;
-      uri = editor.document.uri;
     }
 
     return [

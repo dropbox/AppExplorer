@@ -48,7 +48,7 @@ If you open the project and press F5 or run the command `Debug: Start Debugging`
 I'll usually just build and reinstall with this:
 
 ```
-rm *.vsix; vsce pack; code --install-extension app-explorer-0.0.*.vsix
+rm *.vsix; vsce pack; code --install-extension app-explorer-*.vsix
 ```
 
 1. Rebuild and install
