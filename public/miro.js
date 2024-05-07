@@ -35,7 +35,7 @@ async function updateCard(card, data) {
     codeLink: data.codeLink ?? null,
   };
   await card.setMetadata("app-explorer", metaData);
-  card.linkedTo = data.codeLink;
+  card.linkedTo = data.codeLink ?? "";
 
   card.title = data.title;
   /**
@@ -156,36 +156,51 @@ async function nextCardLocation() {
 }
 
 /**
- * @type {import('../src/EventTypes').Handler<RequestEvents['newCard'], Promise<Card>>}
+ * @type {import('../src/EventTypes').Handler<RequestEvents['newCards'], Promise<Card[]>>}
  */
-const newCard = async (data) => {
-  const selection = (await miro.board.getSelection()).filter(
-    (item) => item.type === "card" || item.type === "app_card"
-  );
-
-  const card = await miro.board.createAppCard({
-    ...(await nextCardLocation()),
-    status: "connected",
-  });
-  zoomIntoCards([selection, card].flat());
-  await updateCard(card, data);
-
-  if (selection.length > 0) {
-    await selection.reduce(async (promise, item) => {
-      await promise;
-      return miro.board.createConnector({
-        start: { item: item.id },
-        end: { item: card.id },
-        shape: "curved",
-        style: {
-          startStrokeCap: "none",
-          endStrokeCap: "arrow",
-        },
-      });
-    }, Promise.resolve(null));
+const newCard = async (cards) => {
+  if (cards.length > 1) {
+    await miro.board.deselect();
   }
 
-  return card;
+  let selection = (await miro.board.getSelection()).filter(
+    (item) => item.type === "card" || item.type === "app_card"
+  );
+  const accumulatedCards = [];
+
+  const newCardLocation = await nextCardLocation();
+  return cards.reduce(async (p, cardData, index) => {
+    await p;
+
+    const card = await miro.board.createAppCard({
+      ...newCardLocation,
+      y: newCardLocation.y + index * 200,
+      status: "connected",
+    });
+    accumulatedCards.push(card);
+    zoomIntoCards([selection, accumulatedCards].flat());
+    await updateCard(card, cardData);
+
+    if (selection.length > 0) {
+      await selection.reduce(async (promise, item) => {
+        await miro.board.createConnector({
+          start: { item: item.id },
+          end: { item: card.id },
+          shape: "curved",
+          style: {
+            startStrokeCap: "none",
+            endStrokeCap: "arrow",
+          },
+        });
+        await promise;
+      }, Promise.resolve(null));
+    }
+    if (index === 0 && cards.length > 1) {
+      selection = [card];
+      await miro.board.deselect();
+      await miro.board.select({ id: card.id });
+    }
+  }, Promise.resolve());
 };
 async function zoomIntoCards(cards) {
   const viewport = await makeRect(cards);
@@ -205,7 +220,7 @@ async function zoomIntoCards(cards) {
  * @param {Socket} socket
  */
 export function attachToSocket(socket) {
-  socket.on("newCard", (event) => {
+  socket.on("newCards", (event) => {
     newCard(event).then(async (card) => {
       await miro.board.deselect();
       await miro.board.select({ id: card.id });

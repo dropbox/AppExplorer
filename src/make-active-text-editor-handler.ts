@@ -33,7 +33,7 @@ export const makeActiveTextEditorHandler = (
 
         const symbols = await readSymbols(editor.document.uri);
         cards.forEach((card: CardData) => {
-          if (card.symbol) {
+          if (card.type === "symbol") {
             const symbol = symbols.find(
               (symbol) => symbol.label === card.symbol
             );

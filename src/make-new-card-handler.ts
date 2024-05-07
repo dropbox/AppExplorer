@@ -4,8 +4,16 @@ import { getRelativePath } from "./get-relative-path";
 import { CardData } from "./EventTypes";
 import { selectRangeInEditor } from "./extension";
 import { getGitHubUrl } from "./get-github-url";
+import { notEmpty } from "./make-tag-card-handler";
 
-function invariant(condition: unknown, message: string) {
+export class UnreachableError extends Error {
+  constructor(item: never) {
+    super(`Unexpected value found at runtime: ${item as string}`);
+    this.name = "UnreachableError";
+  }
+}
+
+export function invariant(condition: unknown, message: string) {
   if (!condition) {
     throw new Error(message);
   }
@@ -36,64 +44,90 @@ export const makeNewCardHandler = ({
       const cardData = await makeCardData(editor);
 
       if (cardData) {
-        emit("newCard", cardData);
+        emit("newCards", cardData);
       }
     }
   };
 
 export async function makeCardData(
-  editor: vscode.TextEditor
-): Promise<CardData | null> {
+  editor: vscode.TextEditor,
+  options?: {
+    canPickMany?: boolean;
+  }
+): Promise<CardData[] | null> {
   const document = editor.document;
   const position = editor.selection.active;
 
-  const anchor = await showSymbolPicker(editor, position);
-  if (anchor === cancel || !anchor) {
+  const chosenSymbols = await showSymbolPicker(editor, position, {
+    canPickMany: options?.canPickMany,
+  });
+  if (
+    chosenSymbols === cancel ||
+    !chosenSymbols ||
+    chosenSymbols.length === 0
+  ) {
     return null;
   }
 
-  selectRangeInEditor(anchor.range, editor);
+  const makeCardGroup = chosenSymbols.length > 1;
+
+  const anchor = chosenSymbols[0];
   const lineAt = document.lineAt(position);
   const title = await vscode.window.showInputBox({
     title: "Card Title 2/2",
-    prompt: "Card title" + (anchor ? ` (${anchor.label})` : ""),
-    value: anchor?.label ?? document.getText(lineAt.range),
+    prompt: `Card title (${anchor.label})`,
+    value: anchor.label,
   });
   if (!title) {
     return null;
   }
 
-  let def: vscode.LocationLink = {
+  const def: vscode.LocationLink = {
     targetUri: document.uri,
     targetRange: lineAt.range,
   };
-  if (anchor && anchor.uri) {
-    const uri = anchor.uri;
-
-    invariant(anchor.range, "Symbol must have a range");
-
-    def = {
-      targetUri: uri,
-      targetRange: anchor.range,
-    };
-  }
-
   const path = getRelativePath(def.targetUri)!;
 
-  const cardData = {
-    title,
-    path,
-    symbol: anchor.label,
-    codeLink: await getGitHubUrl(def),
-    status: 'disconnected',
-  } as const;
-  return cardData;
+  const cards = await Promise.all(
+    chosenSymbols.map(async (anchor): Promise<CardData> => {
+      const def: vscode.LocationLink = {
+        targetUri: anchor.uri,
+        targetRange: anchor.range,
+      };
+      const path = getRelativePath(def.targetUri)!;
+      return {
+        type: 'symbol',
+        title: anchor.label,
+        path,
+        symbol: anchor.label,
+        codeLink: await getGitHubUrl(def),
+        status: "disconnected",
+      };
+    })
+  );
+
+  if (makeCardGroup) {
+    const rootCard: CardData = {
+      type: "group",
+      title,
+      path,
+      status: "disconnected",
+    };
+    cards.unshift(rootCard);
+  } else {
+    cards[0].title = title;
+  }
+
+  return cards;
 }
 
 async function showSymbolPicker(
   editor: vscode.TextEditor,
-  position: vscode.Position
-): Promise<Anchor | undefined | typeof cancel> {
+  position: vscode.Position,
+  options?: {
+    canPickMany?: boolean,
+  },
+): Promise<Anchor[] | undefined | typeof cancel> {
   const sortedSymbols = await readSymbols(editor.document.uri, position);
 
   type TaggedQuickPickItem<T, D> = vscode.QuickPickItem & {
@@ -102,46 +136,62 @@ async function showSymbolPicker(
   };
   const none: TaggedQuickPickItem<"none", undefined> = {
     type: "none",
-    label: "(None)",
+    label: "(None) Attach to line number",
     target: undefined,
   };
   type SymbolOption = TaggedQuickPickItem<"symbol", Anchor>;
 
-  type OptionTypes = typeof none | SymbolOption;
+  type OptionType = typeof none | SymbolOption;
 
-  const items: Array<OptionTypes> = [
+  const items: Array<OptionType> = [
     none,
-    ...sortedSymbols.map((symbol): SymbolOption => {
+    ...sortedSymbols.map((symbol, i): SymbolOption => {
       const item: SymbolOption = {
         type: symbol.type,
-        label: `(symbol) ${symbol.label}`,
+        label: ' ' + symbol.label+' ',
         target: symbol,
-        picked: symbol.range?.start.line === position.line,
+        picked: i === 0,
       };
       return item;
     }),
   ];
 
-  const selected = await vscode.window.showQuickPick(items, {
+  const tmp = await vscode.window.showQuickPick(items, {
     title: "Choose a symbol step 1/2",
     placeHolder: `Choose a symbol to anchor the card to`,
-    onDidSelectItem: (item: OptionTypes) => {
+    canPickMany:  options?.canPickMany ?? true,
+    matchOnDescription: true,
+    onDidSelectItem: (item: OptionType) => {
       if (item.target) {
         selectRangeInEditor(item.target.range, editor);
       }
     },
   });
-  if (!selected) {
-    return cancel;
-  } else if (selected === none) {
-    return; /* Do not attach to a symbol, just use the line number */
-  } else if (selected.type === "symbol") {
-    return selected.target;
+  let selected: OptionType[]
+  if (!tmp) {
+    return cancel
+  } else if (Array.isArray(tmp)) {
+    selected = tmp
+  } else {
+    selected = [tmp]
   }
-  return;
+
+  return selected
+    .map((item): Anchor | null => {
+      switch (item.type) {
+        // Attach to the line number instead of a symbol.
+        case "none":
+          return null;
+        case "symbol":
+          return item.target;
+        default:
+          throw new UnreachableError(item);
+      }
+    })
+    .filter(notEmpty);
 }
 
-type Anchor = {
+type SymbolAnchor = {
   type: "symbol";
   label: string;
   range: vscode.Range;
@@ -149,10 +199,19 @@ type Anchor = {
   uri: vscode.Uri;
 };
 
+type GroupAnchor = {
+  type: "group";
+  label: string;
+  range: vscode.Range;
+  uri: vscode.Uri;
+};
+
+type Anchor = SymbolAnchor | GroupAnchor;
+
 export async function readSymbols(
   uri: vscode.Uri,
   position?: vscode.Position
-): Promise<Array<Anchor>> {
+): Promise<Array<SymbolAnchor>> {
   const symbols =
     (await vscode.commands.executeCommand<
       Array<vscode.SymbolInformation | vscode.DocumentSymbol>
@@ -170,8 +229,8 @@ export async function readSymbols(
   const allSymbols = sortedSymbols.flatMap(function optionFromSymbol(
     this: void | undefined,
     symbol
-  ): Anchor[] {
-    let children: Array<Anchor> = [];
+  ): SymbolAnchor[] {
+    let children: Array<SymbolAnchor> = [];
     if ("children" in symbol) {
       children = symbol.children.flatMap((s) =>
         optionFromSymbol({

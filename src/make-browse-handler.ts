@@ -23,13 +23,18 @@ export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
         }
         return a.path.localeCompare(b.path) || a.title.localeCompare(b.title);
       })
-      .map((card: CardData) => {
+      .map((card) => {
+        let description: string
+        if (card.type === "group") {
+          description = "Group"
+        } else {
+          description = card.symbol +
+            (card.status === "disconnected" ? "$(debug-disconnect)" : "")
+        }
         return {
           label: card.title.trim(),
           detail: card.path,
-          description:
-            card.symbol +
-            (card.status === "disconnected" ? "$(debug-disconnect)" : ""),
+          description,
           miroLink: card.miroLink!,
         };
       });
@@ -63,7 +68,7 @@ export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
   };
 
 export async function findSymbolFromCard(card: CardData) {
-  if (card.path) {
+  if (card.path && "symbol" in card) {
     const { path } = card;
     // Get the root directory's URI
     const rootUri = vscode.workspace.workspaceFolders?.[0].uri;

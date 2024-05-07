@@ -22,7 +22,10 @@ export const makeAttachCardHandler
       await waitForConnections();
 
       if (selectedCards.length === 1) {
-        const cardData = await makeCardData(editor);
+        const result = await makeCardData(editor, {
+          canPickMany: false,
+        });
+        const cardData = result?.[0]
         if (cardData) {
           emit("attachCard", cardData);
           if (cardData.miroLink) {

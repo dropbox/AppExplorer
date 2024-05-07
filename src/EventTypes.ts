@@ -8,7 +8,8 @@ export type JSPosition = {
   character: number;
 };
 
-export type CardData = {
+export type SymbolCardData = {
+  type: 'symbol'
   title: string;
   path: string;
   symbol: string;
@@ -16,6 +17,12 @@ export type CardData = {
   codeLink: string | null;
   status: AppCard['status'];
 };
+
+export type GroupCardData = Pick<SymbolCardData, 'title'|'path'|'status'|'miroLink'> & {
+  type: 'group',
+}
+
+export type CardData = SymbolCardData | GroupCardData
 
 export const allColors = [
   "red",
@@ -46,7 +53,7 @@ export type Queries = {
 };
 
 export type RequestEvents = {
-  newCard: (data: CardData) => void;
+  newCards: (data: CardData[]) => void;
   attachCard: (data: CardData) => void;
   hoverCard: (miroLink: string) => void;
   selectCard: (miroLink: string) => void;
