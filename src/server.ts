@@ -63,7 +63,11 @@ export function makeExpressServer({
 
   const port = 50505;
 
-  // instead of running listen on the Express app, do it on the HTTP server
+  httpServer.on("error", (e) => {
+    vscode.window.showErrorMessage(
+      `AppExplorer - ${String(e)}`
+    );
+  })
   httpServer.listen(port, () => {
     console.log(`Express server listening on port ${port}`);
   });

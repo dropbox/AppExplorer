@@ -3,6 +3,7 @@ import { HandlerContext, selectRangeInEditor } from "./extension";
 import { CardData } from "./EventTypes";
 import { getRelativePath } from "./get-relative-path";
 import { readSymbols } from "./make-new-card-handler";
+import { notEmpty } from "./make-tag-card-handler";
 
 export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
   async function () {
@@ -16,6 +17,7 @@ export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
       : null;
 
     const items: CardQuickPickItem[] = [...allCards.values()]
+      .filter(notEmpty)
       .sort((a, b) => {
         if (a.path !== b.path) {
           if (a.path === curentPath) return -1;

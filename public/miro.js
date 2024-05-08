@@ -156,7 +156,7 @@ async function nextCardLocation() {
 }
 
 /**
- * @type {import('../src/EventTypes').Handler<RequestEvents['newCards'], Promise<Card[]>>}
+ * @type {import('../src/EventTypes').Handler<RequestEvents['newCards'], Promise<AppCard[]>>}
  */
 const newCard = async (cards) => {
   if (cards.length > 1) {
@@ -166,41 +166,46 @@ const newCard = async (cards) => {
   let selection = (await miro.board.getSelection()).filter(
     (item) => item.type === "card" || item.type === "app_card"
   );
-  const accumulatedCards = [];
 
   const newCardLocation = await nextCardLocation();
-  return cards.reduce(async (p, cardData, index) => {
-    await p;
+  return cards.reduce(
+    async (p, cardData, index) => {
+      const accumulatedCards = await p;
 
-    const card = await miro.board.createAppCard({
-      ...newCardLocation,
-      y: newCardLocation.y + index * 200,
-      status: "connected",
-    });
-    accumulatedCards.push(card);
-    zoomIntoCards([selection, accumulatedCards].flat());
-    await updateCard(card, cardData);
+      const card = await miro.board.createAppCard({
+        ...newCardLocation,
+        y: newCardLocation.y + index * 200,
+        status: "connected",
+      });
+      zoomIntoCards([...selection, ...accumulatedCards, card].flat());
+      await updateCard(card, cardData);
 
-    if (selection.length > 0) {
-      await selection.reduce(async (promise, item) => {
-        await miro.board.createConnector({
-          start: { item: item.id },
-          end: { item: card.id },
-          shape: "curved",
-          style: {
-            startStrokeCap: "none",
-            endStrokeCap: "arrow",
-          },
-        });
-        await promise;
-      }, Promise.resolve(null));
-    }
-    if (index === 0 && cards.length > 1) {
-      selection = [card];
-      await miro.board.deselect();
-      await miro.board.select({ id: card.id });
-    }
-  }, Promise.resolve());
+      if (selection.length > 0) {
+        await selection.reduce(async (promise, item) => {
+          await miro.board.createConnector({
+            start: { item: item.id },
+            end: { item: card.id },
+            shape: "curved",
+            style: {
+              startStrokeCap: "none",
+              endStrokeCap: "arrow",
+            },
+          });
+          await promise;
+        }, Promise.resolve(null));
+      }
+      if (index === 0 && cards.length > 1) {
+        selection = [card];
+        await miro.board.deselect();
+        await miro.board.select({ id: card.id });
+      }
+      return [...accumulatedCards, card];
+    },
+    /**
+     * @type {Promise<AppCard[]>}
+     */
+    Promise.resolve([])
+  );
 };
 async function zoomIntoCards(cards) {
   const viewport = await makeRect(cards);
@@ -258,16 +263,11 @@ export function attachToSocket(socket) {
         await zoomIntoCards([card]);
         await miro.board.deselect();
         const data = await extractCardData(card);
-        const appCard = await newCard(data);
-
-        // I can't seem to get the card to move to the correct location.
-        // const { x, y } = boundingBox([card]);
-        // (appCard.x = x), (appCard.y = y);
-        // await appCard.sync();
-        // await zoomIntoCards([appCard]);
+        const [appCard] = await newCard([data]);
 
         const connectors = await card.getConnectors();
         await connectors.reduce(async (promise, connector) => {
+          await promise;
           if (connector.start?.item === card.id) {
             connector.start.item = appCard.id;
           }
@@ -275,17 +275,15 @@ export function attachToSocket(socket) {
             connector.end.item = appCard.id;
           }
           await connector.sync();
-          await promise;
-        }, Promise.resolve(null));
+        }, Promise.resolve());
 
-        await miro.board.deselect();
-        await miro.board.select({ id: appCard.id });
         await card.setMetadata("app-explorer", null);
         card.title = `(migrated) ${card.title}`;
         await card.sync();
 
-        // This delete doesn't work, IDK why
+        socket.emit("card", data.miroLink, null);
         await miro.board.remove(card);
+        await miro.board.select({ id: appCard.id });
         card = appCard;
       } catch (e) {
         console.error("Error disconnecting card", e);
@@ -338,7 +336,9 @@ export function attachToSocket(socket) {
   socket.on("query", async ({ name, requestId }) => {
     switch (name) {
       case "cards": {
-        const cards = await miro.board.get({ type: ["card", "app_card"] });
+        const cards = await miro.board.get({
+          type: ["card", "app_card"],
+        });
         const response = (await Promise.all(cards.map(extractCardData))).filter(
           notEmpty
         );
@@ -428,7 +428,7 @@ async function extractCardData(card) {
   const metadata = await card.getMetadata("app-explorer");
   if (metadata) {
     const boardId = await miro.board.getInfo().then((info) => info.id);
-    if (card.linkedTo !== metadata.codeLink) {
+    if (card.linkedTo !== metadata.codeLink && metadata.codeLink) {
       card.linkedTo = metadata.codeLink;
       await card.sync();
     }
@@ -442,6 +442,29 @@ async function extractCardData(card) {
       codeLink: metadata.codeLink,
       status: card.type === "app_card" ? card.status : "disconnected",
     };
+  } else {
+    const path = card.fields?.find((field) =>
+      field.value?.match(/([\w/._-])+#L\d+/)
+    );
+    if (path && path.value) {
+      const url = new URL(path.value, "https://example.com");
+      const metadata = {
+        path: url.pathname,
+        symbol: null,
+        codeLink: null,
+      };
+
+      const boardId = await miro.board.getInfo().then((info) => info.id);
+      return {
+        title: card.title,
+        description: card.description,
+        miroLink: `https://miro.com/app/board/${boardId}/?moveToWidget=${card.id}`,
+        path: metadata.path,
+        symbol: metadata.symbol,
+        codeLink: metadata.codeLink,
+        status: card.type === "app_card" ? card.status : "disconnected",
+      };
+    }
   }
   return null;
 }
