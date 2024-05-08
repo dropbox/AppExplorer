@@ -55,7 +55,7 @@ export function activate(context: vscode.ExtensionContext) {
       const path = getRelativePath(uri);
       if (path) {
         cardsInEditor = [...allCards.values()].filter(
-          (card) => card.path === path
+          (card) => card?.path === path
         );
       }
     }

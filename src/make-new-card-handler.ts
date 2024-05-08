@@ -53,6 +53,7 @@ export async function makeCardData(
   editor: vscode.TextEditor,
   options?: {
     canPickMany?: boolean;
+    defaultTitle?: string,
   }
 ): Promise<CardData[] | null> {
   const document = editor.document;
@@ -76,7 +77,7 @@ export async function makeCardData(
   const title = await vscode.window.showInputBox({
     title: "Card Title 2/2",
     prompt: `Card title (${anchor.label})`,
-    value: anchor.label,
+    value: options?.defaultTitle ?? anchor.label,
   });
   if (!title) {
     return null;
@@ -191,7 +192,7 @@ async function showSymbolPicker(
     .filter(notEmpty);
 }
 
-type SymbolAnchor = {
+export type SymbolAnchor = {
   type: "symbol";
   label: string;
   range: vscode.Range;
@@ -199,14 +200,14 @@ type SymbolAnchor = {
   uri: vscode.Uri;
 };
 
-type GroupAnchor = {
+export type GroupAnchor = {
   type: "group";
   label: string;
   range: vscode.Range;
   uri: vscode.Uri;
 };
 
-type Anchor = SymbolAnchor | GroupAnchor;
+export type Anchor = SymbolAnchor | GroupAnchor;
 
 export async function readSymbols(
   uri: vscode.Uri,

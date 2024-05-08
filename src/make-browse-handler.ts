@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { HandlerContext, selectRangeInEditor } from "./extension";
 import { CardData } from "./EventTypes";
 import { getRelativePath } from "./get-relative-path";
-import { readSymbols } from "./make-new-card-handler";
+import { SymbolAnchor, readSymbols } from "./make-new-card-handler";
 import { notEmpty } from "./make-tag-card-handler";
 
 export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
@@ -26,12 +26,13 @@ export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
         return a.path.localeCompare(b.path) || a.title.localeCompare(b.title);
       })
       .map((card) => {
-        let description: string
+        let description: string;
         if (card.type === "group") {
-          description = "Group"
+          description = "Group";
         } else {
-          description = card.symbol +
-            (card.status === "disconnected" ? "$(debug-disconnect)" : "")
+          description =
+            card.symbol +
+            (card.status === "disconnected" ? "$(debug-disconnect)" : "");
         }
         return {
           label: card.title.trim(),
@@ -69,46 +70,62 @@ export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
     }
   };
 
-export async function findSymbolFromCard(card: CardData) {
-  if (card.path && "symbol" in card) {
-    const { path } = card;
+export async function findCardDestination(
+  card: CardData
+): Promise<SymbolAnchor | vscode.Uri | null> {
+  if (card.path) {
+    const path = card.path[0] === "/" ? card.path.slice(1) : card.path;
     // Get the root directory's URI
-    const rootUri = vscode.workspace.workspaceFolders?.[0].uri;
-    if (rootUri) {
-      // Append the relative path to the root directory's URI
-      const uri = rootUri.with({ path: rootUri.path + "/" + path });
-      // Check if this URI exists
-      try {
-        if (
-          (await vscode.workspace.fs.stat(uri)).type !== vscode.FileType.File
-        ) {
-          return null
-        }
-      } catch (e) {
-        // stat throws if the file doesn't exist.
-        return null
-      }
 
-      let symbols = await readSymbols(uri);
-      // It seems like when opening a new file, the symbols are not
-      // immediately available.
-      if (symbols.length === 0) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        symbols = await readSymbols(uri);
-      }
-      const symbol = symbols.find((symbol) => symbol.label === card.symbol);
-      return symbol;
-    }
+    // This reduce acts like a find(), returning the first promise with a value.
+    return (vscode.workspace.workspaceFolders??[]).reduce(
+      async (result: Promise<SymbolAnchor | vscode.Uri | null>, folder) => {
+        const dest = await result;
+        if (dest != null) {
+          return dest;
+        }
+
+        const rootUri = folder.uri;
+        // Append the relative path to the root directory's URI
+        const uri = rootUri.with({ path: rootUri.path + "/" + path });
+        // Check if this URI exists
+        try {
+          const stat = await vscode.workspace.fs.stat(uri);
+
+          if (stat.type !== vscode.FileType.File) {
+            return null;
+          }
+        } catch (e) {
+          console.error(e);
+          // stat throws if the file doesn't exist.
+          return null;
+        }
+
+        if ("symbol" in card) {
+          const symbols = await readSymbols(uri);
+          const symbol = symbols.find((symbol) => symbol.label === card.symbol);
+          return symbol ?? uri;
+        }
+        return uri;
+      },
+      Promise.resolve(null)
+    );
   }
-  return null
+  return null;
 }
 
 export async function goToCardCode(card: CardData) {
-  const symbol = await findSymbolFromCard(card);
-  if (symbol && symbol.range) {
+  const symbol = await findCardDestination(card);
+  if (symbol && "range" in symbol) {
     const editor = await vscode.window.showTextDocument(symbol.uri);
     selectRangeInEditor(symbol.range, editor);
     return true;
+  } else if (symbol) {
+    await vscode.window.showTextDocument(symbol);
+    // The card still attaches to a file, but not a symbol, so even though it
+    // navigated to a file, it's NOT considered connected.
+    return false;
   }
-  return false
+  vscode.window.showWarningMessage(`Unable to open ${card.path}`);
+  return false;
 }
