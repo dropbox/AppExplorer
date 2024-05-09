@@ -57,11 +57,13 @@ export const makeActiveTextEditorHandler = (
               console.warn(`Symbol ${card.symbol} not found in ${path}`);
               console.warn("symbols", symbols);
             }
+          } else {
+            console.warn('Not a symbol card', card)
           }
         });
         editor.setDecorations(cardDecoration, decorations);
         vscode.window.showInformationMessage(
-          `Found ${cards.length} cards in ${path}`
+          `Found ${decorations.length} symbols on ${cards.length} cards for ${path}`
         );
       }
 

@@ -3,7 +3,7 @@
 /**
  * @typedef {Object} MetaData
  * @property {string} path
- * @property {string} symbol
+ * @property {?string} symbol
  * @property {string} codeLink
  */
 
@@ -434,6 +434,7 @@ async function extractCardData(card) {
     }
 
     return {
+      type: metadata.symbol ? "symbol" : "group",
       title: card.title,
       description: card.description,
       miroLink: `https://miro.com/app/board/${boardId}/?moveToWidget=${card.id}`,
@@ -456,6 +457,7 @@ async function extractCardData(card) {
 
       const boardId = await miro.board.getInfo().then((info) => info.id);
       return {
+        type: metadata.symbol ? "symbol" : "group",
         title: card.title,
         description: card.description,
         miroLink: `https://miro.com/app/board/${boardId}/?moveToWidget=${card.id}`,
