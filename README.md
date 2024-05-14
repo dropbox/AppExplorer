@@ -1,6 +1,34 @@
 # AppExplorer
 
-This is the AppExplorer VSCode extension that helps create documentation hosted in Miro.
+AppExplorer is a tool for creating detailed internal architecture diagrams that
+are linked to the code they represent. It is designed to help team leads and
+lead developers create accurate and easy-to-understand diagrams that simplify
+the complexity of their codebase while maintaining a stable and reliable
+connection to the underlying code.
+
+AppExplorer integrates with VSCode, allowing developers to create cards linked
+to specific sections of code based on file paths and symbol names. These cards
+can also be used to navigate VSCode, making it easy to update the links as the
+codebase evolves.
+
+When you open a card and its target symbol has been renamed, you'll land in the
+same file, but the card may become disconnected. However, AppExplorer provides
+an "Attach Card to Code" command that allows you to re-attach the card to the
+new symbol name or location, ensuring that the diagram remains accurate and
+up-to-date.
+
+The cards created by AppExplorer link to GitHub, providing a stable anchor that
+can help developers quickly navigate to the code that needs to be changed. By
+maintaining this connection between the diagrams and the codebase, AppExplorer
+ensures that the documentation remains accurate and reliable, even as the
+codebase evolves.
+
+If you're interested in contributing to the project, AppExplorer's [Miro
+board](https://miro.com/app/board/uXjVNTOBp4s=/?share_link_id=328885199773)
+provides an onboarding resource that allows you to explore the codebase and
+understand how it is structured. You can also suggest new features or
+improvements to the tool, or help maintain and update the existing
+documentation.
 
 ## Features
 
