@@ -60,6 +60,7 @@ export type RequestEvents = {
   cardStatus: (data: {
     miroLink: string;
     status: "connected" | "disconnected";
+    codeLink: string | null
   }) => void;
   tagCards: (data: {
     miroLink: string[];

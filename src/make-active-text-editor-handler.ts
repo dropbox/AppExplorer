@@ -14,10 +14,9 @@ export const makeActiveTextEditorHandler = (
   handlerContext: HandlerContext,
   editorCards: ReturnType<typeof makeHoverProvider>
 ) => {
-  const color = "editorInlayHint.foreground";
-
+  // const color = "editorInlayHint.foreground";
   const cardDecoration = vscode.window.createTextEditorDecorationType({
-    isWholeLine: true,
+    isWholeLine: false,
   });
   async function decordateEditor(editor: vscode.TextEditor | undefined) {
     handlerContext.renderStatusBar();
@@ -48,7 +47,7 @@ export const makeActiveTextEditorHandler = (
                 renderOptions: {
                   after: {
                     contentText: `  AppExplorer: ${card.title}`,
-                    color: color,
+                    color: "editorInlayHint.foreground",
                     fontWeight: "bold",
                   },
                 },

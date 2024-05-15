@@ -39,13 +39,13 @@ export async function getGitHubUrl(
 
   // Parse the remote URL to get the repository owner and name
   const gitRemoteUrlParts = gitRemoteUrl.match(
-    /github\.com[:/](.*)\/(.*)\.git/
+    /(git@)?github\.com[:/](.*)\/(.*)(\.git)?/
   );
   if (!gitRemoteUrlParts) {
     return null;
   }
-  const gitRepoOwner = gitRemoteUrlParts[1];
-  const gitRepoName = gitRemoteUrlParts[2];
+  const gitRepoOwner = gitRemoteUrlParts[2];
+  const gitRepoName = gitRemoteUrlParts[3];
 
   const range = locationLink.targetSelectionRange ?? locationLink.targetRange;
 

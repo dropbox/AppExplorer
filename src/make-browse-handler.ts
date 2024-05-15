@@ -4,6 +4,7 @@ import { CardData } from "./EventTypes";
 import { getRelativePath } from "./get-relative-path";
 import { SymbolAnchor, readSymbols } from "./make-new-card-handler";
 import { notEmpty } from "./make-tag-card-handler";
+import { getGitHubUrl } from "./get-github-url";
 
 export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
   async function () {
@@ -57,13 +58,39 @@ export const makeBrowseHandler = ({ allCards, emit }: HandlerContext) =>
       const card = allCards.get(selected.miroLink);
       if (card) {
         emit("selectCard", card.miroLink!);
+        const dest = await findCardDestination(card);
         const status = (await goToCardCode(card))
           ? "connected"
           : "disconnected";
         if (card.miroLink) {
+          let codeLink: string | null = null;
+          const activeEditor = vscode.window.activeTextEditor;
+          if (dest) {
+            if (activeEditor) {
+              const uri = activeEditor.document.uri;
+              const selection =
+                status === "connected"
+                  ? new vscode.Range(
+                      activeEditor.selection.start,
+                      activeEditor.selection.end
+                    )
+                  : new vscode.Range(
+                      new vscode.Position(0, 0),
+                      new vscode.Position(0, 0)
+                    );
+
+              const def: vscode.LocationLink = {
+                targetUri: uri,
+                targetRange: selection,
+              };
+              codeLink = await getGitHubUrl(def);
+            }
+          }
+
           emit("cardStatus", {
             miroLink: card.miroLink,
             status,
+            codeLink,
           });
         }
       }
@@ -78,7 +105,7 @@ export async function findCardDestination(
     // Get the root directory's URI
 
     // This reduce acts like a find(), returning the first promise with a value.
-    return (vscode.workspace.workspaceFolders??[]).reduce(
+    return (vscode.workspace.workspaceFolders ?? []).reduce(
       async (result: Promise<SymbolAnchor | vscode.Uri | null>, folder) => {
         const dest = await result;
         if (dest != null) {

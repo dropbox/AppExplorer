@@ -253,7 +253,7 @@ export function attachToSocket(socket) {
     await miro.board.select({ id });
     await zoomIntoCards([card]);
   });
-  socket.on("cardStatus", async ({ miroLink, status }) => {
+  socket.on("cardStatus", async ({ miroLink, status, codeLink }) => {
     const url = new URL(miroLink);
     const id = url.searchParams.get("moveToWidget");
     let card = await miro.board.getById(id);
@@ -293,6 +293,9 @@ export function attachToSocket(socket) {
 
     if (card.type === "app_card") {
       card.status = status;
+      if (codeLink) {
+        card.linkedTo = codeLink;
+      }
       await card.sync();
     }
   });
