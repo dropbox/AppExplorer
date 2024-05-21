@@ -6,13 +6,15 @@ import { makeNewCardHandler } from "./make-new-card-handler";
 import { makeBrowseHandler } from "./make-browse-handler";
 import { makeAttachCardHandler } from "./make-attach-card-handler";
 import { getRelativePath } from "./get-relative-path";
-import { makeTagCardHandler } from "./make-tag-card-handler";
+import { makeTagCardHandler, notEmpty } from "./make-tag-card-handler";
 import { AppExplorerLens, makeNavigationHandler } from "./app-explorer-lens";
 
 export type HandlerContext = {
   statusBar: vscode.StatusBarItem;
   sockets: Map<string, Socket<ResponseEvents, RequestEvents>>;
-  allCards: Map<CardData["miroLink"], CardData>;
+  getCard: (link: CardData["miroLink"]) => CardData | undefined;
+  readAllCards: () => CardData[],
+  setCard: (link: CardData["miroLink"],card: CardData|undefined) => void;
   selectedCards: CardData["miroLink"][];
   renderStatusBar: () => void;
   lastPosition: vscode.Position | undefined;
@@ -38,6 +40,10 @@ export function activate(context: vscode.ExtensionContext) {
 
   const sockets = new Map<string, Socket>();
   const allCards = new Map<CardData["miroLink"], CardData>();
+  const storedCards = context.workspaceState.get<CardData[]>("cards")
+  if (storedCards) {
+    storedCards.forEach(card => allCards.set(card.miroLink, card))
+  }
 
   function renderStatusBar() {
     if (sockets.size == 0) {
@@ -67,8 +73,17 @@ export function activate(context: vscode.ExtensionContext) {
   statusBar.command = "app-explorer.browseCards";
 
   const handlerContext: HandlerContext = {
-    allCards,
     statusBar,
+    readAllCards: () => [...allCards.values()].filter(notEmpty),
+    getCard: (link) => allCards.get(link),
+    setCard: (link, card) => {
+      if (card) {
+        allCards.set(link, card)
+      } else {
+        allCards.delete(link)
+      }
+      context.workspaceState.update("cards", handlerContext.readAllCards())
+    },
     renderStatusBar,
     selectedCards: [],
     lastPosition: undefined,

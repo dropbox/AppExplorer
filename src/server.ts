@@ -13,7 +13,7 @@ import { getGitHubUrl } from "./get-github-url";
 export function makeExpressServer({
   sockets,
   renderStatusBar,
-  allCards,
+  setCard,
   query,
 }: HandlerContext) {
   const app = express();
@@ -71,12 +71,12 @@ export function makeExpressServer({
       }
     });
     socket.on("card", async ({ url, card }) => {
-      allCards.set(url, card);
+      setCard(url, card);
     });
 
     const cards = await query(socket, "cards");
     cards.forEach((card) => {
-      allCards.set(card.miroLink, card);
+      setCard(card.miroLink, card);
     });
     renderStatusBar();
   });

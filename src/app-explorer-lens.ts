@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import { getRelativePath } from "./get-relative-path";
 import { HandlerContext } from "./extension";
 import { invariant, readSymbols } from "./make-new-card-handler";
-import { CardData } from "./EventTypes";
 
 export class AppExplorerLens implements vscode.CodeLensProvider {
   #handlerContext: HandlerContext;
@@ -14,12 +13,12 @@ export class AppExplorerLens implements vscode.CodeLensProvider {
     document: vscode.TextDocument
   ): Promise<vscode.CodeLens[]> {
     const path = getRelativePath(document.uri);
-    const cards = [...this.#handlerContext.allCards.values()].filter(
+    const cards = [...this.#handlerContext.readAllCards()].filter(
       (card) => card.path === path
     );
     const symbols = await readSymbols(document.uri);
-    return cards.flatMap((card: CardData): vscode.CodeLens[] => {
-      if (card.type === "symbol") {
+    return cards.flatMap((card): vscode.CodeLens[] => {
+      if (card?.type === "symbol") {
         const symbol = symbols.find((symbol) => symbol.label === card.symbol);
 
         if (symbol) {
@@ -53,7 +52,7 @@ export const makeNavigationHandler = (context: HandlerContext) => {
 
   return (miroLink: string) => {
 
-    const card = context.allCards.get(miroLink);
+    const card = context.getCard(miroLink);
     if (card && context.sockets.size > 0) {
     vscode.window.showInformationMessage(`Selecting card ${card.title}`);
       context.sockets.forEach((socket) => {
