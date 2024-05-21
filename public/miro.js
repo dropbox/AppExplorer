@@ -1,5 +1,11 @@
 /* global miro */
 
+function decode(str) {
+  return str.replaceAll(/&#([0-9A-F]{2});/g, (_, charCode) =>
+    String.fromCharCode(parseInt(charCode))
+  );
+}
+
 /**
  * @typedef {Object} MetaData
  * @property {string} path
@@ -10,6 +16,7 @@
 /**
  * @typedef {import('@mirohq/websdk-types').Miro} Miro
  * @typedef {import('@mirohq/websdk-types').Card} Card
+ * @typedef {import('@mirohq/websdk-types').AppCard} AppCard
  * @typedef {import('@mirohq/websdk-types').Item} Item
  * @typedef {import("../src/EventTypes").RequestEvents} RequestEvents
  * @typedef {import('../src/EventTypes').CardGutter} CardGutter
@@ -25,7 +32,7 @@
  *
  * @param {Card} card The card to update.
  * @param {Partial<CardData>} data The data to update the card with.
- * @returns {Promise<Card>} The updated card.
+ * @returns {Promise<AppCard>} The updated card.
  */
 async function updateCard(card, data) {
   /** @type {MetaData} */
@@ -69,7 +76,7 @@ async function updateCard(card, data) {
 /**
  *
  * @param {Card[]} items
- * @returns {BoundingBox}
+ * @returns {Promise<BoundingBox>}
  */
 async function boundingBox(items) {
   return items.reduce(
@@ -85,7 +92,7 @@ async function boundingBox(items) {
       box.max.y = Math.max(box.max.y, y + halfHeight);
 
       let currentItem = item;
-      while (currentItem && currentItem.parentId) {
+      if (currentItem && currentItem.parentId) {
         currentItem = await miro.board.getById(currentItem.parentId);
         if (currentItem) {
           box.min.x += currentItem.x;
@@ -112,7 +119,7 @@ async function boundingBox(items) {
 /**
  *
  * @param {Card[]} cards
- * @returns {import('@mirohq/websdk-types').Rect}
+ * @returns {Promise<import('@mirohq/websdk-types').Rect}}
  */
 async function makeRect(cards) {
   const box = await boundingBox(cards);
@@ -208,17 +215,10 @@ const newCard = async (cards) => {
   );
 };
 async function zoomIntoCards(cards) {
-  const viewport = await makeRect(cards);
-  let padding = Math.max(viewport.width, viewport.height) * 1.3;
-  padding = Math.min(
-    // 400 seems like the largest reasonable padding based on some expermenting.
-    400,
-    padding
-  );
-  await miro.board.viewport.set({
-    viewport: viewport,
-    padding: { top: padding, right: padding, bottom: padding, left: padding },
-  });
+  // A previous implementation tried to be a bit smarter and zoom into frames. I
+  // think zooming into a single card is generally too far. I may end up trying
+  // to expand on this again later.
+  miro.board.viewport.zoomTo(cards);
 }
 
 /**
@@ -228,7 +228,9 @@ export function attachToSocket(socket) {
   socket.on("newCards", (event) => {
     newCard(event).then(async (card) => {
       await miro.board.deselect();
-      await miro.board.select({ id: card.id });
+      if (card.id) {
+        await miro.board.select({ id: card.id });
+      }
     });
   });
   socket.on("attachCard", async (cardData) => {
@@ -238,10 +240,12 @@ export function attachToSocket(socket) {
       selection.length === 1 &&
       (card.type === "card" || card.type === "app_card")
     ) {
-      await updateCard(card, cardData);
+      const updatedCard = await updateCard(card, cardData);
+      updatedCard.status = "connected";
+      await updatedCard.sync();
       await miro.board.deselect();
       await miro.board.select({ id: card.id });
-      const data = await extractCardData(card);
+      const data = await extractCardData(updatedCard);
       socket.emit("card", data.miroLink, data);
     }
   });
@@ -250,8 +254,8 @@ export function attachToSocket(socket) {
     const id = url.searchParams.get("moveToWidget");
     const card = await miro.board.getById(id);
     await miro.board.deselect();
-    await miro.board.select({ id });
     await zoomIntoCards([card]);
+    await miro.board.select({ id });
   });
   socket.on("cardStatus", async ({ miroLink, status, codeLink }) => {
     const url = new URL(miroLink);
@@ -371,6 +375,7 @@ export function attachToSocket(socket) {
     const { appCard } = event;
     const data = await extractCardData(appCard);
     if (data) {
+      await miro.board.select({ id: appCard.id });
       socket.emit("navigateTo", data);
     }
   });
@@ -378,6 +383,7 @@ export function attachToSocket(socket) {
     const { appCard } = event;
     const data = await extractCardData(appCard);
     if (data) {
+      await miro.board.select({ id: appCard.id });
       socket.emit("navigateTo", data);
     }
   });
@@ -438,8 +444,8 @@ async function extractCardData(card) {
 
     return {
       type: metadata.symbol ? "symbol" : "group",
-      title: card.title,
-      description: card.description,
+      title: decode(card.title),
+      description: decode(card.description),
       miroLink: `https://miro.com/app/board/${boardId}/?moveToWidget=${card.id}`,
       path: metadata.path,
       symbol: metadata.symbol,

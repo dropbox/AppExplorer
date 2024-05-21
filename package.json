@@ -27,6 +27,10 @@
         "title": "AppExplorer: Tag Selected Cards"
       },
       {
+        "command": "app-explorer.navigate",
+        "title": "AppExplorer: Navigate to Card"
+      },
+      {
         "command": "app-explorer.connect",
         "title": "AppExplorer: Connect"
       }

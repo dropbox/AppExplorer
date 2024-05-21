@@ -21,13 +21,6 @@ export function invariant(condition: unknown, message: string) {
 
 const cancel = Symbol("cancel");
 
-const rangeOf = (symbol: vscode.SymbolInformation | vscode.DocumentSymbol) => {
-  if ("location" in symbol) {
-    return symbol.location.range;
-  }
-  return symbol.range;
-};
-
 export const makeNewCardHandler = ({
   waitForConnections,
   emit,
@@ -41,7 +34,9 @@ export const makeNewCardHandler = ({
       }
       await waitForConnections();
 
-      const cardData = await makeCardData(editor);
+      const cardData = await makeCardData(editor, {
+        canPickMany: false,
+      });
 
       if (cardData) {
         emit("newCards", cardData);
@@ -129,7 +124,30 @@ async function showSymbolPicker(
     canPickMany?: boolean,
   },
 ): Promise<Anchor[] | undefined | typeof cancel> {
-  const sortedSymbols = await readSymbols(editor.document.uri, position);
+  const allSymbols = await readSymbols(editor.document.uri);
+
+  const selectedSymbol = allSymbols.reduce((acc, symbol) => {
+    if (symbol.range.contains(position)) {
+      if (!acc || acc.range.contains(symbol.range)) {
+        // Symbol is smaller than the current selection
+        return symbol
+      }
+
+      return symbol
+    }
+    return acc
+  }, null as null|SymbolAnchor)
+  if (options?.canPickMany && selectedSymbol) {
+    allSymbols.sort((a, b) => {
+      if (a.label === selectedSymbol.label) {
+        return -1
+      }
+      if (b.label === selectedSymbol.label) {
+        return 1
+      }
+      return 0
+    })
+  }
 
   type TaggedQuickPickItem<T, D> = vscode.QuickPickItem & {
     type: T;
@@ -146,12 +164,12 @@ async function showSymbolPicker(
 
   const items: Array<OptionType> = [
     none,
-    ...sortedSymbols.map((symbol, i): SymbolOption => {
+    ...allSymbols.map((symbol): SymbolOption => {
       const item: SymbolOption = {
         type: symbol.type,
-        label: ' ' + symbol.label+' ',
+        label: symbol.label,
         target: symbol,
-        picked: i === 0,
+        picked: symbol.label === selectedSymbol?.label,
       };
       return item;
     }),
@@ -211,22 +229,13 @@ export type Anchor = SymbolAnchor | GroupAnchor;
 
 export async function readSymbols(
   uri: vscode.Uri,
-  position?: vscode.Position
 ): Promise<Array<SymbolAnchor>> {
   const symbols =
     (await vscode.commands.executeCommand<
       Array<vscode.SymbolInformation | vscode.DocumentSymbol>
     >("vscode.executeDocumentSymbolProvider", uri)) || [];
 
-  const sortedSymbols = [...symbols].sort((a, b) => {
-    if (position && rangeOf(a).contains(position)) {
-      return -1;
-    }
-    if (position && rangeOf(b).contains(position)) {
-      return 1;
-    }
-    return 0;
-  });
+  const sortedSymbols = [...symbols];
   const allSymbols = sortedSymbols.flatMap(function optionFromSymbol(
     this: void | undefined,
     symbol

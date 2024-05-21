@@ -2,23 +2,20 @@ import * as vscode from "vscode";
 import { makeExpressServer } from "./server";
 import { CardData, Queries, RequestEvents, ResponseEvents } from "./EventTypes";
 import { Socket } from "socket.io";
-import { makeHoverProvider } from "./make-hover-provider";
 import { makeNewCardHandler } from "./make-new-card-handler";
-import { makeActiveTextEditorHandler } from "./make-active-text-editor-handler";
-import { makeTextSelectionHandler } from "./make-text-selection-handler";
 import { makeBrowseHandler } from "./make-browse-handler";
 import { makeAttachCardHandler } from "./make-attach-card-handler";
 import { getRelativePath } from "./get-relative-path";
 import { makeTagCardHandler } from "./make-tag-card-handler";
+import { AppExplorerLens, makeNavigationHandler } from "./app-explorer-lens";
 
 export type HandlerContext = {
   statusBar: vscode.StatusBarItem;
-  sockets: Map<string, Socket>;
+  sockets: Map<string, Socket<ResponseEvents, RequestEvents>>;
   allCards: Map<CardData["miroLink"], CardData>;
   selectedCards: CardData["miroLink"][];
   renderStatusBar: () => void;
   lastPosition: vscode.Position | undefined;
-  lastUri: vscode.Uri | undefined;
   waitForConnections: () => Promise<void>;
   query: <Req extends keyof Queries, Res extends ReturnType<Queries[Req]>>(
     socket: Socket<ResponseEvents, RequestEvents>,
@@ -38,8 +35,6 @@ export function activate(context: vscode.ExtensionContext) {
   );
   // myStatusBarItem.command = myCommandId;
   context.subscriptions.push(statusBar);
-
-  const editorCards = makeHoverProvider(context);
 
   const sockets = new Map<string, Socket>();
   const allCards = new Map<CardData["miroLink"], CardData>();
@@ -77,14 +72,13 @@ export function activate(context: vscode.ExtensionContext) {
     renderStatusBar,
     selectedCards: [],
     lastPosition: undefined,
-    lastUri: undefined,
     emit: (t, ...data) => io.emit(t, ...data),
     query: function <
       Req extends keyof Queries,
       Res extends ReturnType<Queries[Req]>
     >(
       socket: Socket<ResponseEvents, RequestEvents>,
-      request: Req, 
+      request: Req,
       ...data: Parameters<Queries[Req]>
     ): Promise<Res> {
       const requestId = Math.random().toString();
@@ -141,6 +135,20 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.languages.registerCodeLensProvider(
+      { scheme: "file" },
+      new AppExplorerLens(handlerContext)
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "app-explorer.navigate",
+      makeNavigationHandler(handlerContext)
+    )
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.browseCards",
       makeBrowseHandler(handlerContext)
@@ -164,17 +172,6 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "app-explorer.tagCard",
       makeTagCardHandler(handlerContext)
-    )
-  );
-  context.subscriptions.push(
-    vscode.window.onDidChangeTextEditorSelection(
-      makeTextSelectionHandler(handlerContext)
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor(
-      makeActiveTextEditorHandler(handlerContext, editorCards)
     )
   );
 }
