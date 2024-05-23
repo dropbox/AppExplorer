@@ -15,6 +15,7 @@ export type HandlerContext = {
   getCard: (link: CardData["miroLink"]) => CardData | undefined;
   readAllCards: () => CardData[],
   setCard: (link: CardData["miroLink"],card: CardData|undefined) => void;
+  resetCardList: (cards: CardData[]) => void;
   selectedCards: CardData["miroLink"][];
   renderStatusBar: () => void;
   lastPosition: vscode.Position | undefined;
@@ -75,6 +76,10 @@ export function activate(context: vscode.ExtensionContext) {
   const handlerContext: HandlerContext = {
     statusBar,
     readAllCards: () => [...allCards.values()].filter(notEmpty),
+    resetCardList: (cards) => {
+      allCards.clear();
+      cards.forEach((card) => allCards.set(card.miroLink, card));
+    },
     getCard: (link) => allCards.get(link),
     setCard: (link, card) => {
       if (card) {

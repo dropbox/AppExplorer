@@ -13,6 +13,7 @@ import { getGitHubUrl } from "./get-github-url";
 export function makeExpressServer({
   sockets,
   renderStatusBar,
+  resetCardList,
   setCard,
   query,
 }: HandlerContext) {
@@ -75,9 +76,9 @@ export function makeExpressServer({
     });
 
     const cards = await query(socket, "cards");
-    cards.forEach((card) => {
-      setCard(card.miroLink, card);
-    });
+    if (cards.length > 0) {
+      resetCardList(cards);
+    }
     renderStatusBar();
   });
 
