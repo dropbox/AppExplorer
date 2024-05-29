@@ -26,8 +26,20 @@ export async function getGitHubUrl(
     return null;
   }
 
+  const gitRemotes = await exec("git remote", {
+    cwd: path.dirname(filePath),
+  })
+    .then(({ stdout }) => stdout.trim().split("\n"))
+    .catch(() => [] as string[]);
+
+  console.log("gitRemotes", gitRemotes);
+  let remoteName = "origin";
+  if (!gitRemotes.includes(remoteName)) {
+    remoteName = gitRemotes[0];
+  }
+
   // Get the remote URL for the current repository
-  const gitRemoteUrl = await exec("git config --get remote.origin.url", {
+  const gitRemoteUrl = await exec(`git config --get remote.${remoteName}.url`, {
     cwd: path.dirname(filePath),
   })
     .then(({ stdout }) => stdout.trim())
