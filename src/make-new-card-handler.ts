@@ -48,7 +48,7 @@ export async function makeCardData(
   editor: vscode.TextEditor,
   options?: {
     canPickMany?: boolean;
-    defaultTitle?: string,
+    defaultTitle?: string;
   }
 ): Promise<CardData[] | null> {
   const document = editor.document;
@@ -92,7 +92,7 @@ export async function makeCardData(
       };
       const path = getRelativePath(def.targetUri)!;
       return {
-        type: 'symbol',
+        type: "symbol",
         title: anchor.label,
         path,
         symbol: anchor.label,
@@ -121,8 +121,8 @@ async function showSymbolPicker(
   editor: vscode.TextEditor,
   position: vscode.Position,
   options?: {
-    canPickMany?: boolean,
-  },
+    canPickMany?: boolean;
+  }
 ): Promise<Anchor[] | undefined | typeof cancel> {
   const allSymbols = await readSymbols(editor.document.uri);
 
@@ -130,23 +130,23 @@ async function showSymbolPicker(
     if (symbol.range.contains(position)) {
       if (!acc || acc.range.contains(symbol.range)) {
         // Symbol is smaller than the current selection
-        return symbol
+        return symbol;
       }
 
-      return symbol
+      return symbol;
     }
-    return acc
-  }, null as null|SymbolAnchor)
+    return acc;
+  }, null as null | SymbolAnchor);
   if (options?.canPickMany && selectedSymbol) {
     allSymbols.sort((a, b) => {
       if (a.label === selectedSymbol.label) {
-        return -1
+        return -1;
       }
       if (b.label === selectedSymbol.label) {
-        return 1
+        return 1;
       }
-      return 0
-    })
+      return 0;
+    });
   }
 
   type TaggedQuickPickItem<T, D> = vscode.QuickPickItem & {
@@ -164,21 +164,24 @@ async function showSymbolPicker(
 
   const items: Array<OptionType> = [
     none,
-    ...allSymbols.map((symbol): SymbolOption => {
-      const item: SymbolOption = {
-        type: symbol.type,
-        label: symbol.label,
-        target: symbol,
-        picked: symbol.label === selectedSymbol?.label,
-      };
-      return item;
-    }),
+    ...allSymbols.flatMap((symbol): SymbolOption[] => {
+      if (symbol.range.contains(position)) {
+        const item: SymbolOption = {
+          type: symbol.type,
+          label: symbol.label,
+          target: symbol,
+          picked: symbol.label === selectedSymbol?.label,
+        };
+        return [item];
+      }
+      return [];
+    }).reverse(),
   ];
 
   const tmp = await vscode.window.showQuickPick(items, {
     title: "Choose a symbol step 1/2",
     placeHolder: `Choose a symbol to anchor the card to`,
-    canPickMany:  options?.canPickMany ?? true,
+    canPickMany: options?.canPickMany ?? true,
     matchOnDescription: true,
     onDidSelectItem: (item: OptionType) => {
       if (item.target) {
@@ -186,13 +189,13 @@ async function showSymbolPicker(
       }
     },
   });
-  let selected: OptionType[]
+  let selected: OptionType[];
   if (!tmp) {
-    return cancel
+    return cancel;
   } else if (Array.isArray(tmp)) {
-    selected = tmp
+    selected = tmp;
   } else {
-    selected = [tmp]
+    selected = [tmp];
   }
 
   return selected
@@ -228,7 +231,7 @@ export type GroupAnchor = {
 export type Anchor = SymbolAnchor | GroupAnchor;
 
 export async function readSymbols(
-  uri: vscode.Uri,
+  uri: vscode.Uri
 ): Promise<Array<SymbolAnchor>> {
   const symbols =
     (await vscode.commands.executeCommand<
