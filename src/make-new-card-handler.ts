@@ -164,18 +164,20 @@ async function showSymbolPicker(
 
   const items: Array<OptionType> = [
     none,
-    ...allSymbols.flatMap((symbol): SymbolOption[] => {
-      if (symbol.range.contains(position)) {
-        const item: SymbolOption = {
-          type: symbol.type,
-          label: symbol.label,
-          target: symbol,
-          picked: symbol.label === selectedSymbol?.label,
-        };
-        return [item];
-      }
-      return [];
-    }).reverse(),
+    ...allSymbols
+      .flatMap((symbol): SymbolOption[] => {
+        if (symbol.range.contains(position)) {
+          const item: SymbolOption = {
+            type: symbol.type,
+            label: symbol.label,
+            target: symbol,
+            picked: symbol.label === selectedSymbol?.label,
+          };
+          return [item];
+        }
+        return [];
+      })
+      .reverse(),
   ];
 
   const tmp = await vscode.window.showQuickPick(items, {
