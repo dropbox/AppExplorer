@@ -76,6 +76,11 @@ If you open the project and press F5 or run the command `Debug: Start Debugging`
 I'll usually just build and reinstall with this:
 
 ```
+git pull main
+npm install -g @vscode/vsce   # On first install
+npm install                   # after updates
+
+# Remove any built extensions, build a new copy, and install it.
 rm *.vsix; vsce pack && code --install-extension app-explorer-*.vsix
 ```
 
