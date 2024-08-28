@@ -57,7 +57,7 @@ export async function getGitHubUrl(
     return null;
   }
   const gitRepoOwner = gitRemoteUrlParts[2];
-  const gitRepoName = gitRemoteUrlParts[3];
+  const gitRepoName = gitRemoteUrlParts[3]?.replace(/\.git$/, "");
 
   const range = locationLink.targetSelectionRange ?? locationLink.targetRange;
 
