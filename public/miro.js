@@ -165,7 +165,7 @@ async function nextCardLocation() {
 /**
  * @type {import('../src/EventTypes').Handler<RequestEvents['newCards'], Promise<AppCard[]>>}
  */
-const newCard = async (cards) => {
+const newCard = async (cards, options) => {
   if (cards.length > 1) {
     await miro.board.deselect();
   }
@@ -173,6 +173,12 @@ const newCard = async (cards) => {
   let selection = (await miro.board.getSelection()).filter(
     (item) => item.type === "card" || item.type === "app_card"
   );
+  if (options.connect) {
+    const ids = options.connect.map((url) =>
+      new URL(url).searchParams.get("moveToWidget")
+    );
+    selection = await Promise.all(ids.map((id) => miro.board.getById(id)));
+  }
 
   const newCardLocation = await nextCardLocation();
   return cards.reduce(

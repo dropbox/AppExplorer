@@ -8,6 +8,7 @@ import { makeAttachCardHandler } from "./make-attach-card-handler";
 import { getRelativePath } from "./get-relative-path";
 import { makeTagCardHandler, notEmpty } from "./make-tag-card-handler";
 import { AppExplorerLens, makeNavigationHandler } from "./app-explorer-lens";
+import{EditorDecorator} from './editor-decorator'
 
 export type HandlerContext = {
   statusBar: vscode.StatusBarItem;
@@ -153,6 +154,12 @@ export function activate(context: vscode.ExtensionContext) {
       // instead of creating new cards.
     })
   );
+
+
+  new EditorDecorator(
+    context,
+    handlerContext
+  )
 
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider(

@@ -21,11 +21,15 @@ export function invariant(condition: unknown, message: string) {
 
 const cancel = Symbol("cancel");
 
+type CreateCardOptions = {
+  connect?: string[]
+}
+
 export const makeNewCardHandler = ({
   waitForConnections,
   emit,
 }: HandlerContext) =>
-  async function () {
+  async function (options: CreateCardOptions = {}) {
     const editor = vscode.window.activeTextEditor;
     if (editor) {
       const uri = getRelativePath(editor.document.uri);
@@ -39,7 +43,7 @@ export const makeNewCardHandler = ({
       });
 
       if (cardData) {
-        emit("newCards", cardData);
+        emit("newCards", cardData, { connect: options.connect });
       }
     }
   };

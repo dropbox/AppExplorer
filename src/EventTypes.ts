@@ -53,7 +53,7 @@ export type Queries = {
 };
 
 export type RequestEvents = {
-  newCards: (data: CardData[]) => void;
+  newCards: (data: CardData[], options?: { connect?: string[] }) => void;
   attachCard: (data: CardData) => void;
   hoverCard: (miroLink: string) => void;
   selectCard: (miroLink: string) => void;
