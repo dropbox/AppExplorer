@@ -1,10 +1,10 @@
 {
-  "exclude": ["public", "out"],
+  "exclude": ["public", "dist", "out", "vite.config.ts"],
   "compilerOptions": {
     "module": "commonjs",
-    "target": "ES2020",
+    "target": "ES2023",
     "outDir": "out",
-    "lib": ["ES2020", "DOM"],
+    "lib": ["ES2023", "DOM"],
     "sourceMap": true,
     "rootDir": "src",
     "strict": true,
@@ -12,6 +12,7 @@
     "allowJs": true,
     "noImplicitReturns": true /* Report error when not all code paths in function return a value. */,
     "noFallthroughCasesInSwitch": true /* Report errors for fallthrough cases in switch statement. */,
+    "resolveJsonModule": true,
     "noUnusedParameters": true /* Report errors on unused parameters. */
   }
 }

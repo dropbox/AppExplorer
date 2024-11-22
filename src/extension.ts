@@ -13,13 +13,13 @@ import{EditorDecorator} from './editor-decorator'
 export type HandlerContext = {
   statusBar: vscode.StatusBarItem;
   sockets: Map<string, Socket<ResponseEvents, RequestEvents>>;
-  getCard: (link: CardData["miroLink"]) => CardData | undefined;
+  getCard: (link: CardData["miroLink"]) => CardData | null;
   readAllCards: () => CardData[],
-  setCard: (link: CardData["miroLink"],card: CardData|undefined) => void;
+  setCard: (link: CardData["miroLink"],card: CardData|null) => void;
   resetCardList: (cards: CardData[]) => void;
   selectedCards: CardData["miroLink"][];
   renderStatusBar: () => void;
-  lastPosition: vscode.Position | undefined;
+  lastPosition: vscode.Position | null;
   waitForConnections: () => Promise<void>;
   query: <Req extends keyof Queries, Res extends ReturnType<Queries[Req]>>(
     socket: Socket<ResponseEvents, RequestEvents>,
@@ -81,7 +81,7 @@ export function activate(context: vscode.ExtensionContext) {
       allCards.clear();
       cards.forEach((card) => allCards.set(card.miroLink, card));
     },
-    getCard: (link) => allCards.get(link),
+    getCard: (link) => allCards.get(link) ?? null,
     setCard: (link, card) => {
       if (card) {
         allCards.set(link, card)
@@ -92,7 +92,7 @@ export function activate(context: vscode.ExtensionContext) {
     },
     renderStatusBar,
     selectedCards: [],
-    lastPosition: undefined,
+    lastPosition: null,
     emit: (t, ...data) => io.emit(t, ...data),
     query: function <
       Req extends keyof Queries,
@@ -102,7 +102,7 @@ export function activate(context: vscode.ExtensionContext) {
       request: Req,
       ...data: Parameters<Queries[Req]>
     ): Promise<Res> {
-      const requestId = Math.random().toString();
+      const requestId = Math.random().toString(36);
       return new Promise<Res>((resolve) => {
         const captureResponse: ResponseEvents["queryResult"] = (response) => {
           if (response.requestId === requestId) {
@@ -118,7 +118,7 @@ export function activate(context: vscode.ExtensionContext) {
           requestId,
           data,
         });
-      });
+      })
     },
     async waitForConnections() {
       if (sockets.size > 0) {

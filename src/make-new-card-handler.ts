@@ -4,7 +4,6 @@ import { getRelativePath } from "./get-relative-path";
 import { CardData } from "./EventTypes";
 import { selectRangeInEditor } from "./extension";
 import { getGitHubUrl } from "./get-github-url";
-import { notEmpty } from "./make-tag-card-handler";
 
 export class UnreachableError extends Error {
   constructor(item: never) {
@@ -22,8 +21,8 @@ export function invariant(condition: unknown, message: string) {
 const cancel = Symbol("cancel");
 
 type CreateCardOptions = {
-  connect?: string[]
-}
+  connect?: string[];
+};
 
 export const makeNewCardHandler = ({
   waitForConnections,
@@ -157,17 +156,11 @@ async function showSymbolPicker(
     type: T;
     target: D;
   };
-  const none: TaggedQuickPickItem<"none", undefined> = {
-    type: "none",
-    label: "(None) Attach to line number",
-    target: undefined,
-  };
   type SymbolOption = TaggedQuickPickItem<"symbol", Anchor>;
 
-  type OptionType = typeof none | SymbolOption;
+  type OptionType = SymbolOption;
 
   const items: Array<OptionType> = [
-    none,
     ...allSymbols
       .flatMap((symbol): SymbolOption[] => {
         if (symbol.range.contains(position)) {
@@ -204,19 +197,9 @@ async function showSymbolPicker(
     selected = [tmp];
   }
 
-  return selected
-    .map((item): Anchor | null => {
-      switch (item.type) {
-        // Attach to the line number instead of a symbol.
-        case "none":
-          return null;
-        case "symbol":
-          return item.target;
-        default:
-          throw new UnreachableError(item);
-      }
-    })
-    .filter(notEmpty);
+  return selected.map((item): Anchor => {
+    return item.target;
+  });
 }
 
 export type SymbolAnchor = {

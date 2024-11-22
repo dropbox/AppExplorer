@@ -1,50 +1,58 @@
 /* global miro */
 
-function decode(str) {
+import { BoardNode, AppCard, Item, Rect, Tag } from "@mirohq/websdk-types";
+import {
+  RequestEvents,
+  CardData,
+  Handler,
+  ResponseEvents,
+  AppExplorerTag,
+} from "./EventTypes";
+import { Socket as IOSocket } from "socket.io-client";
+import invariant from "tiny-invariant";
+
+type Socket = IOSocket<RequestEvents, ResponseEvents>;
+
+function decode(str: string) {
   return str.replaceAll(/&#([0-9A-F]{2});/g, (_, charCode) =>
     String.fromCharCode(parseInt(charCode))
   );
 }
 
-/**
- * @typedef {Object} MetaData
- * @property {string} path
- * @property {?string} symbol
- * @property {string} codeLink
- */
+type MetaData = {
+  path: string;
+  symbol: string | null;
+  codeLink: string | null;
+};
 
-/**
- * @typedef {import('@mirohq/websdk-types').Miro} Miro
- * @typedef {import('@mirohq/websdk-types').Card} Card
- * @typedef {import('@mirohq/websdk-types').AppCard} AppCard
- * @typedef {import('@mirohq/websdk-types').Item} Item
- * @typedef {import("../src/EventTypes").RequestEvents} RequestEvents
- * @typedef {import('../src/EventTypes').CardGutter} CardGutter
- * @typedef {import('../src/EventTypes').CardData} CardData
- * @typedef {import("socket.io-client").Socket<
- *     import("../src/EventTypes").RequestEvents,
- *     import("../src/EventTypes").ResponseEvents,
- * >} Socket
- */
+async function updateCard(
+  card: AppCard,
+  data: Partial<CardData>
+): Promise<AppCard> {
+  let metaData: MetaData;
+  invariant(data.path, "missing data.path in updateCard");
+  if (data.type === "group") {
+    metaData = {
+      path: data.path,
+      symbol: null,
+      codeLink: null,
+    };
+  } else if (data.type === "symbol") {
+    metaData = {
+      path: data.path,
+      symbol: data.symbol ?? null,
+      codeLink: data.codeLink ?? null,
+    };
+  } else {
+    throw new Error(`Invalid card type: ${data.type}`);
+  }
 
-/**
- * Updates the data of a blank card.
- *
- * @param {Card} card The card to update.
- * @param {Partial<CardData>} data The data to update the card with.
- * @returns {Promise<AppCard>} The updated card.
- */
-async function updateCard(card, data) {
-  /** @type {MetaData} */
-  const metaData = {
-    path: data.path,
-    symbol: data.symbol ?? null,
-    codeLink: data.codeLink ?? null,
-  };
   await card.setMetadata("app-explorer", metaData);
-  card.linkedTo = data.codeLink ?? "";
+  if (metaData.codeLink) {
+    card.linkedTo = metaData.codeLink ?? "";
+  }
 
-  card.title = data.title;
+  card.title = data.title ?? "";
   /**
    * @type {import('@mirohq/websdk-types').CardField[]}
    */
@@ -54,9 +62,9 @@ async function updateCard(card, data) {
       tooltip: data.path,
     },
   ];
-  if (data.symbol) {
+  if (metaData.symbol) {
     fields.push({
-      value: data.symbol,
+      value: metaData.symbol,
       tooltip: `Symbol`,
     });
   }
@@ -66,22 +74,15 @@ async function updateCard(card, data) {
   return card;
 }
 
-/**
- * @typedef {{
-    min: {x: number;y: number;};
-    max: {x: number;y: number;};
-}} BoundingBox
- */
+type BoundingBox = {
+  min: { x: number; y: number };
+  max: { x: number; y: number };
+};
 
-/**
- *
- * @param {Card[]} items
- * @returns {Promise<BoundingBox>}
- */
-async function boundingBox(items) {
+async function boundingBox(items: AppCard[]): Promise<BoundingBox> {
   return items.reduce(
-    async (p, item) => {
-      const box = await p;
+    async (p: Promise<BoundingBox>, item): Promise<BoundingBox> => {
+      const box: BoundingBox = await p;
       const x = item.x;
       const y = item.y;
       const halfWidth = item.width / 2;
@@ -91,15 +92,20 @@ async function boundingBox(items) {
       box.max.x = Math.max(box.max.x, x + halfWidth);
       box.max.y = Math.max(box.max.y, y + halfHeight);
 
-      let currentItem = item;
+      let currentItem: BoardNode = item;
       if (currentItem && currentItem.parentId) {
         currentItem = await miro.board.getById(currentItem.parentId);
-        if (currentItem) {
+        if (currentItem && "x" in currentItem) {
           box.min.x += currentItem.x;
           box.min.y += currentItem.y;
           box.max.x += currentItem.x;
           box.max.y += currentItem.y;
-          if (currentItem.origin === "center") {
+          if (
+            currentItem.origin === "center" &&
+            "width" in currentItem &&
+            currentItem.width &&
+            currentItem.height
+          ) {
             box.min.x -= currentItem.width / 2;
             box.min.y -= currentItem.height / 2;
             box.max.x -= currentItem.width / 2;
@@ -109,19 +115,14 @@ async function boundingBox(items) {
       }
       return box;
     },
-    {
+    Promise.resolve({
       min: { x: Number.MAX_SAFE_INTEGER, y: Number.MAX_SAFE_INTEGER },
       max: { x: Number.MIN_SAFE_INTEGER, y: Number.MIN_SAFE_INTEGER },
-    }
+    } as BoundingBox)
   );
 }
 
-/**
- *
- * @param {Card[]} cards
- * @returns {Promise<import('@mirohq/websdk-types').Rect}}
- */
-async function makeRect(cards) {
+async function makeRect(cards: AppCard[]): Promise<Rect> {
   const box = await boundingBox(cards);
   return {
     x: box.min.x,
@@ -133,10 +134,7 @@ async function makeRect(cards) {
 
 async function nextCardLocation() {
   const selection = (await miro.board.getSelection()).filter(
-    /**
-     * @returns {item is Card}
-     */
-    (item) => item.type === "card" || item.type === "app_card"
+    (item): item is AppCard => item.type === "app_card"
   );
   const width = 300;
   const height = 200;
@@ -162,71 +160,66 @@ async function nextCardLocation() {
   };
 }
 
-/**
- * @type {import('../src/EventTypes').Handler<RequestEvents['newCards'], Promise<AppCard[]>>}
- */
-const newCard = async (cards, options) => {
+const newCard: Handler<RequestEvents["newCards"], Promise<AppCard[]>> = async (
+  cards,
+  options = {}
+) => {
   if (cards.length > 1) {
     await miro.board.deselect();
   }
 
   let selection = (await miro.board.getSelection()).filter(
-    (item) => item.type === "card" || item.type === "app_card"
+    (item) => item.type === "app_card"
   );
   if (options.connect) {
-    const ids = options.connect.map((url) =>
-      new URL(url).searchParams.get("moveToWidget")
-    );
-    selection = await Promise.all(ids.map((id) => miro.board.getById(id)));
+    const ids = options.connect
+      .map((url) => new URL(url).searchParams.get("moveToWidget"))
+      .filter(notEmpty);
+    selection = (
+      await Promise.all(ids.map((id) => miro.board.getById(id)))
+    ).filter((item) => item.type === "app_card");
   }
 
   const newCardLocation = await nextCardLocation();
-  return cards.reduce(
-    async (p, cardData, index) => {
-      const accumulatedCards = await p;
+  return cards.reduce(async (p, cardData, index) => {
+    const accumulatedCards = await p;
 
-      const card = await miro.board.createAppCard({
-        ...newCardLocation,
-        y: newCardLocation.y + index * 200,
-        status: "connected",
-      });
-      zoomIntoCards([...selection, ...accumulatedCards, card].flat());
-      await updateCard(card, cardData);
+    const card = await miro.board.createAppCard({
+      ...newCardLocation,
+      y: newCardLocation.y + index * 200,
+      status: "connected",
+    });
+    zoomIntoCards([...selection, ...accumulatedCards, card].flat());
+    await updateCard(card, cardData);
 
-      if (selection.length > 0) {
-        await selection.reduce(async (promise, item) => {
-          await miro.board.createConnector({
-            start: { item: item.id },
-            end: { item: card.id },
-            shape: "curved",
-            style: {
-              startStrokeCap: "none",
-              endStrokeCap: "arrow",
-            },
-          });
-          await promise;
-        }, Promise.resolve(null));
-      }
-      if (index === 0 && cards.length > 1) {
-        selection = [card];
-        await miro.board.deselect();
-        await miro.board.select({ id: card.id });
-      }
-      return [...accumulatedCards, card];
-    },
-    /**
-     * @type {Promise<AppCard[]>}
-     */
-    Promise.resolve([])
-  );
+    if (selection.length > 0) {
+      await selection.reduce(async (promise, item) => {
+        await miro.board.createConnector({
+          start: { item: item.id },
+          end: { item: card.id },
+          shape: "curved",
+          style: {
+            startStrokeCap: "none",
+            endStrokeCap: "arrow",
+          },
+        });
+        return promise;
+      }, Promise.resolve(null));
+    }
+    if (index === 0 && cards.length > 1) {
+      selection = [card];
+      await miro.board.deselect();
+      await miro.board.select({ id: card.id });
+    }
+    return [...accumulatedCards, card];
+  }, Promise.resolve([] as AppCard[]));
 };
-async function zoomIntoCards(cards) {
+async function zoomIntoCards(cards: AppCard[]) {
   await miro.board.viewport.zoomTo(
     await Promise.all(
       cards.map(async (card) => {
         if (card.parentId) {
           const frame = await miro.board.getById(card.parentId);
-          console.log("zooming into frame", frame);
           if (frame?.type === "frame") {
             return frame;
           }
@@ -237,16 +230,13 @@ async function zoomIntoCards(cards) {
   );
 }
 
-/**
- * @param {Socket} socket
- */
-export function attachToSocket(socket) {
+export function attachToSocket(socket: Socket) {
   socket.on("newCards", async (event) => {
     try {
-      await newCard(event).then(async (card) => {
+      await newCard(event).then(async (cards) => {
         await miro.board.deselect();
-        if (card.id) {
-          await miro.board.select({ id: card.id });
+        if (cards.length > 0) {
+          await miro.board.select({ id: cards.map((c) => c.id) });
         }
       });
     } catch (error) {
@@ -257,17 +247,16 @@ export function attachToSocket(socket) {
     try {
       const selection = await miro.board.getSelection();
       const card = selection[0];
-      if (
-        selection.length === 1 &&
-        (card.type === "card" || card.type === "app_card")
-      ) {
+      if (selection.length === 1 && card.type === "app_card") {
         const updatedCard = await updateCard(card, cardData);
         updatedCard.status = "connected";
         await updatedCard.sync();
         await miro.board.deselect();
         await miro.board.select({ id: card.id });
         const data = await extractCardData(updatedCard);
-        socket.emit("card", data.miroLink, data);
+        if (data && data.miroLink) {
+          socket.emit("card", { url: data.miroLink, card: data });
+        }
       }
     } catch (error) {
       console.error("AppExplorer: Error attaching card", error);
@@ -276,14 +265,14 @@ export function attachToSocket(socket) {
   socket.on("selectCard", async (cardUrl) => {
     try {
       const url = new URL(cardUrl);
-      const id = url.searchParams.get("moveToWidget");
+      const id = url.searchParams.get("moveToWidget")!;
       const card = await miro.board.getById(id);
-      if (card) {
+      if (card && card.type === "app_card") {
         await miro.board.deselect();
         await miro.board.select({ id: card.id });
         await zoomIntoCards([card]);
       } else {
-        socket.emit("card", cardUrl, null);
+        socket.emit("card", { url: cardUrl, card: null });
       }
     } catch (error) {
       console.error("AppExplorer: Error selecting card", error);
@@ -292,41 +281,8 @@ export function attachToSocket(socket) {
   socket.on("cardStatus", async ({ miroLink, status, codeLink }) => {
     try {
       const url = new URL(miroLink);
-      const id = url.searchParams.get("moveToWidget");
-      let card = await miro.board.getById(id);
-      // 0.0.7 - Migrate cards to app cards
-      if (card.type === "card") {
-        try {
-          await zoomIntoCards([card]);
-          await miro.board.deselect();
-          const data = await extractCardData(card);
-          const [appCard] = await newCard([data]);
-
-          const connectors = await card.getConnectors();
-          await connectors.reduce(async (promise, connector) => {
-            await promise;
-            if (connector.start?.item === card.id) {
-              connector.start.item = appCard.id;
-            }
-            if (connector.end?.item === card.id) {
-              connector.end.item = appCard.id;
-            }
-            await connector.sync();
-          }, Promise.resolve());
-
-          await card.setMetadata("app-explorer", null);
-          card.title = `(migrated) ${card.title}`;
-          await card.sync();
-
-          socket.emit("card", data.miroLink, null);
-          await miro.board.remove(card);
-          await miro.board.select({ id: appCard.id });
-          card = appCard;
-        } catch (e) {
-          console.error("Error disconnecting card", e);
-          throw e;
-        }
-      }
+      const id = url.searchParams.get("moveToWidget")!;
+      const card = await miro.board.getById(id);
 
       if (card.type === "app_card") {
         card.status = status;
@@ -342,9 +298,10 @@ export function attachToSocket(socket) {
   socket.on("hoverCard", async (cardUrl) => {
     try {
       const url = new URL(cardUrl);
-      const id = url.searchParams.get("moveToWidget");
+      const id = url.searchParams.get("moveToWidget")!;
 
       const card = await miro.board.getById(id);
+      invariant(card.type === "app_card", "card must be an app_card");
       await zoomIntoCards([card]);
     } catch (error) {
       console.error("AppExplorer: Error hovering card", error);
@@ -353,12 +310,12 @@ export function attachToSocket(socket) {
 
   socket.on("tagCards", async ({ miroLink: links, tag }) => {
     try {
-      /**
-       * @type {import('@mirohq/websdk-types').Tag}
-       */
-      let tagObject;
+      let tagObject: Tag;
       if (typeof tag === "string") {
-        tagObject = await miro.board.getById(tag);
+        const tmp = await miro.board.getById(tag);
+        if (tmp && tmp.type === "tag") {
+          tagObject = tmp;
+        }
       } else {
         tagObject = await miro.board.createTag({
           color: tag.color,
@@ -369,8 +326,9 @@ export function attachToSocket(socket) {
       await links.reduce(async (p, miroLink) => {
         await p;
         const url = new URL(miroLink);
-        const id = url.searchParams.get("moveToWidget");
-        let card = await miro.board.getById(id);
+        const id = url.searchParams.get("moveToWidget")!;
+        const card = await miro.board.getById(id);
+        invariant(card.type === "app_card", "card must be an app_card");
 
         if (card.tagIds.includes(tagObject.id)) {
           card.tagIds = card.tagIds.filter((id) => id !== tagObject.id);
@@ -388,31 +346,38 @@ export function attachToSocket(socket) {
     try {
       switch (name) {
         case "cards": {
-          const cards = await miro.board.get({
-            type: ["card", "app_card"],
-          });
+          const cards = (
+            await miro.board.get({
+              type: ["app_card"],
+            })
+          ).filter((c) => c.type === "app_card");
           const response = (
             await Promise.all(cards.map(extractCardData))
           ).filter(notEmpty);
-          return socket.emit("queryResult", { requestId, response });
+          socket.emit("queryResult", { name, requestId, response });
+          break;
         }
         case "tags": {
           const selection = await miro.board.get({ type: "tag" });
           const response = await Promise.all(
-            selection.map((tag) => ({
-              id: tag.id,
-              title: tag.title,
-              color: tag.color,
-            }))
+            selection.map(
+              (tag): AppExplorerTag => ({
+                id: tag.id,
+                title: tag.title,
+                color: tag.color as AppExplorerTag["color"],
+              })
+            )
           );
-          return socket.emit("queryResult", { requestId, response });
+          socket.emit("queryResult", { name, requestId, response });
+          break;
         }
         case "selected": {
           const selection = await miro.board.getSelection();
           const response = (
             await Promise.all(selection.map(extractCardData))
           ).filter(notEmpty);
-          return socket.emit("queryResult", { requestId, response });
+          socket.emit("queryResult", { name, requestId, response });
+          break;
         }
       }
     } catch (error) {
@@ -446,12 +411,13 @@ export function attachToSocket(socket) {
 
   miro.board.ui.on("items:delete", async function (event) {
     try {
-      return event.items.reduce(async (promise, item) => {
+      await event.items.reduce(async (promise, item) => {
         await promise;
         const data = await extractCardData(item);
-        if (data) {
-          socket.emit("card", data.miroLink, null);
+        if (data?.miroLink) {
+          socket.emit("card", { url: data.miroLink, card: data });
         }
+        return null;
       }, Promise.resolve(null));
     } catch (error) {
       console.error("AppExplorer: Error deleting items", error);
@@ -461,13 +427,14 @@ export function attachToSocket(socket) {
   miro.board.ui.on("selection:update", async function selectionUpdate(event) {
     try {
       const selectedItems = event.items;
-      let data = await Promise.all(selectedItems.map(extractCardData));
-      data = data.filter(notEmpty);
+      const data = (
+        await Promise.all(selectedItems.map(extractCardData))
+      ).filter(notEmpty);
 
       if (data.length > 0) {
         data.forEach((card) => {
           socket.emit("card", {
-            url: card.miroLink,
+            url: card.miroLink!,
             card,
           });
         });
@@ -481,72 +448,35 @@ export function attachToSocket(socket) {
   });
 }
 
-/**
- *
- * @template T
- * @param {T | null} t
- * @returns  {t is T}
- */
-function notEmpty(t) {
+function notEmpty<T>(t: T | null): t is T {
   return t != null;
 }
 
-/**
- *
- * @param {Item} card
- * @returns {Promise<CardData>}
- */
-async function extractCardData(card) {
-  if (card.type !== "card" && card.type !== "app_card") {
+async function extractCardData(card: Item): Promise<CardData | null> {
+  if (card.type !== "app_card") {
     return null;
   }
   /** @type {MetaData} */
   const metadata = await card.getMetadata("app-explorer");
-  if (metadata) {
+  if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
+    const { codeLink, path, symbol } = metadata as Record<string, string>;
+
     const boardId = await miro.board.getInfo().then((info) => info.id);
-    if (card.linkedTo !== metadata.codeLink && metadata.codeLink) {
-      card.linkedTo = metadata.codeLink;
+    if (card.linkedTo !== codeLink && codeLink) {
+      card.linkedTo = codeLink as string;
       await card.sync();
     }
 
     return {
-      type: metadata.symbol ? "symbol" : "group",
+      type: symbol ? "symbol" : "group",
       title: decode(card.title),
-      description: decode(card.description),
+      // description: decode(card.description),
       miroLink: `https://miro.com/app/board/${boardId}/?moveToWidget=${card.id}`,
-      path: metadata.path,
-      symbol: metadata.symbol,
-      codeLink: metadata.codeLink,
+      path: path,
+      symbol: symbol,
+      codeLink: codeLink,
       status: card.type === "app_card" ? card.status : "disconnected",
     };
-  } else {
-    const path = card.fields?.find((field) =>
-      field.value?.match(/([\w/._-])+#L\d+/)
-    );
-    if (path && path.value) {
-      const url = new URL(path.value, "https://example.com");
-      const metadata = {
-        path: url.pathname,
-        symbol: null,
-        codeLink: null,
-      };
-
-      const boardId = await miro.board.getInfo().then((info) => info.id);
-      return {
-        type: metadata.symbol ? "symbol" : "group",
-        title: card.title,
-        description: card.description,
-        miroLink: `https://miro.com/app/board/${boardId}/?moveToWidget=${card.id}`,
-        path: metadata.path,
-        symbol: metadata.symbol,
-        codeLink: metadata.codeLink,
-        status: card.type === "app_card" ? card.status : "disconnected",
-      };
-    }
   }
   return null;
 }
-
-// miro.board.ui.on("icon:click", async function openSidebar() {
-//   await miro.board.ui.openPanel({ url: "/sidebar.html" });
-// });

@@ -40,14 +40,14 @@ export const allColors = [
 ] as TagColor[];
 
 
-export type Tag = {
+export type AppExplorerTag = {
   title: string;
   id: string;
   color: TagColor;
 };
 
 export type Queries = {
-  tags: () => Tag[];
+  tags: () => AppExplorerTag[];
   cards: () => CardData[]
   selected: () => CardData[];
 };
@@ -85,10 +85,11 @@ export type ResponseEvents = {
   cardsInEditor: (data: { path: string; cards: CardData[] }) => void;
   selectedCards: (data: { data: CardData[] }) => void;
   navigateTo: (card: CardData) => void;
-  card: (data: { url: string, card: CardData }) => void;
+  card: (data: { url: string, card: CardData|null }) => void;
   queryResult: <N extends keyof Queries>(data: {
+    name: N,
     requestId: string,
-    response: Queries[N],
+    response: ReturnType<Queries[N]>,
   }) => void;
 };
 

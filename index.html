@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>AppExplorer</title>
+    <script src="https://miro.com/app/static/sdk/v2/miro.js"></script>
+  </head>
+  <body>
+    <script type="module">
+      import { attachToSocket } from "./src/miro.ts";
+      async function run() {
+        const { io } = await import(
+          "https://cdn.socket.io/4.3.2/socket.io.esm.min.js"
+        );
+        const socket = io();
+        attachToSocket(socket);
+      }
+      run();
+    </script>
+  </body>
+</html>
