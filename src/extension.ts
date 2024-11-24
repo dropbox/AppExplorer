@@ -26,13 +26,9 @@ export type HandlerContext = {
     request: Req,
     ...data: Parameters<Queries[Req]>
   ) => Promise<Res>;
-  emit: <T extends keyof RequestEvents>(
-    event: T,
-    ...data: Parameters<RequestEvents[T]>
-  ) => void;
 };
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   const statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
     100
@@ -93,7 +89,6 @@ export function activate(context: vscode.ExtensionContext) {
     renderStatusBar,
     selectedCards: [],
     lastPosition: null,
-    emit: (t, ...data) => io.emit(t, ...data),
     query: function <
       Req extends keyof Queries,
       Res extends ReturnType<Queries[Req]>
@@ -144,7 +139,7 @@ export function activate(context: vscode.ExtensionContext) {
     },
     sockets,
   };
-  const io = makeExpressServer(handlerContext);
+  const io = await makeExpressServer(handlerContext);
   context.subscriptions.push(
     vscode.commands.registerCommand("app-explorer.connect", () => {
       // This command doesn't really need to do anything. By activating the

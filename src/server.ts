@@ -10,13 +10,8 @@ import { HandlerContext } from "./extension";
 import { findCardDestination, goToCardCode } from "./make-browse-handler";
 import { getGitHubUrl } from "./get-github-url";
 
-export function makeExpressServer({
-  sockets,
-  renderStatusBar,
-  resetCardList,
-  setCard,
-  query,
-}: HandlerContext) {
+export function makeExpressServer(context: HandlerContext) {
+  const { sockets, renderStatusBar, resetCardList, setCard, query } = context;
   const app = express();
   const httpServer = createServer(app);
   const io = new Server<ResponseEvents, RequestEvents>(httpServer);

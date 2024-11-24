@@ -1,17 +1,16 @@
 /* global miro */
 
-import { BoardNode, AppCard, Item, Rect, Tag } from "@mirohq/websdk-types";
+import { BoardNode, AppCard, Item, Rect, Tag, CardField } from "@mirohq/websdk-types";
 import {
   RequestEvents,
   CardData,
   Handler,
-  ResponseEvents,
   AppExplorerTag,
+  Queries,
+  ResponseEvents,
 } from "./EventTypes";
-import { Socket as IOSocket } from "socket.io-client";
+import {Socket, io } from "socket.io-client";
 import invariant from "tiny-invariant";
-
-type Socket = IOSocket<RequestEvents, ResponseEvents>;
 
 function decode(str: string) {
   return str.replaceAll(/&#([0-9A-F]{2});/g, (_, charCode) =>
@@ -53,10 +52,7 @@ async function updateCard(
   }
 
   card.title = data.title ?? "";
-  /**
-   * @type {import('@mirohq/websdk-types').CardField[]}
-   */
-  const fields = [
+  const fields: CardField[] = [
     {
       value: data.path,
       tooltip: data.path,
@@ -230,7 +226,8 @@ async function zoomIntoCards(cards: AppCard[]) {
   );
 }
 
-export function attachToSocket(socket: Socket) {
+export function attachToSocket() {
+  const socket = io() as Socket<RequestEvents, ResponseEvents>;
   socket.on("newCards", async (event) => {
     try {
       await newCard(event).then(async (cards) => {
@@ -342,44 +339,47 @@ export function attachToSocket(socket: Socket) {
     }
   });
 
-  socket.on("query", async ({ name, requestId }) => {
+  type QueryImplementations = {
+    [K in keyof Queries]: Queries[K] extends (...args: unknown[]) => unknown
+      ? (...args: Parameters<Queries[K]>) => Promise<ReturnType<Queries[K]>>
+      : never;
+  };
+  const queryImplementations: QueryImplementations = {
+    cards: async () => {
+      const cards = (
+        await miro.board.get({
+          type: ["app_card"],
+        })
+      ).filter((c) => c.type === "app_card");
+      return (await Promise.all(cards.map(extractCardData))).filter(notEmpty);
+    },
+    tags: async () => {
+      const selection = await miro.board.get({ type: "tag" });
+      return await Promise.all(
+        selection.map(
+          (tag): AppExplorerTag => ({
+            id: tag.id,
+            title: tag.title,
+            color: tag.color as AppExplorerTag["color"],
+          })
+        )
+      );
+    },
+    selected: async () => {
+      const selection = await miro.board.getSelection();
+      return (await Promise.all(selection.map(extractCardData))).filter(
+        notEmpty
+      );
+    },
+  };
+
+  socket.on("query", async ({ name, requestId, data }) => {
     try {
-      switch (name) {
-        case "cards": {
-          const cards = (
-            await miro.board.get({
-              type: ["app_card"],
-            })
-          ).filter((c) => c.type === "app_card");
-          const response = (
-            await Promise.all(cards.map(extractCardData))
-          ).filter(notEmpty);
-          socket.emit("queryResult", { name, requestId, response });
-          break;
-        }
-        case "tags": {
-          const selection = await miro.board.get({ type: "tag" });
-          const response = await Promise.all(
-            selection.map(
-              (tag): AppExplorerTag => ({
-                id: tag.id,
-                title: tag.title,
-                color: tag.color as AppExplorerTag["color"],
-              })
-            )
-          );
-          socket.emit("queryResult", { name, requestId, response });
-          break;
-        }
-        case "selected": {
-          const selection = await miro.board.getSelection();
-          const response = (
-            await Promise.all(selection.map(extractCardData))
-          ).filter(notEmpty);
-          socket.emit("queryResult", { name, requestId, response });
-          break;
-        }
-      }
+      socket.emit("queryResult", {
+        name,
+        requestId,
+        response: await queryImplementations[name](...data),
+      });
     } catch (error) {
       console.error(`AppExplorer: Error querying ${name}`, error);
     }
@@ -456,8 +456,7 @@ async function extractCardData(card: Item): Promise<CardData | null> {
   if (card.type !== "app_card") {
     return null;
   }
-  /** @type {MetaData} */
-  const metadata = await card.getMetadata("app-explorer");
+  const metadata: MetaData = await card.getMetadata("app-explorer");
   if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
     const { codeLink, path, symbol } = metadata as Record<string, string>;
 
