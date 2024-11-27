@@ -42,6 +42,7 @@
     "compile": "vite build --minify false",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
+    "type-check": "tsc --noEmit",
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
@@ -57,9 +58,8 @@
     "@typescript-eslint/parser": "^6.7.0",
     "@vscode/test-electron": "^2.3.4",
     "eslint": "^8.47.0",
-    "glob": "^10.3.3",
     "mocha": "^10.2.0",
-    "typescript": "^5.1.6",
+    "typescript": "5.5",
     "vite": "^5.4.11"
   },
   "dependencies": {

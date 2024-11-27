@@ -1,13 +1,6 @@
 import { AppCard, TagColor } from "@mirohq/websdk-types";
 import * as vscode from "vscode";
 
-export type CardGutter = { startLine: number; endLine: number };
-
-export type JSPosition = {
-  line: number;
-  character: number;
-};
-
 export type SymbolCardData = {
   type: 'symbol'
   title: string;

@@ -1,10 +1,18 @@
 {
-  "exclude": ["public", "dist", "out", "vite.config.ts"],
+  "exclude": [
+    "public",
+    "dist",
+    "out",
+    "vite.config.ts",
+    "node_modules",
+    "node_modules/path-scurry"
+  ],
+  "include": ["src"],
   "compilerOptions": {
     "module": "commonjs",
-    "target": "ES2023",
+    "target": "ES2022",
     "outDir": "out",
-    "lib": ["ES2023", "DOM"],
+    "lib": ["ES2022", "DOM"],
     "sourceMap": true,
     "rootDir": "src",
     "strict": true,

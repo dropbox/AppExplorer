@@ -5,17 +5,17 @@ import { Socket } from "socket.io";
 import { makeNewCardHandler } from "./make-new-card-handler";
 import { makeBrowseHandler } from "./make-browse-handler";
 import { makeAttachCardHandler } from "./make-attach-card-handler";
-import { getRelativePath } from "./get-relative-path";
 import { makeTagCardHandler, notEmpty } from "./make-tag-card-handler";
 import { AppExplorerLens, makeNavigationHandler } from "./app-explorer-lens";
-import{EditorDecorator} from './editor-decorator'
+import { EditorDecorator } from "./editor-decorator";
+import { StatusBarManager } from "./status-bar-manager";
 
 export type HandlerContext = {
-  statusBar: vscode.StatusBarItem;
+  // statusBar: vscode.StatusBarItem;
   sockets: Map<string, Socket<ResponseEvents, RequestEvents>>;
   getCard: (link: CardData["miroLink"]) => CardData | null;
-  readAllCards: () => CardData[],
-  setCard: (link: CardData["miroLink"],card: CardData|null) => void;
+  readAllCards: () => CardData[];
+  setCard: (link: CardData["miroLink"], card: CardData | null) => void;
   resetCardList: (cards: CardData[]) => void;
   selectedCards: CardData["miroLink"][];
   renderStatusBar: () => void;
@@ -26,52 +26,24 @@ export type HandlerContext = {
     request: Req,
     ...data: Parameters<Queries[Req]>
   ) => Promise<Res>;
+  emit: <T extends keyof RequestEvents>(
+    event: T,
+    ...data: Parameters<RequestEvents[T]>
+  ) => void;
 };
 
 export async function activate(context: vscode.ExtensionContext) {
-  const statusBar = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Right,
-    100
-  );
-  // myStatusBarItem.command = myCommandId;
-  context.subscriptions.push(statusBar);
-
   const sockets = new Map<string, Socket>();
   const allCards = new Map<CardData["miroLink"], CardData>();
-  const storedCards = context.workspaceState.get<CardData[]>("cards")
+  const storedCards = context.workspaceState.get<CardData[]>("cards");
   if (storedCards) {
-    storedCards.forEach(card => allCards.set(card.miroLink, card))
+    storedCards.forEach((card) => allCards.set(card.miroLink, card));
   }
 
-  function renderStatusBar() {
-    if (sockets.size == 0) {
-      statusBar.backgroundColor = "red";
-    }
-
-    let cardsInEditor = [];
-    const uri = vscode.window.activeTextEditor?.document.uri;
-    if (uri) {
-      const path = getRelativePath(uri);
-      if (path) {
-        cardsInEditor = [...allCards.values()].filter(
-          (card) => card?.path === path
-        );
-      }
-    }
-
-    if (cardsInEditor.length > 0) {
-      statusBar.text = `AppExplorer (${cardsInEditor.length}/${allCards.size} cards)`;
-    } else if (allCards.size > 0) {
-      statusBar.text = `AppExplorer (${allCards.size} cards)`;
-    } else {
-      statusBar.text = `AppExplorer (${sockets.size} sockets)`;
-    }
-    statusBar.show();
-  }
-  statusBar.command = "app-explorer.browseCards";
+  const socketManager = new StatusBarManager(sockets, allCards, context);
 
   const handlerContext: HandlerContext = {
-    statusBar,
+    // statusBar: socketManager.statusBar,
     readAllCards: () => [...allCards.values()].filter(notEmpty),
     resetCardList: (cards) => {
       allCards.clear();
@@ -80,15 +52,16 @@ export async function activate(context: vscode.ExtensionContext) {
     getCard: (link) => allCards.get(link) ?? null,
     setCard: (link, card) => {
       if (card) {
-        allCards.set(link, card)
+        allCards.set(link, card);
       } else {
-        allCards.delete(link)
+        allCards.delete(link);
       }
-      context.workspaceState.update("cards", handlerContext.readAllCards())
+      context.workspaceState.update("cards", handlerContext.readAllCards());
     },
-    renderStatusBar,
+    renderStatusBar: socketManager.renderStatusBar.bind(socketManager),
     selectedCards: [],
     lastPosition: null,
+    emit: (t, ...data) => io.emit(t, ...data),
     query: function <
       Req extends keyof Queries,
       Res extends ReturnType<Queries[Req]>
@@ -113,7 +86,7 @@ export async function activate(context: vscode.ExtensionContext) {
           requestId,
           data,
         });
-      })
+      });
     },
     async waitForConnections() {
       if (sockets.size > 0) {
@@ -150,11 +123,7 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
-
-  new EditorDecorator(
-    context,
-    handlerContext
-  )
+  new EditorDecorator(context, handlerContext);
 
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider(
