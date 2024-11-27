@@ -1,6 +1,6 @@
 /* global miro */
 
-import {
+import type {
   BoardNode,
   AppCard,
   Item,
@@ -9,14 +9,14 @@ import {
   CardField,
 } from "@mirohq/websdk-types";
 import {
-  RequestEvents,
-  CardData,
-  Handler,
-  AppExplorerTag,
-  Queries,
-  ResponseEvents,
+  type RequestEvents,
+  type CardData,
+  type Handler,
+  type AppExplorerTag,
+  type Queries,
+  type ResponseEvents,
 } from "./EventTypes";
-import { Socket, io } from "socket.io-client";
+import { type Socket } from "socket.io-client";
 import invariant from "tiny-invariant";
 
 function decode(str: string) {
@@ -236,7 +236,14 @@ async function zoomIntoCards(cards: AppCard[]) {
   );
 }
 
-export function attachToSocket() {
+export async function attachToSocket() {
+  const { io } = await import(
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore I need to use a dynamic import to avoid importing from
+    // index-{hash}.js
+    "https://cdn.socket.io/4.3.2/socket.io.esm.min.js"
+  );
+
   const socket = io() as Socket<RequestEvents, ResponseEvents>;
   socket.on("newCards", async (event) => {
     try {
@@ -355,6 +362,12 @@ export function attachToSocket() {
       : never;
   };
   const queryImplementations: QueryImplementations = {
+    boardId: async () => {
+      const boardId = await miro.board.getInfo().then((info) => info.id);
+      console.log("query", { boardId });
+      return boardId;
+    },
+    getIdToken: () => miro.board.getIdToken(),
     cards: async () => {
       const cards = (
         await miro.board.get({
@@ -385,10 +398,11 @@ export function attachToSocket() {
 
   socket.on("query", async ({ name, requestId, data }) => {
     try {
+      const response = await queryImplementations[name](...data);
       socket.emit("queryResult", {
         name,
         requestId,
-        response: await queryImplementations[name](...data),
+        response,
       });
     } catch (error) {
       console.error(`AppExplorer: Error querying ${name}`, error);

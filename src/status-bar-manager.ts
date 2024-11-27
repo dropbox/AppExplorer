@@ -17,6 +17,7 @@ export class StatusBarManager {
     );
     this.statusBar.command = "app-explorer.browseCards";
     context.subscriptions.push(this.statusBar);
+    allCards.subscribe(this.renderStatusBar.bind(this));
   }
 
   renderStatusBar() {

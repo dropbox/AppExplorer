@@ -11,7 +11,7 @@ import { findCardDestination, goToCardCode } from "./make-browse-handler";
 import { getGitHubUrl } from "./get-github-url";
 
 export function makeExpressServer(context: HandlerContext) {
-  const { sockets, renderStatusBar, resetCardList, setCard, query } = context;
+  const { sockets, renderStatusBar, setCard, query } = context;
   const app = express();
   const httpServer = createServer(app);
   const io = new Server<ResponseEvents, RequestEvents>(httpServer);
@@ -19,10 +19,12 @@ export function makeExpressServer(context: HandlerContext) {
   renderStatusBar();
 
   io.on("connection", async (socket) => {
-    sockets.set(socket.id, socket);
+    let boardId: string | null = null;
     renderStatusBar();
     socket.on("disconnect", () => {
-      sockets.delete(socket.id);
+      if (boardId) {
+        sockets.delete(boardId);
+      }
       renderStatusBar();
     });
 
@@ -69,12 +71,14 @@ export function makeExpressServer(context: HandlerContext) {
     socket.on("card", async ({ url, card }) => {
       setCard(url, card);
     });
+    boardId = await query(socket, "boardId");
+    let boardInfo = await context.cardStorage.getBoard(boardId);
+    if (!boardInfo) {
+      boardInfo = await context.cardStorage.addBoard(boardId, boardId);
+    }
 
     const cards = await query(socket, "cards");
-    if (cards.length > 0) {
-      resetCardList(cards);
-    }
-    renderStatusBar();
+    context.cardStorage.setBoardCards(boardId, cards);
   });
 
   app.use(compression());

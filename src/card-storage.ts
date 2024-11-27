@@ -9,6 +9,7 @@ export type BoardInfo = {
 
 export class CardStorage {
   private boards = new Map<BoardInfo["id"], BoardInfo>();
+  subscribers: Array<() => void> = [];
 
   constructor(private context: vscode.ExtensionContext) {
     const boardIds = this.context.workspaceState.get<string[]>("boardIds");
@@ -19,6 +20,22 @@ export class CardStorage {
         this.boards.set(board.id, board);
       }
     });
+    this.context.subscriptions.push(this);
+  }
+
+  dispose() {
+    this.subscribers = [];
+  }
+
+  subscribe(callback: () => void) {
+    this.subscribers.push(callback);
+    return () => {
+      this.subscribers = this.subscribers.filter((c) => c !== callback);
+    };
+  }
+
+  private notifySubscribers() {
+    this.subscribers.forEach((s) => s());
   }
 
   async addBoard(boardId: string, name: string) {
@@ -28,6 +45,8 @@ export class CardStorage {
     boardIds?.push(boardId);
     await this.context.workspaceState.update("boardIds", boardIds);
     await this.context.workspaceState.update(`board-${boardId}`, board);
+    this.notifySubscribers();
+    return board;
   }
 
   async addCard(boardId: string, card: CardData) {
@@ -36,10 +55,26 @@ export class CardStorage {
       board.cards[card.miroLink!] = card;
       await this.context.workspaceState.update(`board-${boardId}`, board);
     }
+    this.notifySubscribers();
   }
 
   async getBoard(boardId: string) {
     return this.boards.get(boardId);
+  }
+
+  setBoardCards(boardId: string, cards: CardData[]) {
+    const board = this.boards.get(boardId);
+    if (board) {
+      board.cards = cards.reduce(
+        (acc, c) => {
+          acc[c.miroLink!] = c;
+          return acc;
+        },
+        {} as Record<string, CardData>,
+      );
+      this.context.workspaceState.update(`board-${boardId}`, board);
+    }
+    this.notifySubscribers();
   }
 
   totalCards() {
@@ -66,6 +101,7 @@ export class CardStorage {
         this.context.workspaceState.update(`board-${b.id}`, b);
       }
     });
+    this.notifySubscribers();
   }
 
   clear() {
@@ -74,6 +110,7 @@ export class CardStorage {
     });
     this.boards.clear();
     this.context.workspaceState.update("boardIds", []);
+    this.notifySubscribers();
   }
 
   set(miroLink: string, card: CardData) {
@@ -87,6 +124,7 @@ export class CardStorage {
         this.context.workspaceState.update(`board-${boardId}`, board);
       }
     }
+    this.notifySubscribers();
   }
 
   values() {

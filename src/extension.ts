@@ -12,6 +12,7 @@ import { StatusBarManager } from "./status-bar-manager";
 import { CardStorage } from "./card-storage";
 
 export type HandlerContext = {
+  cardStorage: CardStorage;
   sockets: Map<string, Socket<ResponseEvents, RequestEvents>>;
   getCard: (link: NonNullable<CardData["miroLink"]>) => CardData | null;
   readAllCards: () => CardData[];
@@ -36,23 +37,23 @@ export type HandlerContext = {
 };
 
 export async function activate(context: vscode.ExtensionContext) {
-  const allCards = new CardStorage(context);
+  const cardStorage = new CardStorage(context);
   const sockets = new Map<string, Socket>();
-  const statusBarManager = new StatusBarManager(sockets, allCards, context);
+  const statusBarManager = new StatusBarManager(sockets, cardStorage, context);
 
   const handlerContext: HandlerContext = {
-    // statusBar: socketManager.statusBar,
-    readAllCards: () => [...allCards.values()].filter(notEmpty),
+    cardStorage,
+    readAllCards: () => [...cardStorage.values()].filter(notEmpty),
     resetCardList: (cards) => {
-      allCards.clear();
-      cards.forEach((card) => allCards.set(card.miroLink!, card));
+      cardStorage.clear();
+      cards.forEach((card) => cardStorage.set(card.miroLink!, card));
     },
-    getCard: (link) => allCards.getCardByLink(link) ?? null,
+    getCard: (link) => cardStorage.getCardByLink(link) ?? null,
     setCard: (link, card) => {
       if (card) {
-        allCards.set(link, card);
+        cardStorage.set(link, card);
       } else {
-        allCards.deleteCardByLink(link);
+        cardStorage.deleteCardByLink(link);
       }
       context.workspaceState.update("cards", handlerContext.readAllCards());
     },
@@ -73,12 +74,19 @@ export async function activate(context: vscode.ExtensionContext) {
         const captureResponse: ResponseEvents["queryResult"] = (response) => {
           if (response.requestId === requestId) {
             io.off("queryResult", captureResponse);
+            console.log(
+              "Received response for query",
+              request,
+              requestId,
+              response,
+            );
             resolve(response.response as Res);
           }
         };
 
         socket.on("queryResult", captureResponse);
 
+        console.log("Sending query", request, requestId, data);
         socket.emit("query", {
           name: request,
           requestId,
