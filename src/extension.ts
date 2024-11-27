@@ -64,7 +64,7 @@ export async function activate(context: vscode.ExtensionContext) {
     emit: (t, ...data) => io.emit(t, ...data),
     query: function <
       Req extends keyof Queries,
-      Res extends ReturnType<Queries[Req]>
+      Res extends ReturnType<Queries[Req]>,
     >(
       socket: Socket<ResponseEvents, RequestEvents>,
       request: Req,
@@ -107,7 +107,7 @@ export async function activate(context: vscode.ExtensionContext) {
           while (sockets.size === 0) {
             await new Promise((resolve) => setTimeout(resolve, 500));
           }
-        }
+        },
       );
     },
     sockets,
@@ -120,7 +120,7 @@ export async function activate(context: vscode.ExtensionContext) {
       //
       // This is useful for connecting the board for navigation purposes
       // instead of creating new cards.
-    })
+    }),
   );
 
   new EditorDecorator(context, handlerContext);
@@ -128,42 +128,42 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider(
       { scheme: "file" },
-      new AppExplorerLens(handlerContext)
-    )
+      new AppExplorerLens(handlerContext),
+    ),
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.navigate",
-      makeNavigationHandler(handlerContext)
-    )
+      makeNavigationHandler(handlerContext),
+    ),
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.browseCards",
-      makeBrowseHandler(handlerContext)
-    )
+      makeBrowseHandler(handlerContext),
+    ),
   );
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.createCard",
-      makeNewCardHandler(handlerContext)
-    )
+      makeNewCardHandler(handlerContext),
+    ),
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.attachCard",
-      makeAttachCardHandler(handlerContext)
-    )
+      makeAttachCardHandler(handlerContext),
+    ),
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.tagCard",
-      makeTagCardHandler(handlerContext)
-    )
+      makeTagCardHandler(handlerContext),
+    ),
   );
 }
 
@@ -171,7 +171,7 @@ export function deactivate() {}
 
 export function selectRangeInEditor(
   range: vscode.Range,
-  editor: vscode.TextEditor
+  editor: vscode.TextEditor,
 ) {
   const newSelection = new vscode.Selection(range.start, range.end);
   editor.selection = newSelection;
@@ -179,7 +179,7 @@ export function selectRangeInEditor(
 }
 
 export async function getReferencesInFile(
-  document: vscode.TextDocument
+  document: vscode.TextDocument,
 ): Promise<vscode.Location[]> {
   const symbols = await vscode.commands.executeCommand<
     vscode.SymbolInformation[]
@@ -189,7 +189,7 @@ export async function getReferencesInFile(
     const locations = await vscode.commands.executeCommand<vscode.Location[]>(
       "vscode.executeReferenceProvider",
       document.uri,
-      symbol.location.range.start
+      symbol.location.range.start,
     );
     for (const location of locations) {
       if (location.uri.toString() === document.uri.toString()) {

@@ -26,7 +26,7 @@ export const makeAttachCardHandler = ({
           const selectedCards = await query(socket, "selected");
           return selected.concat(selectedCards).filter(notEmpty);
         },
-        Promise.resolve([] as CardData[])
+        Promise.resolve([] as CardData[]),
       );
 
       if (selectedCards.length === 1) {
@@ -43,7 +43,7 @@ export const makeAttachCardHandler = ({
         }
       } else {
         vscode.window.showInformationMessage(
-          "Please select a single card to attach"
+          "Please select a single card to attach",
         );
       }
     }

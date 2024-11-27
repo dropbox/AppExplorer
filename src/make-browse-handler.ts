@@ -5,7 +5,11 @@ import { getRelativePath } from "./get-relative-path";
 import { SymbolAnchor, readSymbols } from "./make-new-card-handler";
 import { getGitHubUrl } from "./get-github-url";
 
-export const makeBrowseHandler = ({ getCard, readAllCards, emit }: HandlerContext) =>
+export const makeBrowseHandler = ({
+  getCard,
+  readAllCards,
+  emit,
+}: HandlerContext) =>
   async function () {
     type CardQuickPickItem = vscode.QuickPickItem & {
       miroLink: string;
@@ -70,11 +74,11 @@ export const makeBrowseHandler = ({ getCard, readAllCards, emit }: HandlerContex
                 status === "connected"
                   ? new vscode.Range(
                       activeEditor.selection.start,
-                      activeEditor.selection.end
+                      activeEditor.selection.end,
                     )
                   : new vscode.Range(
                       new vscode.Position(0, 0),
-                      new vscode.Position(0, 0)
+                      new vscode.Position(0, 0),
                     );
 
               const def: vscode.LocationLink = {
@@ -96,7 +100,7 @@ export const makeBrowseHandler = ({ getCard, readAllCards, emit }: HandlerContex
   };
 
 export async function findCardDestination(
-  card: CardData
+  card: CardData,
 ): Promise<SymbolAnchor | vscode.Uri | null> {
   if (card.path) {
     const path = card.path[0] === "/" ? card.path.slice(1) : card.path;
@@ -133,7 +137,7 @@ export async function findCardDestination(
         }
         return uri;
       },
-      Promise.resolve(null)
+      Promise.resolve(null),
     );
   }
   return null;

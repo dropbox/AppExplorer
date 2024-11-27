@@ -6,10 +6,10 @@ import * as child_process from "child_process";
 export const exec = util.promisify(child_process.exec);
 
 export async function getGitHubUrl(
-  locationLink: vscode.LocationLink
+  locationLink: vscode.LocationLink,
 ): Promise<string | null> {
   const document = await vscode.workspace.openTextDocument(
-    locationLink.targetUri
+    locationLink.targetUri,
   );
   const uri = document.uri;
   const filePath = uri.fsPath;
@@ -51,7 +51,7 @@ export async function getGitHubUrl(
 
   // Parse the remote URL to get the repository owner and name
   const gitRemoteUrlParts = gitRemoteUrl.match(
-    /(git@)?github\.com[:/](.*)\/(.*)(\.git)?/
+    /(git@)?github\.com[:/](.*)\/(.*)(\.git)?/,
   );
   if (!gitRemoteUrlParts) {
     return null;

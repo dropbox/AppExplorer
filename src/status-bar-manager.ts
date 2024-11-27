@@ -9,11 +9,11 @@ export class StatusBarManager {
   constructor(
     private sockets: Map<string, Socket>,
     private allCards: Map<CardData["miroLink"], CardData>,
-    context: vscode.ExtensionContext
+    context: vscode.ExtensionContext,
   ) {
     this.statusBar = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
-      100
+      100,
     );
     this.statusBar.command = "app-explorer.browseCards";
     context.subscriptions.push(this.statusBar);
@@ -31,7 +31,7 @@ export class StatusBarManager {
       const path = getRelativePath(uri);
       if (path) {
         cardsInEditor = [...allCards.values()].filter(
-          (card) => card?.path === path
+          (card) => card?.path === path,
         );
       }
     }

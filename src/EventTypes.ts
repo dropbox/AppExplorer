@@ -2,20 +2,23 @@ import { AppCard, TagColor } from "@mirohq/websdk-types";
 import * as vscode from "vscode";
 
 export type SymbolCardData = {
-  type: 'symbol'
+  type: "symbol";
   title: string;
   path: string;
   symbol: string;
   miroLink?: string;
   codeLink: string | null;
-  status: AppCard['status'];
+  status: AppCard["status"];
 };
 
-export type GroupCardData = Pick<SymbolCardData, 'title'|'path'|'status'|'miroLink'> & {
-  type: 'group',
-}
+export type GroupCardData = Pick<
+  SymbolCardData,
+  "title" | "path" | "status" | "miroLink"
+> & {
+  type: "group";
+};
 
-export type CardData = SymbolCardData | GroupCardData
+export type CardData = SymbolCardData | GroupCardData;
 
 export const allColors = [
   "red",
@@ -32,7 +35,6 @@ export const allColors = [
   "black",
 ] as TagColor[];
 
-
 export type AppExplorerTag = {
   title: string;
   id: string;
@@ -41,7 +43,7 @@ export type AppExplorerTag = {
 
 export type Queries = {
   tags: () => AppExplorerTag[];
-  cards: () => CardData[]
+  cards: () => CardData[];
   selected: () => CardData[];
 };
 
@@ -53,14 +55,16 @@ export type RequestEvents = {
   cardStatus: (data: {
     miroLink: string;
     status: "connected" | "disconnected";
-    codeLink: string | null
+    codeLink: string | null;
   }) => void;
   tagCards: (data: {
     miroLink: string[];
-    tag: string | {
-      color: TagColor;
-      title: string;
-    }
+    tag:
+      | string
+      | {
+          color: TagColor;
+          title: string;
+        };
   }) => void;
   query: <N extends keyof Queries>(data: {
     name: N;
@@ -78,11 +82,11 @@ export type ResponseEvents = {
   cardsInEditor: (data: { path: string; cards: CardData[] }) => void;
   selectedCards: (data: { data: CardData[] }) => void;
   navigateTo: (card: CardData) => void;
-  card: (data: { url: string, card: CardData|null }) => void;
+  card: (data: { url: string; card: CardData | null }) => void;
   queryResult: <N extends keyof Queries>(data: {
-    name: N,
-    requestId: string,
-    response: ReturnType<Queries[N]>,
+    name: N;
+    requestId: string;
+    response: ReturnType<Queries[N]>;
   }) => void;
 };
 

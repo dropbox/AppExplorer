@@ -22,7 +22,7 @@ export const makeTagCardHandler = ({
         const selectedCards = await query(socket, "selected");
         return selected.concat(selectedCards).filter(notEmpty);
       },
-      Promise.resolve([] as CardData[])
+      Promise.resolve([] as CardData[]),
     );
 
     if (selectedCards.length > 0) {
@@ -36,18 +36,21 @@ export const makeTagCardHandler = ({
         id: "NEW_TAG",
       };
 
-      const tags = await [...sockets.values()].reduce(async (p, socket) => {
-        const quickPicks: TagSelection[] = await p;
-        const tags = await query(socket, "tags");
+      const tags = await [...sockets.values()].reduce(
+        async (p, socket) => {
+          const quickPicks: TagSelection[] = await p;
+          const tags = await query(socket, "tags");
 
-        return quickPicks.concat(
-          tags.map((tag) => ({
-            label: tag.title,
-            description: tag.color,
-            id: tag.id,
-          }))
-        );
-      }, Promise.resolve([newCard]));
+          return quickPicks.concat(
+            tags.map((tag) => ({
+              label: tag.title,
+              description: tag.color,
+              id: tag.id,
+            })),
+          );
+        },
+        Promise.resolve([newCard]),
+      );
 
       const tag = await vscode.window.showQuickPick(tags, {
         title: `Tag ${selectedCards[0].title}${
@@ -82,7 +85,7 @@ export const makeTagCardHandler = ({
       }
     } else {
       vscode.window.showInformationMessage(
-        "Please select at least 1 card to tag."
+        "Please select at least 1 card to tag.",
       );
     }
   };

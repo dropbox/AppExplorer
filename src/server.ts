@@ -27,7 +27,7 @@ export function makeExpressServer(context: HandlerContext) {
     });
 
     vscode.window.showInformationMessage(
-      `AppExplorer Connected at socket - ${socket.id}`
+      `AppExplorer Connected at socket - ${socket.id}`,
     );
 
     socket.on("navigateTo", async (card) => {
@@ -45,11 +45,11 @@ export function makeExpressServer(context: HandlerContext) {
               status === "connected"
                 ? new vscode.Range(
                     activeEditor.selection.start,
-                    activeEditor.selection.end
+                    activeEditor.selection.end,
                   )
                 : new vscode.Range(
                     new vscode.Position(0, 0),
-                    new vscode.Position(0, 0)
+                    new vscode.Position(0, 0),
                   );
 
             const def: vscode.LocationLink = {
@@ -80,7 +80,7 @@ export function makeExpressServer(context: HandlerContext) {
   app.use(compression());
   app.use(
     "/",
-    express.static(path.join(__dirname, "../dist"), { index: "index.html" })
+    express.static(path.join(__dirname, "../dist"), { index: "index.html" }),
   );
 
   app.use(morgan("tiny"));

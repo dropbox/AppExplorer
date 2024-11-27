@@ -52,7 +52,7 @@ export async function makeCardData(
   options?: {
     canPickMany?: boolean;
     defaultTitle?: string;
-  }
+  },
 ): Promise<CardData[] | null> {
   const document = editor.document;
   const position = editor.selection.active;
@@ -102,7 +102,7 @@ export async function makeCardData(
         codeLink: await getGitHubUrl(def),
         status: "disconnected",
       };
-    })
+    }),
   );
 
   if (makeCardGroup) {
@@ -125,21 +125,24 @@ async function showSymbolPicker(
   position: vscode.Position,
   options?: {
     canPickMany?: boolean;
-  }
+  },
 ): Promise<Anchor[] | undefined | typeof cancel> {
   const allSymbols = await readSymbols(editor.document.uri);
 
-  const selectedSymbol = allSymbols.reduce((acc, symbol) => {
-    if (symbol.range.contains(position)) {
-      if (!acc || acc.range.contains(symbol.range)) {
-        // Symbol is smaller than the current selection
+  const selectedSymbol = allSymbols.reduce(
+    (acc, symbol) => {
+      if (symbol.range.contains(position)) {
+        if (!acc || acc.range.contains(symbol.range)) {
+          // Symbol is smaller than the current selection
+          return symbol;
+        }
+
         return symbol;
       }
-
-      return symbol;
-    }
-    return acc;
-  }, null as null | SymbolAnchor);
+      return acc;
+    },
+    null as null | SymbolAnchor,
+  );
   if (options?.canPickMany && selectedSymbol) {
     allSymbols.sort((a, b) => {
       if (a.label === selectedSymbol.label) {
@@ -220,7 +223,7 @@ export type GroupAnchor = {
 export type Anchor = SymbolAnchor | GroupAnchor;
 
 export async function readSymbols(
-  uri: vscode.Uri
+  uri: vscode.Uri,
 ): Promise<Array<SymbolAnchor>> {
   const symbols =
     (await vscode.commands.executeCommand<
@@ -230,7 +233,7 @@ export async function readSymbols(
   const sortedSymbols = [...symbols];
   const allSymbols = sortedSymbols.flatMap(function optionFromSymbol(
     this: void | undefined,
-    symbol
+    symbol,
   ): SymbolAnchor[] {
     let children: Array<SymbolAnchor> = [];
     if ("children" in symbol) {
@@ -238,7 +241,7 @@ export async function readSymbols(
         optionFromSymbol({
           ...s,
           name: `${symbol.name}/${s.name}`,
-        })
+        }),
       );
     }
     let range;

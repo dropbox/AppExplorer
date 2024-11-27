@@ -17,13 +17,12 @@ export class EditorDecorator {
 
   constructor(
     private context: ExtensionContext,
-    private handlerContext: HandlerContext
+    private handlerContext: HandlerContext,
   ) {
     this.#decorator = vscode.window.createTextEditorDecorationType({
       backgroundColor: "rgba(0, 0, 0, 0.1)",
       overviewRulerColor: "blue",
       overviewRulerLane: vscode.OverviewRulerLane.Right,
-
     });
     this.#activeEdtior = vscode.window.activeTextEditor;
 
@@ -47,7 +46,7 @@ export class EditorDecorator {
         }
       },
       null,
-      this.context.subscriptions
+      this.context.subscriptions,
     );
     vscode.workspace.onDidChangeTextDocument(
       (event) => {
@@ -59,7 +58,7 @@ export class EditorDecorator {
         }
       },
       null,
-      this.context.subscriptions
+      this.context.subscriptions,
     );
 
     vscode.window.onDidChangeTextEditorSelection(
@@ -76,7 +75,7 @@ export class EditorDecorator {
         }
       },
       null,
-      this.context.subscriptions
+      this.context.subscriptions,
     );
 
     if (this.#activeEdtior) {
@@ -88,7 +87,7 @@ export class EditorDecorator {
     lastEditor: vscode.TextEditor,
     lastPosition: vscode.Position,
     editor: vscode.TextEditor,
-    position: vscode.Position
+    position: vscode.Position,
   ) {
     const fromRanges = this.#decoratorMap.get(lastEditor);
     const fromCard = fromRanges?.reduce(
@@ -101,7 +100,7 @@ export class EditorDecorator {
         }
         return prev;
       },
-      null
+      null,
     );
 
     if (fromCard) {
@@ -139,7 +138,7 @@ export class EditorDecorator {
   getCardsInEditor(editor: vscode.TextEditor) {
     const path = getRelativePath(editor.document.uri);
     return [...this.handlerContext.readAllCards()].filter(
-      (card) => card.path === path
+      (card) => card.path === path,
     );
   }
 
