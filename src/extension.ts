@@ -9,13 +9,16 @@ import { makeTagCardHandler, notEmpty } from "./make-tag-card-handler";
 import { AppExplorerLens, makeNavigationHandler } from "./app-explorer-lens";
 import { EditorDecorator } from "./editor-decorator";
 import { StatusBarManager } from "./status-bar-manager";
+import { CardStorage } from "./card-storage";
 
 export type HandlerContext = {
-  // statusBar: vscode.StatusBarItem;
   sockets: Map<string, Socket<ResponseEvents, RequestEvents>>;
-  getCard: (link: CardData["miroLink"]) => CardData | null;
+  getCard: (link: NonNullable<CardData["miroLink"]>) => CardData | null;
   readAllCards: () => CardData[];
-  setCard: (link: CardData["miroLink"], card: CardData | null) => void;
+  setCard: (
+    link: NonNullable<CardData["miroLink"]>,
+    card: CardData | null,
+  ) => void;
   resetCardList: (cards: CardData[]) => void;
   selectedCards: CardData["miroLink"][];
   renderStatusBar: () => void;
@@ -33,32 +36,27 @@ export type HandlerContext = {
 };
 
 export async function activate(context: vscode.ExtensionContext) {
+  const allCards = new CardStorage(context);
   const sockets = new Map<string, Socket>();
-  const allCards = new Map<CardData["miroLink"], CardData>();
-  const storedCards = context.workspaceState.get<CardData[]>("cards");
-  if (storedCards) {
-    storedCards.forEach((card) => allCards.set(card.miroLink, card));
-  }
-
-  const socketManager = new StatusBarManager(sockets, allCards, context);
+  const statusBarManager = new StatusBarManager(sockets, allCards, context);
 
   const handlerContext: HandlerContext = {
     // statusBar: socketManager.statusBar,
     readAllCards: () => [...allCards.values()].filter(notEmpty),
     resetCardList: (cards) => {
       allCards.clear();
-      cards.forEach((card) => allCards.set(card.miroLink, card));
+      cards.forEach((card) => allCards.set(card.miroLink!, card));
     },
-    getCard: (link) => allCards.get(link) ?? null,
+    getCard: (link) => allCards.getCardByLink(link) ?? null,
     setCard: (link, card) => {
       if (card) {
         allCards.set(link, card);
       } else {
-        allCards.delete(link);
+        allCards.deleteCardByLink(link);
       }
       context.workspaceState.update("cards", handlerContext.readAllCards());
     },
-    renderStatusBar: socketManager.renderStatusBar.bind(socketManager),
+    renderStatusBar: statusBarManager.renderStatusBar.bind(statusBarManager),
     selectedCards: [],
     lastPosition: null,
     emit: (t, ...data) => io.emit(t, ...data),

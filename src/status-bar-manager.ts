@@ -1,14 +1,14 @@
 import * as vscode from "vscode";
-import { CardData } from "./EventTypes";
 import { Socket } from "socket.io";
 import { getRelativePath } from "./get-relative-path";
+import { CardStorage } from "./card-storage";
 
 export class StatusBarManager {
   public statusBar: vscode.StatusBarItem;
 
   constructor(
     private sockets: Map<string, Socket>,
-    private allCards: Map<CardData["miroLink"], CardData>,
+    private allCards: CardStorage,
     context: vscode.ExtensionContext,
   ) {
     this.statusBar = vscode.window.createStatusBarItem(
@@ -36,10 +36,11 @@ export class StatusBarManager {
       }
     }
 
+    const totalCards = allCards.totalCards();
     if (cardsInEditor.length > 0) {
-      statusBar.text = `AppExplorer (${cardsInEditor.length}/${allCards.size} cards)`;
-    } else if (allCards.size > 0) {
-      statusBar.text = `AppExplorer (${allCards.size} cards)`;
+      statusBar.text = `AppExplorer (${cardsInEditor.length}/${totalCards} cards)`;
+    } else if (allCards.totalCards() > 0) {
+      statusBar.text = `AppExplorer (${totalCards} cards)`;
     } else {
       statusBar.text = `AppExplorer (${sockets.size} sockets)`;
     }
