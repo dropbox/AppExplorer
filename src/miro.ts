@@ -168,7 +168,9 @@ const newCard: Handler<RequestEvents["newCards"], Promise<AppCard[]>> = async (
   options = {},
 ) => {
   if (cards.length > 1) {
-    await miro.board.deselect();
+    await miro.board.deselect({
+      id: (await miro.board.getSelection()).map((c) => c.id),
+    });
   }
 
   let selection = (await miro.board.getSelection()).filter(
@@ -212,7 +214,10 @@ const newCard: Handler<RequestEvents["newCards"], Promise<AppCard[]>> = async (
       }
       if (index === 0 && cards.length > 1) {
         selection = [card];
-        await miro.board.deselect();
+
+        await miro.board.deselect({
+          id: (await miro.board.getSelection()).map((c) => c.id),
+        });
         await miro.board.select({ id: card.id });
       }
       return [...accumulatedCards, card];
@@ -248,7 +253,10 @@ export async function attachToSocket() {
   socket.on("newCards", async (event) => {
     try {
       await newCard(event).then(async (cards) => {
-        await miro.board.deselect();
+        const selection = await miro.board.getSelection();
+        await miro.board.deselect({
+          id: selection.map((c) => c.id),
+        });
         if (cards.length > 0) {
           await miro.board.select({ id: cards.map((c) => c.id) });
         }

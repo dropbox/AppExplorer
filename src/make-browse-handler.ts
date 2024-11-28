@@ -44,7 +44,9 @@ export const makeBrowseHandler = ({ cardStorage, sockets }: HandlerContext) =>
               } else {
                 description =
                   card.symbol +
-                  (card.status === "disconnected" ? "$(debug-disconnect)" : "");
+                  (card.status === "disconnected"
+                    ? "$(debug-disconnect)"
+                    : "$(preview)");
               }
               return {
                 label: card.title.trim(),

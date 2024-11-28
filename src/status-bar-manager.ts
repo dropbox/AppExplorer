@@ -24,10 +24,17 @@ export class StatusBarManager {
     if (sockets.size == 0) {
       statusBar.backgroundColor = "red";
     }
-    const totalCards = cardStorage.totalCards();
+    const allCards = cardStorage.listAllCards();
+    const totalCards = allCards.length;
     const boardIds = cardStorage.listBoardIds();
     if (sockets.size > 0) {
-      statusBar.text = `AppExplorer (${totalCards} cards across ${boardIds.length} boards)`;
+      const disconnected = allCards.filter(
+        (card) => card.status === "disconnected",
+      ).length;
+
+      statusBar.text = `AppExplorer (${totalCards} $(preview) ${boardIds.length} $(window)${
+        disconnected > 0 ? `, ${disconnected} $(debug-disconnect)` : ""
+      })`;
     } else {
       statusBar.text = `AppExplorer (${sockets.size} Miro connections)`;
     }
