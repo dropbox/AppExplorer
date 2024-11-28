@@ -24,12 +24,35 @@ type CreateCardOptions = {
   connect?: string[];
 };
 
-export const makeNewCardHandler = ({
-  waitForConnections,
+export async function selectConnectedBoard({
   sockets,
   cardStorage,
-  emit,
-}: HandlerContext) =>
+}: HandlerContext) {
+  const connectedBoardIds = [...sockets.keys()];
+  if (connectedBoardIds.length === 1) {
+    return connectedBoardIds[0];
+  } else {
+    const boards = connectedBoardIds.map((k) => cardStorage.getBoard(k)!);
+
+    const items = boards.map((board): vscode.QuickPickItem => {
+      return {
+        label: board.name === board.id ? `Board ID: ${board.id}` : board.name,
+        detail: `${Object.keys(board.cards).length} cards`,
+      };
+    });
+
+    const selected = await vscode.window.showQuickPick(items, {
+      title: "Choose a board",
+    });
+    if (!selected) {
+      return;
+    }
+    const index = items.indexOf(selected);
+    return connectedBoardIds[index];
+  }
+}
+
+export const makeNewCardHandler = (context: HandlerContext) =>
   async function (options: CreateCardOptions = {}) {
     const editor = vscode.window.activeTextEditor;
     if (editor) {
@@ -37,40 +60,16 @@ export const makeNewCardHandler = ({
       if (!uri) {
         return;
       }
-      await waitForConnections();
-      const connectedBoardIds = [...sockets.keys()];
-      let boardId: string | null = null;
-      if (connectedBoardIds.length === 1) {
-        boardId = connectedBoardIds[0];
-      } else if (connectedBoardIds.length > 1) {
-        const boards = [...sockets.keys()].map((k) => cardStorage.getBoard(k)!);
+      await context.waitForConnections();
 
-        const items = boards.map((board): vscode.QuickPickItem => {
-          return {
-            label:
-              board.name === board.id ? `Board ID: ${board.id}` : board.name,
-            detail: `${Object.keys(board.cards).length} cards`,
-          };
-        });
-
-        const selected = await vscode.window.showQuickPick(items, {
-          title: "Choose a board",
-        });
-        if (!selected) {
-          return;
-        }
-        const index = items.indexOf(selected);
-        boardId = connectedBoardIds[index];
-      }
-
+      const boardId = await selectConnectedBoard(context);
       if (boardId) {
-        const cardData = await makeCardData(editor, {
+        const cardData = await makeCardData(editor, boardId, {
           canPickMany: false,
         });
-
         if (cardData) {
-          sockets.get(boardId);
-          emit("newCards", cardData, { connect: options.connect });
+          const socket = context.sockets.get(boardId)!;
+          socket.emit("newCards", cardData, { connect: options.connect });
         }
       }
     }
@@ -78,6 +77,7 @@ export const makeNewCardHandler = ({
 
 export async function makeCardData(
   editor: vscode.TextEditor,
+  boardId: string,
   options?: {
     canPickMany?: boolean;
     defaultTitle?: string;
@@ -125,6 +125,7 @@ export async function makeCardData(
       const path = getRelativePath(def.targetUri)!;
       return {
         type: "symbol",
+        boardId,
         title: anchor.label,
         path,
         symbol: anchor.label,
@@ -137,6 +138,7 @@ export async function makeCardData(
   if (makeCardGroup) {
     const rootCard: CardData = {
       type: "group",
+      boardId,
       title,
       path,
       status: "disconnected",

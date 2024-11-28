@@ -2,6 +2,7 @@ import { AppCard, TagColor } from "@mirohq/websdk-types";
 import * as vscode from "vscode";
 
 export type SymbolCardData = {
+  boardId: string;
   type: "symbol";
   title: string;
   path: string;
@@ -13,7 +14,7 @@ export type SymbolCardData = {
 
 export type GroupCardData = Pick<
   SymbolCardData,
-  "title" | "path" | "status" | "miroLink"
+  "title" | "path" | "status" | "miroLink" | "boardId"
 > & {
   type: "group";
 };

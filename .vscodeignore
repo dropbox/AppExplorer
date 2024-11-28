@@ -10,3 +10,12 @@ vsc-extension-quickstart.md
 **/*.ts
 public/**
 .husky/
+node_modules/@types/**
+node_modules/@typescript-eslint/eslint-plugin/**
+node_modules/@typescript-eslint/parser/**
+node_modules/@vscode/test-electron/**
+node_modules/eslint/**
+node_modules/husky/**
+node_modules/mocha/**
+node_modules/typescript/**
+node_modules/vite/**

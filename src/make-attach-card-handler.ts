@@ -5,13 +5,9 @@ import { makeCardData } from "./make-new-card-handler";
 import { CardData } from "./EventTypes";
 import { notEmpty } from "./make-tag-card-handler";
 
-export const makeAttachCardHandler = ({
-  waitForConnections,
-  emit,
-  query,
-  sockets,
-  cardStorage,
-}: HandlerContext) => {
+export const makeAttachCardHandler = (context: HandlerContext) => {
+  const { waitForConnections, emit, query, sockets, cardStorage } = context;
+
   return async function () {
     const editor = vscode.window.activeTextEditor;
     if (editor) {
@@ -30,7 +26,8 @@ export const makeAttachCardHandler = ({
       );
 
       if (selectedCards.length === 1) {
-        const result = await makeCardData(editor, {
+        const boardId = selectedCards[0].boardId;
+        const result = await makeCardData(editor, boardId, {
           canPickMany: false,
           defaultTitle: selectedCards[0].title,
         });

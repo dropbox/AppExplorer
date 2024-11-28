@@ -496,6 +496,7 @@ async function extractCardData(card: Item): Promise<CardData | null> {
 
     return {
       type: symbol ? "symbol" : "group",
+      boardId,
       title: decode(card.title),
       // description: decode(card.description),
       miroLink: `https://miro.com/app/board/${boardId}/?moveToWidget=${card.id}`,
