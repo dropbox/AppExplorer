@@ -7,8 +7,6 @@ import morgan = require("morgan");
 import { Server } from "socket.io";
 import { RequestEvents, ResponseEvents } from "./EventTypes";
 import { HandlerContext } from "./extension";
-import { findCardDestination, goToCardCode } from "./commands/browse";
-import { getGitHubUrl } from "./get-github-url";
 
 export function makeExpressServer(context: HandlerContext) {
   const { sockets, renderStatusBar, query, cardStorage } = context;
@@ -32,42 +30,7 @@ export function makeExpressServer(context: HandlerContext) {
       `AppExplorer Connected at socket - ${socket.id}`,
     );
 
-    socket.on("navigateTo", async (card) => {
-      const dest = await findCardDestination(card);
-
-      // Only connect if it's able to reach the symbol
-      const status = (await goToCardCode(card)) ? "connected" : "disconnected";
-      if (card.miroLink) {
-        let codeLink: string | null = null;
-        if (dest) {
-          const activeEditor = vscode.window.activeTextEditor;
-          if (activeEditor) {
-            const uri = activeEditor.document.uri;
-            const selection =
-              status === "connected"
-                ? new vscode.Range(
-                    activeEditor.selection.start,
-                    activeEditor.selection.end,
-                  )
-                : new vscode.Range(
-                    new vscode.Position(0, 0),
-                    new vscode.Position(0, 0),
-                  );
-
-            const def: vscode.LocationLink = {
-              targetUri: uri,
-              targetRange: selection,
-            };
-            codeLink = await getGitHubUrl(def);
-          }
-        }
-        socket.emit("cardStatus", {
-          miroLink: card.miroLink,
-          status,
-          codeLink,
-        });
-      }
-    });
+    socket.on("navigateTo", async (card) => context.navigateToCard(card));
     socket.on("card", async ({ url, card }) => {
       if (card) {
         cardStorage.setCard(url, card);

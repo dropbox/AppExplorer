@@ -1,9 +1,18 @@
 import * as vscode from "vscode";
 import { makeExpressServer } from "./server";
-import type { Queries, RequestEvents, ResponseEvents } from "./EventTypes";
+import type {
+  CardData,
+  Queries,
+  RequestEvents,
+  ResponseEvents,
+} from "./EventTypes";
 import type { Socket } from "socket.io";
 import { makeNewCardHandler } from "./commands/create-card";
-import { makeBrowseHandler } from "./commands/browse";
+import {
+  findCardDestination,
+  goToCardCode,
+  makeBrowseHandler,
+} from "./commands/browse";
 import { makeAttachCardHandler } from "./commands/attach-card";
 import { makeTagCardHandler } from "./commands/tag-card";
 import { makeRenameHandler } from "./commands/rename-board";
@@ -12,11 +21,13 @@ import { AppExplorerLens } from "./app-explorer-lens";
 import { EditorDecorator } from "./editor-decorator";
 import { StatusBarManager } from "./status-bar-manager";
 import { CardStorage } from "./card-storage";
+import { getGitHubUrl } from "./get-github-url";
 
 export type HandlerContext = {
   cardStorage: CardStorage;
   sockets: Map<string, Socket<ResponseEvents, RequestEvents>>;
   renderStatusBar: () => void;
+  navigateToCard: (card: CardData, preview?: boolean) => Promise<boolean>;
   waitForConnections: () => Promise<void>;
   query: <Req extends keyof Queries, Res extends ReturnType<Queries[Req]>>(
     socket: Socket<ResponseEvents, RequestEvents>,
@@ -33,6 +44,53 @@ export async function activate(context: vscode.ExtensionContext) {
   const handlerContext: HandlerContext = {
     cardStorage,
     renderStatusBar: statusBarManager.renderStatusBar.bind(statusBarManager),
+    navigateToCard: async (card, preview = false) => {
+      const dest = await findCardDestination(card);
+
+      // Only connect if it's able to reach the symbol
+      const status = (await goToCardCode(card, preview))
+        ? "connected"
+        : "disconnected";
+      if (card.miroLink) {
+        let codeLink: string | null = null;
+        if (dest) {
+          const activeEditor = vscode.window.activeTextEditor;
+          if (activeEditor) {
+            const uri = activeEditor.document.uri;
+            const selection =
+              status === "connected"
+                ? new vscode.Range(
+                    activeEditor.selection.start,
+                    activeEditor.selection.end,
+                  )
+                : new vscode.Range(
+                    new vscode.Position(0, 0),
+                    new vscode.Position(0, 0),
+                  );
+
+            const def: vscode.LocationLink = {
+              targetUri: uri,
+              targetRange: selection,
+            };
+            codeLink = await getGitHubUrl(def);
+          }
+        }
+        if (status !== card.status) {
+          cardStorage.setCard(card.boardId, {
+            ...card,
+            status,
+            miroLink: codeLink ?? undefined,
+          });
+        }
+        const socket = sockets.get(card.boardId)!;
+        socket.emit("cardStatus", {
+          miroLink: card.miroLink,
+          status,
+          codeLink,
+        });
+      }
+      return status === "connected";
+    },
     query: function <
       Req extends keyof Queries,
       Res extends ReturnType<Queries[Req]>,
