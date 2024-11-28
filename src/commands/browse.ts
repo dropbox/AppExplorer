@@ -7,7 +7,7 @@ import { getGitHubUrl } from "../get-github-url";
 
 export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
   const boards = cardStorage
-    .listBoardIds()
+    .listWorkspaceBoards()
     .map((boardId) => cardStorage.getBoard(boardId)!);
   const items = boards.map(
     (board): vscode.QuickPickItem => ({

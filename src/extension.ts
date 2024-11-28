@@ -22,6 +22,7 @@ import { EditorDecorator } from "./editor-decorator";
 import { StatusBarManager } from "./status-bar-manager";
 import { CardStorage } from "./card-storage";
 import { getGitHubUrl } from "./get-github-url";
+import { makeWorkspaceBoardHandler } from "./commands/manage-workspace-boards";
 
 export type HandlerContext = {
   cardStorage: CardStorage;
@@ -199,6 +200,13 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "app-explorer.renameBoard",
       makeRenameHandler(handlerContext),
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "app-explorer.manageWorkspaceBoards",
+      makeWorkspaceBoardHandler(handlerContext),
     ),
   );
 }

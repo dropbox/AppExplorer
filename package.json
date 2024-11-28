@@ -28,6 +28,10 @@
         "title": "AppExplorer: Tag Selected Cards"
       },
       {
+        "command": "app-explorer.manageWorkspaceBoards",
+        "title": "AppExplorer: Manage Workspace Boards"
+      },
+      {
         "command": "app-explorer.renameBoard",
         "title": "AppExplorer: Rename Board"
       },

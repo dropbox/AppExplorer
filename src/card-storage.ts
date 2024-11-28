@@ -133,6 +133,21 @@ export class CardStorage {
     this.notifySubscribers();
   }
 
+  setWorkspaceBoards(boardIds: string[]) {
+    if (this.listBoardIds().length === boardIds.length) {
+      this.context.workspaceState.update(`board-filter`, undefined);
+    } else {
+      this.context.workspaceState.update(`board-filter`, boardIds);
+    }
+    this.notifySubscribers();
+  }
+  listWorkspaceBoards() {
+    return (
+      this.context.workspaceState.get<string[]>(`board-filter`) ??
+      this.listBoardIds()
+    );
+  }
+
   listBoardIds() {
     return [...this.boards.keys()];
   }

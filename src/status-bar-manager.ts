@@ -24,9 +24,11 @@ export class StatusBarManager {
     if (sockets.size == 0) {
       statusBar.backgroundColor = "red";
     }
-    const allCards = cardStorage.listAllCards();
+    const boardIds = cardStorage.listWorkspaceBoards();
+    const allCards = boardIds.flatMap((boardId) =>
+      Object.values(cardStorage.getBoard(boardId)!.cards),
+    );
     const totalCards = allCards.length;
-    const boardIds = cardStorage.listBoardIds();
     if (sockets.size > 0) {
       const disconnected = allCards.filter(
         (card) => card.status === "disconnected",
