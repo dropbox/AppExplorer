@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { ExtensionContext } from "vscode";
 import { HandlerContext } from "./extension";
-import { readSymbols } from "./make-new-card-handler";
+import { readSymbols } from "./commands/create-card";
 import { getRelativePath } from "./get-relative-path";
 import { CardData } from "./EventTypes";
 

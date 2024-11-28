@@ -7,7 +7,7 @@ import morgan = require("morgan");
 import { Server } from "socket.io";
 import { RequestEvents, ResponseEvents } from "./EventTypes";
 import { HandlerContext } from "./extension";
-import { findCardDestination, goToCardCode } from "./make-browse-handler";
+import { findCardDestination, goToCardCode } from "./commands/browse";
 import { getGitHubUrl } from "./get-github-url";
 
 export function makeExpressServer(context: HandlerContext) {

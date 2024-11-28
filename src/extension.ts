@@ -2,15 +2,16 @@ import * as vscode from "vscode";
 import { makeExpressServer } from "./server";
 import type { Queries, RequestEvents, ResponseEvents } from "./EventTypes";
 import type { Socket } from "socket.io";
-import { makeNewCardHandler } from "./make-new-card-handler";
-import { makeBrowseHandler } from "./make-browse-handler";
-import { makeAttachCardHandler } from "./make-attach-card-handler";
-import { makeTagCardHandler } from "./make-tag-card-handler";
-import { AppExplorerLens, makeNavigationHandler } from "./app-explorer-lens";
+import { makeNewCardHandler } from "./commands/create-card";
+import { makeBrowseHandler } from "./commands/browse";
+import { makeAttachCardHandler } from "./commands/attach-card";
+import { makeTagCardHandler } from "./commands/tag-card";
+import { makeRenameHandler } from "./commands/rename-board";
+import { makeNavigationHandler } from "./commands/navigate";
+import { AppExplorerLens } from "./app-explorer-lens";
 import { EditorDecorator } from "./editor-decorator";
 import { StatusBarManager } from "./status-bar-manager";
 import { CardStorage } from "./card-storage";
-import { makeRenameHandler } from "./commands/rename-board";
 
 export type HandlerContext = {
   cardStorage: CardStorage;

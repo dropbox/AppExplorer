@@ -1,9 +1,9 @@
 import * as vscode from "vscode";
-import { HandlerContext } from "./extension";
-import { getRelativePath } from "./get-relative-path";
-import { CardData } from "./EventTypes";
-import { selectRangeInEditor } from "./extension";
-import { getGitHubUrl } from "./get-github-url";
+import { HandlerContext } from "../extension";
+import { getRelativePath } from "../get-relative-path";
+import { CardData } from "../EventTypes";
+import { selectRangeInEditor } from "../extension";
+import { getGitHubUrl } from "../get-github-url";
 
 export class UnreachableError extends Error {
   constructor(item: never) {

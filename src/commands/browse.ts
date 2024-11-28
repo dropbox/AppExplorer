@@ -1,9 +1,9 @@
 import * as vscode from "vscode";
-import { HandlerContext, selectRangeInEditor } from "./extension";
-import { CardData } from "./EventTypes";
-import { getRelativePath } from "./get-relative-path";
-import { SymbolAnchor, readSymbols } from "./make-new-card-handler";
-import { getGitHubUrl } from "./get-github-url";
+import { HandlerContext, selectRangeInEditor } from "../extension";
+import { CardData } from "../EventTypes";
+import { getRelativePath } from "../get-relative-path";
+import { SymbolAnchor, readSymbols } from "./create-card";
+import { getGitHubUrl } from "../get-github-url";
 
 export const makeBrowseHandler = ({ cardStorage, sockets }: HandlerContext) =>
   async function () {

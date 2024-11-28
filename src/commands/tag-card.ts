@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { HandlerContext } from "./extension";
-import { CardData, allColors } from "./EventTypes";
+import { HandlerContext } from "../extension";
+import { CardData, allColors } from "../EventTypes";
 import { TagColor } from "@mirohq/websdk-types";
 
 export function notEmpty<T>(value: T | null | undefined): value is T {

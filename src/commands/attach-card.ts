@@ -1,9 +1,9 @@
 import * as vscode from "vscode";
-import { HandlerContext } from "./extension";
-import { getRelativePath } from "./get-relative-path";
-import { makeCardData } from "./make-new-card-handler";
-import { CardData } from "./EventTypes";
-import { notEmpty } from "./make-tag-card-handler";
+import { HandlerContext } from "../extension";
+import { getRelativePath } from "../get-relative-path";
+import { makeCardData } from "./create-card";
+import { CardData } from "../EventTypes";
+import { notEmpty } from "./tag-card";
 
 export const makeAttachCardHandler = (context: HandlerContext) => {
   const { waitForConnections, query, sockets, cardStorage } = context;
