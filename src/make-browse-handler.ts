@@ -17,29 +17,43 @@ export const makeBrowseHandler = ({ cardStorage, emit }: HandlerContext) =>
       : null;
 
     const items: CardQuickPickItem[] = cardStorage
-      .listAllCards()
-      .sort((a, b) => {
-        if (a.path !== b.path) {
-          if (a.path === curentPath) return -1;
-          if (b.path === curentPath) return 1;
-        }
-        return a.path.localeCompare(b.path) || a.title.localeCompare(b.title);
-      })
-      .map((card) => {
-        let description: string;
-        if (card.type === "group") {
-          description = "Group";
-        } else {
-          description =
-            card.symbol +
-            (card.status === "disconnected" ? "$(debug-disconnect)" : "");
-        }
-        return {
-          label: card.title.trim(),
-          detail: card.path,
-          description,
-          miroLink: card.miroLink!,
-        };
+      .listBoardIds()
+      .flatMap((boardId) => {
+        const board = cardStorage.getBoard(boardId)!;
+
+        const boardSeparator = {
+          kind: vscode.QuickPickItemKind.Separator,
+          label: board.name === board.id ? `Board ID: ${board.id}` : board.name,
+        } as CardQuickPickItem;
+
+        return [boardSeparator].concat(
+          ...Object.values(board.cards)
+            .sort((a, b) => {
+              if (a.path !== b.path) {
+                if (a.path === curentPath) return -1;
+                if (b.path === curentPath) return 1;
+              }
+              return (
+                a.path.localeCompare(b.path) || a.title.localeCompare(b.title)
+              );
+            })
+            .map((card): CardQuickPickItem => {
+              let description: string;
+              if (card.type === "group") {
+                description = "Group";
+              } else {
+                description =
+                  card.symbol +
+                  (card.status === "disconnected" ? "$(debug-disconnect)" : "");
+              }
+              return {
+                label: card.title.trim(),
+                detail: card.path,
+                description,
+                miroLink: card.miroLink!,
+              };
+            }),
+        );
       });
 
     const selected = await vscode.window.showQuickPick(items, {

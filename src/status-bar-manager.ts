@@ -8,7 +8,7 @@ export class StatusBarManager {
 
   constructor(
     private sockets: Map<string, Socket>,
-    private allCards: CardStorage,
+    private cardStorage: CardStorage,
     context: vscode.ExtensionContext,
   ) {
     this.statusBar = vscode.window.createStatusBarItem(
@@ -17,11 +17,11 @@ export class StatusBarManager {
     );
     this.statusBar.command = "app-explorer.browseCards";
     context.subscriptions.push(this.statusBar);
-    allCards.subscribe(this.renderStatusBar.bind(this));
+    cardStorage.subscribe(() => this.renderStatusBar());
   }
 
   renderStatusBar() {
-    const { sockets, statusBar, allCards } = this;
+    const { sockets, statusBar, cardStorage } = this;
     if (sockets.size == 0) {
       statusBar.backgroundColor = "red";
     }
@@ -31,17 +31,18 @@ export class StatusBarManager {
     if (uri) {
       const path = getRelativePath(uri);
       if (path) {
-        cardsInEditor = [...allCards.listAllCards()].filter(
+        cardsInEditor = [...cardStorage.listAllCards()].filter(
           (card) => card?.path === path,
         );
       }
     }
 
-    const totalCards = allCards.totalCards();
+    const totalCards = cardStorage.totalCards();
+    const boardIds = cardStorage.listBoardIds();
     if (cardsInEditor.length > 0) {
       statusBar.text = `AppExplorer (${cardsInEditor.length}/${totalCards} cards)`;
-    } else if (allCards.totalCards() > 0) {
-      statusBar.text = `AppExplorer (${totalCards} cards)`;
+    } else if (cardStorage.totalCards() > 0) {
+      statusBar.text = `AppExplorer (${totalCards} cards across ${boardIds.length} boards)`;
     } else {
       statusBar.text = `AppExplorer (${sockets.size} sockets)`;
     }

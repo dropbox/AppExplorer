@@ -58,7 +58,7 @@ export class CardStorage {
     this.notifySubscribers();
   }
 
-  async getBoard(boardId: string) {
+  getBoard(boardId: string) {
     return this.boards.get(boardId);
   }
 
