@@ -31,7 +31,7 @@ export class StatusBarManager {
     if (uri) {
       const path = getRelativePath(uri);
       if (path) {
-        cardsInEditor = [...allCards.values()].filter(
+        cardsInEditor = [...allCards.listAllCards()].filter(
           (card) => card?.path === path,
         );
       }

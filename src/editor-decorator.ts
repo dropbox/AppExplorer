@@ -137,7 +137,7 @@ export class EditorDecorator {
 
   getCardsInEditor(editor: vscode.TextEditor) {
     const path = getRelativePath(editor.document.uri);
-    return [...this.handlerContext.readAllCards()].filter(
+    return [...this.handlerContext.cardStorage.listAllCards()].filter(
       (card) => card.path === path,
     );
   }

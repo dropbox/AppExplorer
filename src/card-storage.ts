@@ -49,7 +49,7 @@ export class CardStorage {
     return board;
   }
 
-  async addCard(boardId: string, card: CardData) {
+  async setCard(boardId: string, card: CardData) {
     const board = this.boards.get(boardId);
     if (board) {
       board.cards[card.miroLink!] = card;
@@ -84,10 +84,6 @@ export class CardStorage {
     );
   }
 
-  listBoards() {
-    return [...this.boards.keys()];
-  }
-
   getCardByLink(link: string): CardData | undefined {
     return [...this.boards.values()]
       .flatMap((b) => Object.values(b.cards))
@@ -105,7 +101,7 @@ export class CardStorage {
   }
 
   clear() {
-    this.listBoards().forEach((id) => {
+    this.listBoardIds().forEach((id) => {
       this.context.workspaceState.update(`board-${id}`, undefined);
     });
     this.boards.clear();
@@ -127,7 +123,10 @@ export class CardStorage {
     this.notifySubscribers();
   }
 
-  values() {
+  listBoardIds() {
+    return [...this.boards.keys()];
+  }
+  listAllCards() {
     return [...this.boards.values()].flatMap((b) => Object.values(b.cards));
   }
 }

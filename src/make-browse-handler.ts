@@ -5,11 +5,7 @@ import { getRelativePath } from "./get-relative-path";
 import { SymbolAnchor, readSymbols } from "./make-new-card-handler";
 import { getGitHubUrl } from "./get-github-url";
 
-export const makeBrowseHandler = ({
-  getCard,
-  readAllCards,
-  emit,
-}: HandlerContext) =>
+export const makeBrowseHandler = ({ cardStorage, emit }: HandlerContext) =>
   async function () {
     type CardQuickPickItem = vscode.QuickPickItem & {
       miroLink: string;
@@ -20,7 +16,8 @@ export const makeBrowseHandler = ({
       ? getRelativePath(activeEditor.document.uri)
       : null;
 
-    const items: CardQuickPickItem[] = readAllCards()
+    const items: CardQuickPickItem[] = cardStorage
+      .listAllCards()
       .sort((a, b) => {
         if (a.path !== b.path) {
           if (a.path === curentPath) return -1;
@@ -49,7 +46,7 @@ export const makeBrowseHandler = ({
       title: "Browse Cards",
       // placeHolder: `Choose a symbol to anchor the card to`,
       onDidSelectItem: (item: CardQuickPickItem) => {
-        const card = getCard(item.miroLink);
+        const card = cardStorage.getCardByLink(item.miroLink);
         if (card && card.miroLink) {
           emit("hoverCard", card.miroLink);
         }
@@ -57,7 +54,7 @@ export const makeBrowseHandler = ({
     });
 
     if (selected) {
-      const card = getCard(selected.miroLink);
+      const card = cardStorage.getCardByLink(selected.miroLink);
       if (card) {
         emit("selectCard", card.miroLink!);
         const dest = await findCardDestination(card);

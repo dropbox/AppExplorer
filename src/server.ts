@@ -11,7 +11,7 @@ import { findCardDestination, goToCardCode } from "./make-browse-handler";
 import { getGitHubUrl } from "./get-github-url";
 
 export function makeExpressServer(context: HandlerContext) {
-  const { sockets, renderStatusBar, setCard, query } = context;
+  const { sockets, renderStatusBar, query, cardStorage } = context;
   const app = express();
   const httpServer = createServer(app);
   const io = new Server<ResponseEvents, RequestEvents>(httpServer);
@@ -69,7 +69,11 @@ export function makeExpressServer(context: HandlerContext) {
       }
     });
     socket.on("card", async ({ url, card }) => {
-      setCard(url, card);
+      if (card) {
+        cardStorage.setCard(url, card);
+      } else {
+        cardStorage.deleteCardByLink(url);
+      }
     });
     boardId = await query(socket, "boardId");
     let boardInfo = await context.cardStorage.getBoard(boardId);

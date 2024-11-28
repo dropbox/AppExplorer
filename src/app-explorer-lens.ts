@@ -14,7 +14,7 @@ export class AppExplorerLens implements vscode.CodeLensProvider {
     document: vscode.TextDocument,
   ): Promise<vscode.CodeLens[]> {
     const path = getRelativePath(document.uri);
-    const cards = [...this.#handlerContext.readAllCards()].filter(
+    const cards = [...this.#handlerContext.cardStorage.listAllCards()].filter(
       (card) => card.path === path,
     );
     const symbols = await readSymbols(document.uri);
@@ -54,7 +54,7 @@ export class AppExplorerLens implements vscode.CodeLensProvider {
 
 export const makeNavigationHandler = (context: HandlerContext) => {
   return async (miroLink: string, locationLink: vscode.LocationLink) => {
-    const card = context.getCard(miroLink);
+    const card = context.cardStorage.getCardByLink(miroLink);
     if (card && context.sockets.size > 0) {
       const codeLink = await getGitHubUrl(locationLink);
       vscode.window.showInformationMessage(`Selecting card ${card.title}`);

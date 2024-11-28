@@ -10,7 +10,7 @@ export const makeAttachCardHandler = ({
   emit,
   query,
   sockets,
-  setCard,
+  cardStorage,
 }: HandlerContext) => {
   return async function () {
     const editor = vscode.window.activeTextEditor;
@@ -38,7 +38,7 @@ export const makeAttachCardHandler = ({
         if (cardData) {
           emit("attachCard", cardData);
           if (cardData.miroLink) {
-            setCard(cardData.miroLink, cardData);
+            cardStorage.setCard(cardData.miroLink, cardData);
           }
         }
       } else {

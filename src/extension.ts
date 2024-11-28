@@ -1,11 +1,11 @@
 import * as vscode from "vscode";
 import { makeExpressServer } from "./server";
-import { CardData, Queries, RequestEvents, ResponseEvents } from "./EventTypes";
-import { Socket } from "socket.io";
+import type { Queries, RequestEvents, ResponseEvents } from "./EventTypes";
+import type { Socket } from "socket.io";
 import { makeNewCardHandler } from "./make-new-card-handler";
 import { makeBrowseHandler } from "./make-browse-handler";
 import { makeAttachCardHandler } from "./make-attach-card-handler";
-import { makeTagCardHandler, notEmpty } from "./make-tag-card-handler";
+import { makeTagCardHandler } from "./make-tag-card-handler";
 import { AppExplorerLens, makeNavigationHandler } from "./app-explorer-lens";
 import { EditorDecorator } from "./editor-decorator";
 import { StatusBarManager } from "./status-bar-manager";
@@ -14,16 +14,7 @@ import { CardStorage } from "./card-storage";
 export type HandlerContext = {
   cardStorage: CardStorage;
   sockets: Map<string, Socket<ResponseEvents, RequestEvents>>;
-  getCard: (link: NonNullable<CardData["miroLink"]>) => CardData | null;
-  readAllCards: () => CardData[];
-  setCard: (
-    link: NonNullable<CardData["miroLink"]>,
-    card: CardData | null,
-  ) => void;
-  resetCardList: (cards: CardData[]) => void;
-  selectedCards: CardData["miroLink"][];
   renderStatusBar: () => void;
-  lastPosition: vscode.Position | null;
   waitForConnections: () => Promise<void>;
   query: <Req extends keyof Queries, Res extends ReturnType<Queries[Req]>>(
     socket: Socket<ResponseEvents, RequestEvents>,
@@ -43,23 +34,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const handlerContext: HandlerContext = {
     cardStorage,
-    readAllCards: () => [...cardStorage.values()].filter(notEmpty),
-    resetCardList: (cards) => {
-      cardStorage.clear();
-      cards.forEach((card) => cardStorage.set(card.miroLink!, card));
-    },
-    getCard: (link) => cardStorage.getCardByLink(link) ?? null,
-    setCard: (link, card) => {
-      if (card) {
-        cardStorage.set(link, card);
-      } else {
-        cardStorage.deleteCardByLink(link);
-      }
-      context.workspaceState.update("cards", handlerContext.readAllCards());
-    },
     renderStatusBar: statusBarManager.renderStatusBar.bind(statusBarManager),
-    selectedCards: [],
-    lastPosition: null,
     emit: (t, ...data) => io.emit(t, ...data),
     query: function <
       Req extends keyof Queries,
