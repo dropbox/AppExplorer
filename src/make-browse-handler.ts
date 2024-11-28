@@ -5,7 +5,7 @@ import { getRelativePath } from "./get-relative-path";
 import { SymbolAnchor, readSymbols } from "./make-new-card-handler";
 import { getGitHubUrl } from "./get-github-url";
 
-export const makeBrowseHandler = ({ cardStorage, emit }: HandlerContext) =>
+export const makeBrowseHandler = ({ cardStorage, sockets }: HandlerContext) =>
   async function () {
     type CardQuickPickItem = vscode.QuickPickItem & {
       miroLink: string;
@@ -62,7 +62,8 @@ export const makeBrowseHandler = ({ cardStorage, emit }: HandlerContext) =>
       onDidSelectItem: (item: CardQuickPickItem) => {
         const card = cardStorage.getCardByLink(item.miroLink);
         if (card && card.miroLink) {
-          emit("hoverCard", card.miroLink);
+          const socket = sockets.get(card.boardId)!;
+          socket.emit("hoverCard", card.miroLink);
         }
       },
     });
@@ -70,7 +71,8 @@ export const makeBrowseHandler = ({ cardStorage, emit }: HandlerContext) =>
     if (selected) {
       const card = cardStorage.getCardByLink(selected.miroLink);
       if (card) {
-        emit("selectCard", card.miroLink!);
+        const socket = sockets.get(card.boardId)!;
+        socket.emit("selectCard", card.miroLink!);
         const dest = await findCardDestination(card);
         const status = (await goToCardCode(card))
           ? "connected"
@@ -100,7 +102,7 @@ export const makeBrowseHandler = ({ cardStorage, emit }: HandlerContext) =>
             }
           }
 
-          emit("cardStatus", {
+          socket.emit("cardStatus", {
             miroLink: card.miroLink,
             status,
             codeLink,

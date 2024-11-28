@@ -10,7 +10,6 @@ export function notEmpty<T>(value: T | null | undefined): value is T {
 export const makeTagCardHandler = ({
   waitForConnections,
   query,
-  emit,
   sockets,
 }: HandlerContext) => {
   return async function () {
@@ -27,6 +26,17 @@ export const makeTagCardHandler = ({
 
     if (selectedCards.length > 0) {
       const links = selectedCards.map((c) => c.miroLink).filter(notEmpty);
+      const boards = selectedCards.reduce((acc, card) => {
+        return acc.includes(card.boardId) ? acc : acc.concat(card.boardId);
+      }, [] as string[]);
+      if (boards.length > 1) {
+        vscode.window.showInformationMessage(
+          "Please select cards from the same board to tag.",
+        );
+        return;
+      }
+      const boardId = boards[0];
+      const socket = sockets.get(boardId)!;
 
       type TagSelection = vscode.QuickPickItem & {
         id: string;
@@ -35,24 +45,17 @@ export const makeTagCardHandler = ({
         label: "New Tag",
         id: "NEW_TAG",
       };
-
-      const tags = await [...sockets.values()].reduce(
-        async (p, socket) => {
-          const quickPicks: TagSelection[] = await p;
-          const tags = await query(socket, "tags");
-
-          return quickPicks.concat(
-            tags.map((tag) => ({
-              label: tag.title,
-              description: tag.color,
-              id: tag.id,
-            })),
-          );
-        },
-        Promise.resolve([newCard]),
+      const quickPicks: TagSelection[] = [newCard];
+      const tags = await query(socket, "tags");
+      quickPicks.push(
+        ...tags.map((tag) => ({
+          label: tag.title,
+          description: tag.color,
+          id: tag.id,
+        })),
       );
 
-      const tag = await vscode.window.showQuickPick(tags, {
+      const tag = await vscode.window.showQuickPick(quickPicks, {
         title: `Tag ${selectedCards[0].title}${
           selectedCards.length > 1 ? ` and ${selectedCards.length} others` : ""
         }`,
@@ -68,7 +71,7 @@ export const makeTagCardHandler = ({
             title: "Tag Color",
           });
           if (color) {
-            emit("tagCards", {
+            socket.emit("tagCards", {
               miroLink: links,
               tag: {
                 title,
@@ -77,7 +80,7 @@ export const makeTagCardHandler = ({
             });
           }
         } else {
-          emit("tagCards", {
+          socket.emit("tagCards", {
             miroLink: links,
             tag: tag.id,
           });

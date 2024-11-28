@@ -22,10 +22,6 @@ export type HandlerContext = {
     request: Req,
     ...data: Parameters<Queries[Req]>
   ) => Promise<Res>;
-  emit: <T extends keyof RequestEvents>(
-    event: T,
-    ...data: Parameters<RequestEvents[T]>
-  ) => void;
 };
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -36,7 +32,6 @@ export async function activate(context: vscode.ExtensionContext) {
   const handlerContext: HandlerContext = {
     cardStorage,
     renderStatusBar: statusBarManager.renderStatusBar.bind(statusBarManager),
-    emit: (t, ...data) => io.emit(t, ...data),
     query: function <
       Req extends keyof Queries,
       Res extends ReturnType<Queries[Req]>,
