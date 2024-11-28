@@ -32,7 +32,6 @@ export async function getGitHubUrl(
     .then(({ stdout }) => stdout.trim().split("\n"))
     .catch(() => [] as string[]);
 
-  console.log("gitRemotes", gitRemotes);
   let remoteName = "origin";
   if (!gitRemotes.includes(remoteName)) {
     remoteName = gitRemotes[0];

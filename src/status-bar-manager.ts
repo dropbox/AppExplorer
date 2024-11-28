@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
 import { Socket } from "socket.io";
-import { getRelativePath } from "./get-relative-path";
 import { CardStorage } from "./card-storage";
 
 export class StatusBarManager {
@@ -25,26 +24,12 @@ export class StatusBarManager {
     if (sockets.size == 0) {
       statusBar.backgroundColor = "red";
     }
-
-    let cardsInEditor = [];
-    const uri = vscode.window.activeTextEditor?.document.uri;
-    if (uri) {
-      const path = getRelativePath(uri);
-      if (path) {
-        cardsInEditor = [...cardStorage.listAllCards()].filter(
-          (card) => card?.path === path,
-        );
-      }
-    }
-
     const totalCards = cardStorage.totalCards();
     const boardIds = cardStorage.listBoardIds();
-    if (cardsInEditor.length > 0) {
-      statusBar.text = `AppExplorer (${cardsInEditor.length}/${totalCards} cards)`;
-    } else if (cardStorage.totalCards() > 0) {
+    if (sockets.size > 0) {
       statusBar.text = `AppExplorer (${totalCards} cards across ${boardIds.length} boards)`;
     } else {
-      statusBar.text = `AppExplorer (${sockets.size} sockets)`;
+      statusBar.text = `AppExplorer (${sockets.size} Miro connections)`;
     }
     statusBar.show();
   }

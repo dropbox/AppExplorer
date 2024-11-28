@@ -265,7 +265,9 @@ export async function attachToSocket() {
         const updatedCard = await updateCard(card, cardData);
         updatedCard.status = "connected";
         await updatedCard.sync();
-        await miro.board.deselect();
+        await miro.board.deselect({
+          id: selection.map((c) => c.id),
+        });
         await miro.board.select({ id: card.id });
         const data = await extractCardData(updatedCard);
         if (data && data.miroLink) {
@@ -282,7 +284,10 @@ export async function attachToSocket() {
       const id = url.searchParams.get("moveToWidget")!;
       const card = await miro.board.getById(id);
       if (card && card.type === "app_card") {
-        await miro.board.deselect();
+        const selection = await miro.board.getSelection();
+        await miro.board.deselect({
+          id: selection.map((c) => c.id),
+        });
         await miro.board.select({ id: card.id });
         await zoomIntoCards([card]);
       } else {

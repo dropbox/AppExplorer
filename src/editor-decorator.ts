@@ -81,6 +81,10 @@ export class EditorDecorator {
     if (this.#activeEdtior) {
       this.triggerUpdate();
     }
+    const dispose = handlerContext.cardStorage.subscribe(() =>
+      this.triggerUpdate(true),
+    );
+    context.subscriptions.push({ dispose });
   }
 
   async onJump(
