@@ -62,6 +62,16 @@ export class CardStorage {
     return this.boards.get(boardId);
   }
 
+  setBoardName(boardId: string, name: string) {
+    const board = this.boards.get(boardId);
+    if (board) {
+      board.name = name;
+      this.context.workspaceState.update(`board-${boardId}`, board);
+    }
+    this.notifySubscribers();
+    return board;
+  }
+
   setBoardCards(boardId: string, cards: CardData[]) {
     const board = this.boards.get(boardId);
     if (board) {

@@ -75,14 +75,20 @@ export function makeExpressServer(context: HandlerContext) {
         cardStorage.deleteCardByLink(url);
       }
     });
-    boardId = await query(socket, "boardId");
+    const info = await query(socket, "getBoardInfo");
+    boardId = info.boardId;
     let boardInfo = await context.cardStorage.getBoard(boardId);
     if (!boardInfo) {
-      boardInfo = await context.cardStorage.addBoard(boardId, boardId);
+      boardInfo = await context.cardStorage.addBoard(boardId, info.name);
+    } else if (boardInfo.name !== info.name) {
+      boardInfo = context.cardStorage.setBoardName(boardId, info.name);
     }
 
     const cards = await query(socket, "cards");
     context.cardStorage.setBoardCards(boardId, cards);
+    sockets.set(boardId, socket);
+    console.log("AppExplorer set socket", boardId, info.name);
+    renderStatusBar();
   });
 
   app.use(compression());

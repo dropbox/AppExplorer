@@ -26,6 +26,8 @@ type CreateCardOptions = {
 
 export const makeNewCardHandler = ({
   waitForConnections,
+  sockets,
+  cardStorage,
   emit,
 }: HandlerContext) =>
   async function (options: CreateCardOptions = {}) {
@@ -36,13 +38,40 @@ export const makeNewCardHandler = ({
         return;
       }
       await waitForConnections();
+      const connectedBoardIds = [...sockets.keys()];
+      let boardId: string | null = null;
+      if (connectedBoardIds.length === 1) {
+        boardId = connectedBoardIds[0];
+      } else if (connectedBoardIds.length > 1) {
+        const boards = [...sockets.keys()].map((k) => cardStorage.getBoard(k)!);
 
-      const cardData = await makeCardData(editor, {
-        canPickMany: false,
-      });
+        const items = boards.map((board): vscode.QuickPickItem => {
+          return {
+            label:
+              board.name === board.id ? `Board ID: ${board.id}` : board.name,
+            detail: `${Object.keys(board.cards).length} cards`,
+          };
+        });
 
-      if (cardData) {
-        emit("newCards", cardData, { connect: options.connect });
+        const selected = await vscode.window.showQuickPick(items, {
+          title: "Choose a board",
+        });
+        if (!selected) {
+          return;
+        }
+        const index = items.indexOf(selected);
+        boardId = connectedBoardIds[index];
+      }
+
+      if (boardId) {
+        const cardData = await makeCardData(editor, {
+          canPickMany: false,
+        });
+
+        if (cardData) {
+          sockets.get(boardId);
+          emit("newCards", cardData, { connect: options.connect });
+        }
       }
     }
   };

@@ -42,8 +42,9 @@ export type AppExplorerTag = {
 };
 
 export type Queries = {
-  boardId: () => string;
   getIdToken: () => string;
+  setBoardName: (name: string) => void;
+  getBoardInfo: () => { name: string; boardId: string };
   tags: () => AppExplorerTag[];
   cards: () => CardData[];
   selected: () => CardData[];

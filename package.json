@@ -28,6 +28,10 @@
         "title": "AppExplorer: Tag Selected Cards"
       },
       {
+        "command": "app-explorer.renameBoard",
+        "title": "AppExplorer: Rename Board"
+      },
+      {
         "command": "app-explorer.navigate",
         "title": "AppExplorer: Navigate to Card"
       },

@@ -357,15 +357,19 @@ export async function attachToSocket() {
   });
 
   type QueryImplementations = {
-    [K in keyof Queries]: Queries[K] extends (...args: unknown[]) => unknown
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    [K in keyof Queries]: Queries[K] extends (...args: any[]) => unknown
       ? (...args: Parameters<Queries[K]>) => Promise<ReturnType<Queries[K]>>
       : never;
   };
   const queryImplementations: QueryImplementations = {
-    boardId: async () => {
+    setBoardName: async (name: string) => {
+      await miro.board.setAppData("name", name);
+    },
+    getBoardInfo: async () => {
       const boardId = await miro.board.getInfo().then((info) => info.id);
-      console.log("query", { boardId });
-      return boardId;
+      const name = (await miro.board.getAppData("name")) as string;
+      return { boardId, name };
     },
     getIdToken: () => miro.board.getIdToken(),
     cards: async () => {

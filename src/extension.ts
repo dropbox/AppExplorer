@@ -10,6 +10,7 @@ import { AppExplorerLens, makeNavigationHandler } from "./app-explorer-lens";
 import { EditorDecorator } from "./editor-decorator";
 import { StatusBarManager } from "./status-bar-manager";
 import { CardStorage } from "./card-storage";
+import { makeRenameHandler } from "./commands/rename-board";
 
 export type HandlerContext = {
   cardStorage: CardStorage;
@@ -49,19 +50,12 @@ export async function activate(context: vscode.ExtensionContext) {
         const captureResponse: ResponseEvents["queryResult"] = (response) => {
           if (response.requestId === requestId) {
             io.off("queryResult", captureResponse);
-            console.log(
-              "Received response for query",
-              request,
-              requestId,
-              response,
-            );
             resolve(response.response as Res);
           }
         };
 
         socket.on("queryResult", captureResponse);
 
-        console.log("Sending query", request, requestId, data);
         socket.emit("query", {
           name: request,
           requestId,
@@ -144,6 +138,13 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "app-explorer.tagCard",
       makeTagCardHandler(handlerContext),
+    ),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "app-explorer.renameBoard",
+      makeRenameHandler(handlerContext),
     ),
   );
 }
