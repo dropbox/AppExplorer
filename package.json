@@ -43,11 +43,32 @@
         "command": "app-explorer.connect",
         "title": "AppExplorer: Connect"
       }
+    ],
+    "icons": {
+      "app-explorer": {
+        "description": "AppExplorer Icon",
+        "default": {
+          "fontPath": "font/app-explorer.woff",
+          "fontCharacter": "\\ea02"
+        }
+      }
+    },
+    "iconFonts": [
+      {
+        "id": "app-explorer-font",
+        "src": [
+          {
+            "path": "font/app-explorer.woff",
+            "format": "woff"
+          }
+        ]
+      }
     ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "vite build --minify false",
+    "font-icon": "npx svgtofont --sources public/ --output ./font --fontName app-explorer",
     "pretest": "npm run lint && npm run type-check && npm run format",
     "format": "prettier --write src",
     "lint": "eslint src --ext ts",

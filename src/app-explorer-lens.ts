@@ -33,7 +33,7 @@ export class AppExplorerLens implements vscode.CodeLensProvider {
 
           const c: vscode.Command = {
             command: "app-explorer.navigate",
-            title: `${card.title}$(link-external)`,
+            title: `$(app-explorer) ${card.title}`,
             arguments: [card.miroLink, locationLink],
           };
 

@@ -34,11 +34,11 @@ export class StatusBarManager {
         (card) => card.status === "disconnected",
       ).length;
 
-      statusBar.text = `AppExplorer (${totalCards} $(preview) ${boardIds.length} $(window)${
+      statusBar.text = `$(app-explorer) (${totalCards} $(preview) ${boardIds.length} $(window)${
         disconnected > 0 ? `, ${disconnected} $(debug-disconnect)` : ""
       })`;
     } else {
-      statusBar.text = `AppExplorer (${sockets.size} Miro connections)`;
+      statusBar.text = `$(app-explorer)  (${sockets.size} Miro connections)`;
     }
     statusBar.show();
   }
