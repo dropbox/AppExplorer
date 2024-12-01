@@ -29,7 +29,10 @@ export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
   return null;
 }
 
-export const makeBrowseHandler = (context: HandlerContext) =>
+export const makeBrowseHandler = (
+  context: HandlerContext,
+  navigateToCard: (card: CardData, preview?: boolean) => Promise<boolean>,
+) =>
   async function () {
     const { cardStorage } = context;
     type CardQuickPickItem = vscode.QuickPickItem & {
@@ -90,7 +93,7 @@ export const makeBrowseHandler = (context: HandlerContext) =>
         const card = cardStorage.getCardByLink(item.miroLink);
         if (card && card.miroLink) {
           context.query(card.boardId, "hoverCard", card.miroLink);
-          await context.navigateToCard(card, true);
+          await navigateToCard(card, true);
         }
       },
     });

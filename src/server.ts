@@ -6,12 +6,13 @@ import compression = require("compression");
 import express = require("express");
 import morgan = require("morgan");
 import { Server } from "socket.io";
-import { RequestEvents, ResponseEvents } from "./EventTypes";
+import { CardData, RequestEvents, ResponseEvents } from "./EventTypes";
 import { HandlerContext } from "./extension";
 
 export function makeExpressServer(
   context: HandlerContext,
   sockets: Map<string, Socket<ResponseEvents, RequestEvents>>,
+  navigateToCard: (card: CardData, preview?: boolean) => Promise<boolean>,
 ) {
   const { renderStatusBar, cardStorage } = context;
   const app = express();
@@ -31,7 +32,7 @@ export function makeExpressServer(
       renderStatusBar();
     });
 
-    socket.on("navigateTo", async (card) => context.navigateToCard(card));
+    socket.on("navigateTo", async (card) => navigateToCard(card));
     socket.on("card", async ({ url, card }) => {
       if (card) {
         cardStorage.setCard(url, card);

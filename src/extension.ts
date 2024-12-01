@@ -28,10 +28,9 @@ export type HandlerContext = {
   cardStorage: CardStorage;
   connectedBoards: Set<string>;
   renderStatusBar: () => void;
-  navigateToCard: (card: CardData, preview?: boolean) => Promise<boolean>;
   waitForConnections: () => Promise<void>;
   query: <Req extends keyof Queries, Res extends ReturnType<Queries[Req]>>(
-    socket: Socket<ResponseEvents, RequestEvents> | string,
+    socket: string | Socket<ResponseEvents, RequestEvents>,
     request: Req,
     ...data: Parameters<Queries[Req]>
   ) => Promise<Res>;
@@ -51,53 +50,6 @@ export async function activate(context: vscode.ExtensionContext) {
     cardStorage,
     connectedBoards,
     renderStatusBar: statusBarManager.renderStatusBar.bind(statusBarManager),
-    navigateToCard: async (card, preview = false) => {
-      const dest = await findCardDestination(card);
-
-      // Only connect if it's able to reach the symbol
-      const status = (await goToCardCode(card, preview))
-        ? "connected"
-        : "disconnected";
-      if (card.miroLink) {
-        let codeLink: string | null = null;
-        if (dest) {
-          const activeEditor = vscode.window.activeTextEditor;
-          if (activeEditor) {
-            const uri = activeEditor.document.uri;
-            const selection =
-              status === "connected"
-                ? new vscode.Range(
-                    activeEditor.selection.start,
-                    activeEditor.selection.end,
-                  )
-                : new vscode.Range(
-                    new vscode.Position(0, 0),
-                    new vscode.Position(0, 0),
-                  );
-
-            const def: vscode.LocationLink = {
-              targetUri: uri,
-              targetRange: selection,
-            };
-            codeLink = await getGitHubUrl(def);
-          }
-        }
-        if (status !== card.status) {
-          cardStorage.setCard(card.boardId, {
-            ...card,
-            status,
-            miroLink: codeLink ?? undefined,
-          });
-        }
-        const socket = sockets.get(card.boardId)!;
-        socket.emit("cardStatus", {
-          miroLink: card.miroLink,
-          status,
-          codeLink,
-        });
-      }
-      return status === "connected";
-    },
     query: function <
       Req extends keyof Queries,
       Res extends ReturnType<Queries[Req]>,
@@ -155,7 +107,56 @@ export async function activate(context: vscode.ExtensionContext) {
       );
     },
   };
-  makeExpressServer(handlerContext, sockets);
+
+  const navigateToCard = async (card: CardData, preview = false) => {
+    const dest = await findCardDestination(card);
+
+    // Only connect if it's able to reach the symbol
+    const status = (await goToCardCode(card, preview))
+      ? "connected"
+      : "disconnected";
+    if (card.miroLink) {
+      let codeLink: string | null = null;
+      if (dest) {
+        const activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor) {
+          const uri = activeEditor.document.uri;
+          const selection =
+            status === "connected"
+              ? new vscode.Range(
+                  activeEditor.selection.start,
+                  activeEditor.selection.end,
+                )
+              : new vscode.Range(
+                  new vscode.Position(0, 0),
+                  new vscode.Position(0, 0),
+                );
+
+          const def: vscode.LocationLink = {
+            targetUri: uri,
+            targetRange: selection,
+          };
+          codeLink = await getGitHubUrl(def);
+        }
+      }
+      if (status !== card.status) {
+        cardStorage.setCard(card.boardId, {
+          ...card,
+          status,
+          miroLink: codeLink ?? undefined,
+        });
+      }
+      const socket = sockets.get(card.boardId)!;
+      socket.emit("cardStatus", {
+        miroLink: card.miroLink,
+        status,
+        codeLink,
+      });
+    }
+    return status === "connected";
+  };
+
+  makeExpressServer(handlerContext, sockets, navigateToCard);
   context.subscriptions.push(
     vscode.commands.registerCommand("app-explorer.connect", () => {
       // This command doesn't really need to do anything. By activating the
@@ -185,7 +186,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.browseCards",
-      makeBrowseHandler(handlerContext),
+      makeBrowseHandler(handlerContext, navigateToCard),
     ),
   );
   context.subscriptions.push(
