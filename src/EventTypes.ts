@@ -1,5 +1,4 @@
 import { AppCard, TagColor } from "@mirohq/websdk-types";
-import * as vscode from "vscode";
 
 export type SymbolCardData = {
   boardId: string;
@@ -47,20 +46,7 @@ export type Queries = {
   setBoardName: (name: string) => void;
   getBoardInfo: () => { name: string; boardId: string };
   tags: () => AppExplorerTag[];
-  cards: () => CardData[];
-  selected: () => CardData[];
-};
-
-export type RequestEvents = {
-  newCards: (data: CardData[], options?: { connect?: string[] }) => void;
   attachCard: (data: CardData) => void;
-  hoverCard: (miroLink: string) => void;
-  selectCard: (miroLink: string) => void;
-  cardStatus: (data: {
-    miroLink: string;
-    status: "connected" | "disconnected";
-    codeLink: string | null;
-  }) => void;
   tagCards: (data: {
     miroLink: string[];
     tag:
@@ -70,16 +56,23 @@ export type RequestEvents = {
           title: string;
         };
   }) => void;
+  selectCard: (miroLink: string) => void;
+  cardStatus: (data: {
+    miroLink: string;
+    status: "connected" | "disconnected";
+    codeLink: string | null;
+  }) => void;
+  cards: () => CardData[];
+  selected: () => CardData[];
+  newCards: (data: CardData[], options?: { connect?: string[] }) => void;
+  hoverCard: (miroLink: string) => void;
+};
+
+export type RequestEvents = {
   query: <N extends keyof Queries>(data: {
     name: N;
     requestId: string;
     data: Parameters<Queries[N]>;
-  }) => void;
-  jump: (data: {
-    lastUri: string;
-    lastPosition: vscode.Position;
-    uri: string;
-    position: vscode.Position;
   }) => void;
 };
 export type ResponseEvents = {

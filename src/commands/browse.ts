@@ -31,7 +31,7 @@ export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
 
 export const makeBrowseHandler = (context: HandlerContext) =>
   async function () {
-    const { cardStorage, sockets } = context;
+    const { cardStorage } = context;
     type CardQuickPickItem = vscode.QuickPickItem & {
       miroLink: string;
     };
@@ -89,8 +89,7 @@ export const makeBrowseHandler = (context: HandlerContext) =>
       onDidSelectItem: async (item: CardQuickPickItem) => {
         const card = cardStorage.getCardByLink(item.miroLink);
         if (card && card.miroLink) {
-          const socket = sockets.get(card.boardId)!;
-          socket.emit("hoverCard", card.miroLink);
+          context.query(card.boardId, "hoverCard", card.miroLink);
           await context.navigateToCard(card, true);
         }
       },
@@ -103,8 +102,7 @@ export const makeBrowseHandler = (context: HandlerContext) =>
     } else if (selected) {
       const card = cardStorage.getCardByLink(selected.miroLink);
       if (card) {
-        const socket = sockets.get(card.boardId)!;
-        socket.emit("selectCard", card.miroLink!);
+        context.query(card.boardId, "selectCard", card.miroLink!);
         const dest = await findCardDestination(card);
         const status = (await goToCardCode(card))
           ? "connected"
@@ -134,7 +132,7 @@ export const makeBrowseHandler = (context: HandlerContext) =>
             }
           }
 
-          socket.emit("cardStatus", {
+          context.query(card.boardId, "cardStatus", {
             miroLink: card.miroLink,
             status,
             codeLink,

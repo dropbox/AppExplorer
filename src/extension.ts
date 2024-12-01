@@ -26,12 +26,12 @@ import { makeWorkspaceBoardHandler } from "./commands/manage-workspace-boards";
 
 export type HandlerContext = {
   cardStorage: CardStorage;
-  sockets: Map<string, Socket<ResponseEvents, RequestEvents>>;
+  connectedBoards: Set<string>;
   renderStatusBar: () => void;
   navigateToCard: (card: CardData, preview?: boolean) => Promise<boolean>;
   waitForConnections: () => Promise<void>;
   query: <Req extends keyof Queries, Res extends ReturnType<Queries[Req]>>(
-    socket: Socket<ResponseEvents, RequestEvents>,
+    socket: Socket<ResponseEvents, RequestEvents> | string,
     request: Req,
     ...data: Parameters<Queries[Req]>
   ) => Promise<Res>;
@@ -40,10 +40,16 @@ export type HandlerContext = {
 export async function activate(context: vscode.ExtensionContext) {
   const cardStorage = new CardStorage(context);
   const sockets = new Map<string, Socket>();
-  const statusBarManager = new StatusBarManager(sockets, cardStorage, context);
+  const connectedBoards = new Set<string>();
+  const statusBarManager = new StatusBarManager(
+    connectedBoards,
+    cardStorage,
+    context,
+  );
 
   const handlerContext: HandlerContext = {
     cardStorage,
+    connectedBoards,
     renderStatusBar: statusBarManager.renderStatusBar.bind(statusBarManager),
     navigateToCard: async (card, preview = false) => {
       const dest = await findCardDestination(card);
@@ -96,15 +102,23 @@ export async function activate(context: vscode.ExtensionContext) {
       Req extends keyof Queries,
       Res extends ReturnType<Queries[Req]>,
     >(
-      socket: Socket<ResponseEvents, RequestEvents>,
+      socket: Socket<ResponseEvents, RequestEvents> | string,
       request: Req,
       ...data: Parameters<Queries[Req]>
     ): Promise<Res> {
+      if (typeof socket === "string") {
+        const s = sockets.get(socket);
+        if (!s) {
+          throw new Error(`Socket not found for boardId: ${socket}`);
+        }
+        return handlerContext.query(s, request, ...data);
+      }
+
       const requestId = Math.random().toString(36);
       return new Promise<Res>((resolve) => {
         const captureResponse: ResponseEvents["queryResult"] = (response) => {
           if (response.requestId === requestId) {
-            io.off("queryResult", captureResponse);
+            socket.off("queryResult", captureResponse);
             resolve(response.response as Res);
           }
         };
@@ -140,9 +154,8 @@ export async function activate(context: vscode.ExtensionContext) {
         },
       );
     },
-    sockets,
   };
-  const io = await makeExpressServer(handlerContext);
+  makeExpressServer(handlerContext, sockets);
   context.subscriptions.push(
     vscode.commands.registerCommand("app-explorer.connect", () => {
       // This command doesn't really need to do anything. By activating the

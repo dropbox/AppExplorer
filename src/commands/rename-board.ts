@@ -4,7 +4,7 @@ import type { HandlerContext } from "../extension";
 export function makeRenameHandler(context: HandlerContext) {
   return async () => {
     await context.waitForConnections();
-    const connectedBoardIds = [...context.sockets.keys()];
+    const connectedBoardIds = [...context.connectedBoards.values()];
     const boards = connectedBoardIds.map(
       (k) => context.cardStorage.getBoard(k)!,
     );
@@ -33,8 +33,7 @@ export function makeRenameHandler(context: HandlerContext) {
     if (!newName) {
       return;
     }
-    const socket = context.sockets.get(boardId)!;
-    await context.query(socket, "setBoardName", newName);
+    await context.query(boardId, "setBoardName", newName);
     context.cardStorage.setBoardName(boardId, newName);
   };
 }

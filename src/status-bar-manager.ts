@@ -1,12 +1,12 @@
 import * as vscode from "vscode";
-import { Socket } from "socket.io";
 import { CardStorage } from "./card-storage";
+import { HandlerContext } from "./extension";
 
 export class StatusBarManager {
   public statusBar: vscode.StatusBarItem;
 
   constructor(
-    private sockets: Map<string, Socket>,
+    private connectedBoards: HandlerContext["connectedBoards"],
     private cardStorage: CardStorage,
     context: vscode.ExtensionContext,
   ) {
@@ -20,8 +20,8 @@ export class StatusBarManager {
   }
 
   renderStatusBar() {
-    const { sockets, statusBar, cardStorage } = this;
-    if (sockets.size == 0) {
+    const { connectedBoards, statusBar, cardStorage } = this;
+    if (connectedBoards.size == 0) {
       statusBar.backgroundColor = "red";
     }
     const boardIds = cardStorage.listWorkspaceBoards();
@@ -29,7 +29,7 @@ export class StatusBarManager {
       Object.values(cardStorage.getBoard(boardId)!.cards),
     );
     const totalCards = allCards.length;
-    if (sockets.size > 0) {
+    if (connectedBoards.size > 0) {
       const disconnected = allCards.filter(
         (card) => card.status === "disconnected",
       ).length;
@@ -38,7 +38,7 @@ export class StatusBarManager {
         disconnected > 0 ? `, ${disconnected} $(debug-disconnect)` : ""
       })`;
     } else {
-      statusBar.text = `$(app-explorer)  (${sockets.size} Miro connections)`;
+      statusBar.text = `$(app-explorer)  (${connectedBoards.size} Miro connections)`;
     }
     statusBar.show();
   }

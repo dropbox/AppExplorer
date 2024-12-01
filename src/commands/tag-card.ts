@@ -7,18 +7,14 @@ export function notEmpty<T>(value: T | null | undefined): value is T {
   return value != null;
 }
 
-export const makeTagCardHandler = ({
-  waitForConnections,
-  query,
-  sockets,
-}: HandlerContext) => {
+export const makeTagCardHandler = (context: HandlerContext) => {
   return async function () {
-    await waitForConnections();
+    await context.waitForConnections();
 
-    const selectedCards = await [...sockets.values()].reduce(
-      async (p, socket) => {
+    const selectedCards = await [...context.connectedBoards.values()].reduce(
+      async (p, boardId) => {
         const selected: CardData[] = await p;
-        const selectedCards = await query(socket, "selected");
+        const selectedCards = await context.query(boardId, "selected");
         return selected.concat(selectedCards).filter(notEmpty);
       },
       Promise.resolve([] as CardData[]),
@@ -36,7 +32,6 @@ export const makeTagCardHandler = ({
         return;
       }
       const boardId = boards[0];
-      const socket = sockets.get(boardId)!;
 
       type TagSelection = vscode.QuickPickItem & {
         id: string;
@@ -46,7 +41,7 @@ export const makeTagCardHandler = ({
         id: "NEW_TAG",
       };
       const quickPicks: TagSelection[] = [newCard];
-      const tags = await query(socket, "tags");
+      const tags = await context.query(boardId, "tags");
       quickPicks.push(
         ...tags.map((tag) => ({
           label: tag.title,
@@ -71,7 +66,7 @@ export const makeTagCardHandler = ({
             title: "Tag Color",
           });
           if (color) {
-            socket.emit("tagCards", {
+            context.query(boardId, "tagCards", {
               miroLink: links,
               tag: {
                 title,
@@ -80,7 +75,7 @@ export const makeTagCardHandler = ({
             });
           }
         } else {
-          socket.emit("tagCards", {
+          context.query(boardId, "tagCards", {
             miroLink: links,
             tag: tag.id,
           });

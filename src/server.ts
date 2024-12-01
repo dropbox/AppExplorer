@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { createServer } from "http";
+import type { Socket } from "socket.io";
 import * as path from "path";
 import compression = require("compression");
 import express = require("express");
@@ -8,8 +9,11 @@ import { Server } from "socket.io";
 import { RequestEvents, ResponseEvents } from "./EventTypes";
 import { HandlerContext } from "./extension";
 
-export function makeExpressServer(context: HandlerContext) {
-  const { sockets, renderStatusBar, query, cardStorage } = context;
+export function makeExpressServer(
+  context: HandlerContext,
+  sockets: Map<string, Socket<ResponseEvents, RequestEvents>>,
+) {
+  const { renderStatusBar, cardStorage } = context;
   const app = express();
   const httpServer = createServer(app);
   const io = new Server<ResponseEvents, RequestEvents>(httpServer);
@@ -21,14 +25,11 @@ export function makeExpressServer(context: HandlerContext) {
     renderStatusBar();
     socket.on("disconnect", () => {
       if (boardId) {
+        context.connectedBoards.delete(boardId);
         sockets.delete(boardId);
       }
       renderStatusBar();
     });
-
-    vscode.window.showInformationMessage(
-      `AppExplorer Connected at socket - ${socket.id}`,
-    );
 
     socket.on("navigateTo", async (card) => context.navigateToCard(card));
     socket.on("card", async ({ url, card }) => {
@@ -38,19 +39,22 @@ export function makeExpressServer(context: HandlerContext) {
         cardStorage.deleteCardByLink(url);
       }
     });
-    const info = await query(socket, "getBoardInfo");
+    const info = await context.query(socket, "getBoardInfo");
     boardId = info.boardId;
-    let boardInfo = await context.cardStorage.getBoard(boardId);
+    let boardInfo = context.cardStorage.getBoard(boardId);
     if (!boardInfo) {
       boardInfo = await context.cardStorage.addBoard(boardId, info.name);
     } else if (boardInfo.name !== info.name) {
       boardInfo = context.cardStorage.setBoardName(boardId, info.name);
     }
 
-    const cards = await query(socket, "cards");
+    const cards = await context.query(socket, "cards");
     context.cardStorage.setBoardCards(boardId, cards);
     sockets.set(boardId, socket);
-    console.log("AppExplorer set socket", boardId, info.name);
+    context.connectedBoards.add(boardId);
+    vscode.window.showInformationMessage(
+      `AppExplorer - ${boardInfo?.name ?? boardId}`,
+    );
     renderStatusBar();
   });
 
