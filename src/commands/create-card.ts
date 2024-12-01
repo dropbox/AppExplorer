@@ -68,7 +68,7 @@ export const makeNewCardHandler = (context: HandlerContext) =>
           canPickMany: false,
         });
         if (cardData) {
-          context.query(boardId, "newCards", cardData, {
+          context.queryHandler.query(boardId, "newCards", cardData, {
             connect: options.connect,
           });
         }

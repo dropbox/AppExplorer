@@ -8,12 +8,12 @@ export const makeNavigationHandler = (context: HandlerContext) => {
     if (card && context.connectedBoards.size > 0) {
       const codeLink = await getGitHubUrl(locationLink);
       vscode.window.showInformationMessage(`Selecting card ${card.title}`);
-      context.query(card.boardId, "cardStatus", {
+      context.queryHandler.query(card.boardId, "cardStatus", {
         codeLink,
         miroLink,
         status: "connected",
       });
-      context.query(card.boardId, "selectCard", miroLink);
+      context.queryHandler.query(card.boardId, "selectCard", miroLink);
     } else {
       vscode.window.showInformationMessage(
         `Opening card ${miroLink} in browser`,

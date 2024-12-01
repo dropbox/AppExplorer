@@ -92,7 +92,7 @@ export const makeBrowseHandler = (
       onDidSelectItem: async (item: CardQuickPickItem) => {
         const card = cardStorage.getCardByLink(item.miroLink);
         if (card && card.miroLink) {
-          context.query(card.boardId, "hoverCard", card.miroLink);
+          context.queryHandler.query(card.boardId, "hoverCard", card.miroLink);
           await navigateToCard(card, true);
         }
       },
@@ -105,7 +105,7 @@ export const makeBrowseHandler = (
     } else if (selected) {
       const card = cardStorage.getCardByLink(selected.miroLink);
       if (card) {
-        context.query(card.boardId, "selectCard", card.miroLink!);
+        context.queryHandler.query(card.boardId, "selectCard", card.miroLink!);
         const dest = await findCardDestination(card);
         const status = (await goToCardCode(card))
           ? "connected"
@@ -135,7 +135,7 @@ export const makeBrowseHandler = (
             }
           }
 
-          context.query(card.boardId, "cardStatus", {
+          context.queryHandler.query(card.boardId, "cardStatus", {
             miroLink: card.miroLink,
             status,
             codeLink,

@@ -1,11 +1,6 @@
 import * as vscode from "vscode";
 import { makeExpressServer } from "./server";
-import type {
-  CardData,
-  Queries,
-  RequestEvents,
-  ResponseEvents,
-} from "./EventTypes";
+import type { CardData } from "./EventTypes";
 import type { Socket } from "socket.io";
 import { makeNewCardHandler } from "./commands/create-card";
 import {
@@ -23,17 +18,14 @@ import { StatusBarManager } from "./status-bar-manager";
 import { CardStorage } from "./card-storage";
 import { getGitHubUrl } from "./get-github-url";
 import { makeWorkspaceBoardHandler } from "./commands/manage-workspace-boards";
+import { QueryHandler } from "./query-handler";
 
 export type HandlerContext = {
   cardStorage: CardStorage;
   connectedBoards: Set<string>;
   renderStatusBar: () => void;
   waitForConnections: () => Promise<void>;
-  query: <Req extends keyof Queries, Res extends ReturnType<Queries[Req]>>(
-    boardId: string | Socket<ResponseEvents, RequestEvents>,
-    request: Req,
-    ...data: Parameters<Queries[Req]>
-  ) => Promise<Res>;
+  queryHandler: QueryHandler;
 };
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -45,45 +37,13 @@ export async function activate(context: vscode.ExtensionContext) {
     cardStorage,
     context,
   );
+  const queryHandler = new QueryHandler();
 
   const handlerContext: HandlerContext = {
     cardStorage,
     connectedBoards,
     renderStatusBar: statusBarManager.renderStatusBar.bind(statusBarManager),
-    query: function <
-      Req extends keyof Queries,
-      Res extends ReturnType<Queries[Req]>,
-    >(
-      socket: Socket<ResponseEvents, RequestEvents> | string,
-      request: Req,
-      ...data: Parameters<Queries[Req]>
-    ): Promise<Res> {
-      if (typeof socket === "string") {
-        const s = sockets.get(socket);
-        if (!s) {
-          throw new Error(`Socket not found for boardId: ${socket}`);
-        }
-        return handlerContext.query(s, request, ...data);
-      }
-
-      const requestId = Math.random().toString(36);
-      return new Promise<Res>((resolve) => {
-        const captureResponse: ResponseEvents["queryResult"] = (response) => {
-          if (response.requestId === requestId) {
-            socket.off("queryResult", captureResponse);
-            resolve(response.response as Res);
-          }
-        };
-
-        socket.on("queryResult", captureResponse);
-
-        socket.emit("query", {
-          name: request,
-          requestId,
-          data,
-        });
-      });
-    },
+    queryHandler,
     async waitForConnections() {
       if (sockets.size > 0) {
         return;
@@ -146,7 +106,7 @@ export async function activate(context: vscode.ExtensionContext) {
           miroLink: codeLink ?? undefined,
         });
       }
-      handlerContext.query(card.boardId, "cardStatus", {
+      handlerContext.queryHandler.query(card.boardId, "cardStatus", {
         miroLink: card.miroLink,
         status,
         codeLink,
@@ -155,7 +115,9 @@ export async function activate(context: vscode.ExtensionContext) {
     return status === "connected";
   };
 
-  makeExpressServer(handlerContext, sockets, navigateToCard);
+  context.subscriptions.push(
+    makeExpressServer(handlerContext, sockets, navigateToCard),
+  );
   context.subscriptions.push(
     vscode.commands.registerCommand("app-explorer.connect", () => {
       // This command doesn't really need to do anything. By activating the
@@ -255,87 +217,4 @@ export async function getReferencesInFile(
     }
   }
   return references;
-}
-
-interface BaseEvent {
-  requestId: string;
-  boardId: string;
-}
-
-export interface RequestEvent<Req extends keyof Queries = keyof Queries>
-  extends BaseEvent {
-  type: "request";
-  request: Req;
-  data: Parameters<Queries[Req]>;
-}
-
-export interface ResponseEvent<Req extends keyof Queries = keyof Queries>
-  extends BaseEvent {
-  type: "response";
-  request: Req;
-  data: ReturnType<Queries[Req]>;
-}
-
-export class EventQueries {
-  private eventeEmitter = new vscode.EventEmitter<
-    RequestEvent | ResponseEvent
-  >();
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private resolvers: Record<string, (data: any) => void> = {};
-
-  constructor() {
-    this.eventeEmitter.event((event) => {
-      if (event.type === "response") {
-        this.resolvers[event.requestId](event.data);
-        delete this.resolvers[event.requestId];
-      }
-    });
-  }
-
-  dispose() {
-    this.eventeEmitter.dispose();
-  }
-
-  query<Req extends keyof Queries, Res extends ReturnType<Queries[Req]>>(
-    boardId: string,
-    request: Req,
-    ...data: Parameters<Queries[Req]>
-  ): Promise<Res> {
-    const requestId = Math.random().toString(36);
-    return new Promise<Res>((resolve) => {
-      this.resolvers[requestId] = resolve;
-      this.eventeEmitter.fire({
-        type: "request",
-        requestId,
-        boardId,
-        request,
-        data,
-      });
-    });
-  }
-
-  queryHandler<Req extends keyof Queries, Res extends ReturnType<Queries[Req]>>(
-    boardId: string,
-    request: Req,
-    handler: (...data: Parameters<Queries[Req]>) => Promise<Res>,
-  ) {
-    this.eventeEmitter.event(async (event) => {
-      if (
-        event.type === "request" &&
-        event.request === request &&
-        event.boardId === boardId
-      ) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const data = await handler(...(event.data as any));
-        this.eventeEmitter.fire({
-          type: "response",
-          requestId: event.requestId,
-          boardId,
-          request,
-          data,
-        });
-      }
-    });
-  }
 }

@@ -17,7 +17,10 @@ export const makeAttachCardHandler = (context: HandlerContext) => {
       const selectedCards = await [...context.connectedBoards.values()].reduce(
         async (p, boardId) => {
           const selected: CardData[] = await p;
-          const selectedCards = await context.query(boardId, "selected");
+          const selectedCards = await context.queryHandler.query(
+            boardId,
+            "selected",
+          );
           return selected.concat(selectedCards).filter(notEmpty);
         },
         Promise.resolve([] as CardData[]),
@@ -31,7 +34,7 @@ export const makeAttachCardHandler = (context: HandlerContext) => {
         });
         const cardData = result?.[0];
         if (cardData) {
-          context.query(boardId, "attachCard", cardData);
+          context.queryHandler.query(boardId, "attachCard", cardData);
           if (cardData.miroLink) {
             context.cardStorage.setCard(cardData.miroLink, cardData);
           }

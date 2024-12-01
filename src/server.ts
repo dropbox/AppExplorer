@@ -8,12 +8,14 @@ import morgan = require("morgan");
 import { Server } from "socket.io";
 import { CardData, RequestEvents, ResponseEvents } from "./EventTypes";
 import { HandlerContext } from "./extension";
+import { QueryHandler, QueryRequestEvent } from "./query-handler";
 
 export function makeExpressServer(
   context: HandlerContext,
   sockets: Map<string, Socket<ResponseEvents, RequestEvents>>,
   navigateToCard: (card: CardData, preview?: boolean) => Promise<boolean>,
 ) {
+  const subscriptions = [] as vscode.Disposable[];
   const { renderStatusBar } = context;
   const app = express();
   const httpServer = createServer(app);
@@ -22,7 +24,30 @@ export function makeExpressServer(
   renderStatusBar();
 
   io.on("connection", async (socket) => {
-    let boardId: string | null = null;
+    let boardId: string = `tmp-${Math.random().toString(36).substring(2)}`;
+    sockets.set(boardId, socket);
+    const tmp = context.queryHandler.listenToBoard(boardId, handleRequest);
+    socket.on("queryResult", (response) => {
+      context.queryHandler.resolve(response.requestId, response.response);
+    });
+    async function handleRequest(event: QueryRequestEvent) {
+      socket.emit("query", {
+        name: event.request,
+        requestId: event.requestId,
+        data: event.data,
+      });
+      return QueryHandler.defer;
+    }
+
+    const info = await context.queryHandler.query(boardId, "getBoardInfo");
+    tmp.dispose();
+    sockets.delete(boardId);
+    boardId = info.boardId;
+    sockets.set(boardId, socket);
+    subscriptions.push(
+      context.queryHandler.listenToBoard(boardId, handleRequest),
+    );
+
     renderStatusBar();
     socket.on("disconnect", () => {
       if (boardId) {
@@ -40,8 +65,6 @@ export function makeExpressServer(
         context.cardStorage.deleteCardByLink(url);
       }
     });
-    const info = await context.query(socket, "getBoardInfo");
-    boardId = info.boardId;
     let boardInfo = context.cardStorage.getBoard(boardId);
     if (!boardInfo) {
       boardInfo = await context.cardStorage.addBoard(boardId, info.name);
@@ -49,7 +72,7 @@ export function makeExpressServer(
       boardInfo = context.cardStorage.setBoardName(boardId, info.name);
     }
 
-    const cards = await context.query(socket, "cards");
+    const cards = await context.queryHandler.query(boardId, "cards");
     context.cardStorage.setBoardCards(boardId, cards);
     sockets.set(boardId, socket);
     context.connectedBoards.add(boardId);
@@ -76,5 +99,9 @@ export function makeExpressServer(
     console.log(`Express server listening on port ${port}`);
   });
 
-  return io;
+  return {
+    dispose() {
+      subscriptions.forEach((s) => s.dispose());
+    },
+  };
 }

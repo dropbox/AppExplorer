@@ -73,6 +73,7 @@
     "format": "prettier --write src",
     "lint": "eslint src --ext ts",
     "type-check": "tsc --noEmit",
+    "type-check:watch": "tsc --noEmit --watch",
     "test": "true",
     "prepare": "husky"
   },

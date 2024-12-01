@@ -33,7 +33,7 @@ export function makeRenameHandler(context: HandlerContext) {
     if (!newName) {
       return;
     }
-    await context.query(boardId, "setBoardName", newName);
+    await context.queryHandler.query(boardId, "setBoardName", newName);
     context.cardStorage.setBoardName(boardId, newName);
   };
 }

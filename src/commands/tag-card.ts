@@ -14,7 +14,10 @@ export const makeTagCardHandler = (context: HandlerContext) => {
     const selectedCards = await [...context.connectedBoards.values()].reduce(
       async (p, boardId) => {
         const selected: CardData[] = await p;
-        const selectedCards = await context.query(boardId, "selected");
+        const selectedCards = await context.queryHandler.query(
+          boardId,
+          "selected",
+        );
         return selected.concat(selectedCards).filter(notEmpty);
       },
       Promise.resolve([] as CardData[]),
@@ -41,7 +44,7 @@ export const makeTagCardHandler = (context: HandlerContext) => {
         id: "NEW_TAG",
       };
       const quickPicks: TagSelection[] = [newCard];
-      const tags = await context.query(boardId, "tags");
+      const tags = await context.queryHandler.query(boardId, "tags");
       quickPicks.push(
         ...tags.map((tag) => ({
           label: tag.title,
@@ -66,7 +69,7 @@ export const makeTagCardHandler = (context: HandlerContext) => {
             title: "Tag Color",
           });
           if (color) {
-            context.query(boardId, "tagCards", {
+            context.queryHandler.query(boardId, "tagCards", {
               miroLink: links,
               tag: {
                 title,
@@ -75,7 +78,7 @@ export const makeTagCardHandler = (context: HandlerContext) => {
             });
           }
         } else {
-          context.query(boardId, "tagCards", {
+          context.queryHandler.query(boardId, "tagCards", {
             miroLink: links,
             tag: tag.id,
           });
