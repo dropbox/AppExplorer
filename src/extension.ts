@@ -30,7 +30,7 @@ export type HandlerContext = {
   renderStatusBar: () => void;
   waitForConnections: () => Promise<void>;
   query: <Req extends keyof Queries, Res extends ReturnType<Queries[Req]>>(
-    socket: string | Socket<ResponseEvents, RequestEvents>,
+    boardId: string | Socket<ResponseEvents, RequestEvents>,
     request: Req,
     ...data: Parameters<Queries[Req]>
   ) => Promise<Res>;
@@ -146,8 +146,7 @@ export async function activate(context: vscode.ExtensionContext) {
           miroLink: codeLink ?? undefined,
         });
       }
-      const socket = sockets.get(card.boardId)!;
-      socket.emit("cardStatus", {
+      handlerContext.query(card.boardId, "cardStatus", {
         miroLink: card.miroLink,
         status,
         codeLink,
@@ -256,4 +255,87 @@ export async function getReferencesInFile(
     }
   }
   return references;
+}
+
+interface BaseEvent {
+  requestId: string;
+  boardId: string;
+}
+
+export interface RequestEvent<Req extends keyof Queries = keyof Queries>
+  extends BaseEvent {
+  type: "request";
+  request: Req;
+  data: Parameters<Queries[Req]>;
+}
+
+export interface ResponseEvent<Req extends keyof Queries = keyof Queries>
+  extends BaseEvent {
+  type: "response";
+  request: Req;
+  data: ReturnType<Queries[Req]>;
+}
+
+export class EventQueries {
+  private eventeEmitter = new vscode.EventEmitter<
+    RequestEvent | ResponseEvent
+  >();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private resolvers: Record<string, (data: any) => void> = {};
+
+  constructor() {
+    this.eventeEmitter.event((event) => {
+      if (event.type === "response") {
+        this.resolvers[event.requestId](event.data);
+        delete this.resolvers[event.requestId];
+      }
+    });
+  }
+
+  dispose() {
+    this.eventeEmitter.dispose();
+  }
+
+  query<Req extends keyof Queries, Res extends ReturnType<Queries[Req]>>(
+    boardId: string,
+    request: Req,
+    ...data: Parameters<Queries[Req]>
+  ): Promise<Res> {
+    const requestId = Math.random().toString(36);
+    return new Promise<Res>((resolve) => {
+      this.resolvers[requestId] = resolve;
+      this.eventeEmitter.fire({
+        type: "request",
+        requestId,
+        boardId,
+        request,
+        data,
+      });
+    });
+  }
+
+  queryHandler<Req extends keyof Queries, Res extends ReturnType<Queries[Req]>>(
+    boardId: string,
+    request: Req,
+    handler: (...data: Parameters<Queries[Req]>) => Promise<Res>,
+  ) {
+    this.eventeEmitter.event(async (event) => {
+      if (
+        event.type === "request" &&
+        event.request === request &&
+        event.boardId === boardId
+      ) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data = await handler(...(event.data as any));
+        this.eventeEmitter.fire({
+          type: "response",
+          requestId: event.requestId,
+          boardId,
+          request,
+          data,
+        });
+      }
+    });
+  }
 }

@@ -14,7 +14,7 @@ export function makeExpressServer(
   sockets: Map<string, Socket<ResponseEvents, RequestEvents>>,
   navigateToCard: (card: CardData, preview?: boolean) => Promise<boolean>,
 ) {
-  const { renderStatusBar, cardStorage } = context;
+  const { renderStatusBar } = context;
   const app = express();
   const httpServer = createServer(app);
   const io = new Server<ResponseEvents, RequestEvents>(httpServer);
@@ -35,9 +35,9 @@ export function makeExpressServer(
     socket.on("navigateTo", async (card) => navigateToCard(card));
     socket.on("card", async ({ url, card }) => {
       if (card) {
-        cardStorage.setCard(url, card);
+        context.cardStorage.setCard(url, card);
       } else {
-        cardStorage.deleteCardByLink(url);
+        context.cardStorage.deleteCardByLink(url);
       }
     });
     const info = await context.query(socket, "getBoardInfo");

@@ -20,7 +20,7 @@ export class EditorDecorator {
     private handlerContext: HandlerContext,
   ) {
     this.#decorator = vscode.window.createTextEditorDecorationType({
-      backgroundColor: "rgba(0, 0, 0, 0.1)",
+      backgroundColor: "rgba(0, 0, 255, 0.05)",
       overviewRulerColor: "blue",
       overviewRulerLane: vscode.OverviewRulerLane.Right,
     });
