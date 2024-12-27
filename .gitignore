@@ -3,5 +3,5 @@ dist
 node_modules
 .vscode-test/
 *.vsix
-font/
+font/*
 !font/app-explorer.woff
