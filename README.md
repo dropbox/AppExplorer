@@ -100,39 +100,37 @@ reply, comments get resolved and hidden.
 
 This extension requires Miro and to enable the [AppExplorer](https://miro.com/oauth/authorize/?response_type=code&client_id=3458764531189693223&redirect_uri=%2Fconfirm-app-install%2F) addon.
 
-## Contribuing
+## Getting Started
 
-If you want to work directly on AppExplorer you need to globally install
-@vscode/vsce.
-
-```
-npm install -g @vscode/vsce
-```
-
-This extension operates by opening a webserver on http://localhost:50505/. This
-is the URL that the Miro extension will load in the background to connect with
-VSCode.
-
-If you open the project and press F5 or run the command `Debug: Start
-Debugging`, it will launch a temporary VSCode running the extension.
-
-I'll usually just build and reinstall with this:
+The project is still in an active enough stage that every commit should be a
+release. It's not worth the extra effort at the moment, so the best way to run
+AppExplorer is to checkout main and build it locally.
 
 ```
+git clone git@github.com:dropbox/AppExplorer.git
+cd AppExplorer
+
 git pull main
 npm install -g @vscode/vsce   # On first install
 npm install                   # after updates
 
-# Remove any built extensions, build a new copy, and install it.
+# Run
 rm *.vsix; vsce pack && code --install-extension app-explorer-*.vsix
 ```
 
-1. Rebuild and install
-2. Refresh Miro
-3. Refresh VSCode
+### Running Remotely
 
-If you don't refresh Miro, you can get a mix of old `/public/miro.js` code along
-with newer changes in `src`.
+When using VSCode connected to a remote system or WSL you may not have the
+`code` command available. In this case, you'll need to build without installing
+on the command line:
+
+```
+# Run
+rm *.vsix; vsce pack
+```
+
+And then in VSCode run `Extensions: Install from VSIX...` and select the file
+that `vsce pack` built.
 
 ## Release Notes
 

@@ -1,0 +1,46 @@
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+.container {
+  max-width: 800px;
+  width: 100%;
+  padding: 20px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  background-color: #fff;
+}
+h1 {
+  text-align: center;
+}
+.content {
+  margin: 20px 0;
+}
+.content h2 {
+  font-size: 1.5em;
+  margin-bottom: 10px;
+}
+.content ul {
+  list-style-type: none;
+  padding: 0;
+}
+.content li {
+  margin: 5px 0;
+}
+.content li input[type="checkbox"] {
+  margin-right: 10px;
+}
+p {
+  margin: 20px 0;
+}
+a {
+  color: #007bff;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
