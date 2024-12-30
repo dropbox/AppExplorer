@@ -1,23 +1,23 @@
 /* global miro */
 
 import type {
-  BoardNode,
   AppCard,
+  BoardNode,
+  CardField,
   Item,
   Rect,
   Tag,
-  CardField,
 } from "@mirohq/websdk-types";
-import {
-  type RequestEvents,
-  type CardData,
-  type Handler,
-  type AppExplorerTag,
-  type Queries,
-  type ResponseEvents,
-} from "./EventTypes";
 import { type Socket } from "socket.io-client";
 import invariant from "tiny-invariant";
+import {
+  type AppExplorerTag,
+  type CardData,
+  type Handler,
+  type Queries,
+  type RequestEvents,
+  type ResponseEvents,
+} from "./EventTypes";
 
 function decode(str: string) {
   return str.replaceAll(/&#([0-9A-F]{2});/g, (_, charCode) =>
@@ -68,7 +68,7 @@ async function updateCard(
   if (metaData.symbol) {
     fields.push({
       value: metaData.symbol,
-      tooltip: `Symbol`,
+      tooltip: `Symbol ${metaData.symbol}`,
     });
   }
   card.fields = fields;

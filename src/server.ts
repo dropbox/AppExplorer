@@ -1,14 +1,14 @@
-import * as vscode from "vscode";
 import { createServer } from "http";
-import type { Socket } from "socket.io";
 import * as path from "path";
-import compression = require("compression");
-import express = require("express");
-import morgan = require("morgan");
+import type { Socket } from "socket.io";
 import { Server } from "socket.io";
+import * as vscode from "vscode";
 import { CardData, RequestEvents, ResponseEvents } from "./EventTypes";
 import { HandlerContext } from "./extension";
 import { QueryHandler, QueryRequestEvent } from "./query-handler";
+import compression = require("compression");
+import express = require("express");
+import morgan = require("morgan");
 
 export function makeExpressServer(
   context: HandlerContext,
@@ -76,9 +76,19 @@ export function makeExpressServer(
     context.cardStorage.setBoardCards(boardId, cards);
     sockets.set(boardId, socket);
     context.connectedBoards.add(boardId);
-    vscode.window.showInformationMessage(
-      `AppExplorer - ${boardInfo?.name ?? boardId}`,
-    );
+    vscode.window
+      .showInformationMessage(
+        `AppExplorer - Connected to board: ${boardInfo?.name ?? boardId}`,
+        "Rename Board",
+      )
+      .then((selection) => {
+        if (selection === "Rename Board") {
+          vscode.commands.executeCommand(
+            "app-explorer.renameBoard",
+            boardInfo?.id,
+          );
+        }
+      });
     renderStatusBar();
   });
 
@@ -96,7 +106,9 @@ export function makeExpressServer(
     vscode.window.showErrorMessage(`AppExplorer - ${String(e)}`);
   });
   httpServer.listen(port, () => {
-    console.log(`Express server listening on port ${port}`);
+    vscode.window.showInformationMessage(
+      `AppExplorer - Server started. Open a Miro board to connect.`,
+    );
   });
 
   return {

@@ -1,9 +1,9 @@
 import * as vscode from "vscode";
 import { ExtensionContext } from "vscode";
-import { HandlerContext } from "./extension";
 import { readSymbols } from "./commands/create-card";
-import { getRelativePath } from "./get-relative-path";
 import { CardData } from "./EventTypes";
+import { HandlerContext } from "./extension";
+import { getRelativePath } from "./get-relative-path";
 
 interface CardDecoration extends vscode.DecorationOptions {
   card: CardData;
@@ -29,53 +29,59 @@ export class EditorDecorator {
     let lastPosition: vscode.Position | undefined;
     let lastEditor: vscode.TextEditor | undefined;
 
-    vscode.window.onDidChangeActiveTextEditor(
-      (editor) => {
-        if (this.#activeEdtior && !editor) {
-          lastPosition = this.#activeEdtior.selection.active;
-          lastEditor = this.#activeEdtior;
-          setTimeout(() => {
-            lastPosition = undefined;
-            lastEditor = undefined;
-          }, 500);
-        }
-
-        this.#activeEdtior = editor;
-        if (this.#activeEdtior) {
-          this.triggerUpdate();
-        }
-      },
-      null,
-      this.context.subscriptions,
-    );
-    vscode.workspace.onDidChangeTextDocument(
-      (event) => {
-        if (
-          this.#activeEdtior &&
-          event.document === this.#activeEdtior.document
-        ) {
-          this.triggerUpdate(true);
-        }
-      },
-      null,
-      this.context.subscriptions,
-    );
-
-    vscode.window.onDidChangeTextEditorSelection(
-      async (event) => {
-        const editor = event.textEditor;
-        if (editor) {
-          const position = editor.selection.active;
-          if (lastEditor && editor !== lastEditor && lastPosition) {
-            /* This implementation triggers when just switching tabs. I really
-             * want to detect jumpToDefinition */
-            // this.onJump(lastEditor, lastPosition, editor, position);
+    context.subscriptions.push(
+      vscode.window.onDidChangeActiveTextEditor(
+        (editor) => {
+          if (this.#activeEdtior && !editor) {
+            lastPosition = this.#activeEdtior.selection.active;
+            lastEditor = this.#activeEdtior;
+            setTimeout(() => {
+              lastPosition = undefined;
+              lastEditor = undefined;
+            }, 500);
           }
-          lastPosition = position;
-        }
-      },
-      null,
-      this.context.subscriptions,
+
+          this.#activeEdtior = editor;
+          if (this.#activeEdtior) {
+            this.triggerUpdate();
+          }
+        },
+        null,
+        this.context.subscriptions,
+      ),
+    );
+    context.subscriptions.push(
+      vscode.workspace.onDidChangeTextDocument(
+        (event) => {
+          if (
+            this.#activeEdtior &&
+            event.document === this.#activeEdtior.document
+          ) {
+            this.triggerUpdate(true);
+          }
+        },
+        null,
+        this.context.subscriptions,
+      ),
+    );
+
+    context.subscriptions.push(
+      vscode.window.onDidChangeTextEditorSelection(
+        async (event) => {
+          const editor = event.textEditor;
+          if (editor) {
+            const position = editor.selection.active;
+            if (lastEditor && editor !== lastEditor && lastPosition) {
+              /* This implementation triggers when just switching tabs. I really
+               * want to detect jumpToDefinition */
+              // this.onJump(lastEditor, lastPosition, editor, position);
+            }
+            lastPosition = position;
+          }
+        },
+        null,
+        this.context.subscriptions,
+      ),
     );
 
     if (this.#activeEdtior) {
