@@ -42,11 +42,11 @@ export type AppExplorerTag = {
 };
 
 export type Queries = {
-  getIdToken: () => string;
-  setBoardName: (name: string) => void;
-  getBoardInfo: () => { name: string; boardId: string };
-  tags: () => AppExplorerTag[];
-  attachCard: (data: CardData) => void;
+  getIdToken: () => Promise<string>;
+  setBoardName: (name: string) => Promise<void>;
+  getBoardInfo: () => Promise<{ name: string; boardId: string }>;
+  tags: () => Promise<AppExplorerTag[]>;
+  attachCard: (data: CardData) => Promise<void>;
   tagCards: (data: {
     miroLink: string[];
     tag:
@@ -55,17 +55,20 @@ export type Queries = {
           color: TagColor;
           title: string;
         };
-  }) => void;
-  selectCard: (miroLink: string) => void;
+  }) => Promise<void>;
+  selectCard: (miroLink: string) => Promise<void>;
   cardStatus: (data: {
     miroLink: string;
     status: "connected" | "disconnected";
     codeLink: string | null;
-  }) => void;
-  cards: () => CardData[];
-  selected: () => CardData[];
-  newCards: (data: CardData[], options?: { connect?: string[] }) => void;
-  hoverCard: (miroLink: string) => void;
+  }) => Promise<void>;
+  cards: () => Promise<CardData[]>;
+  selected: () => Promise<CardData[]>;
+  newCards: (
+    data: CardData[],
+    options?: { connect?: string[] },
+  ) => Promise<void>;
+  hoverCard: (miroLink: string) => Promise<void>;
 };
 
 export type RequestEvents = {
@@ -83,7 +86,7 @@ export type ResponseEvents = {
   queryResult: <N extends keyof Queries>(data: {
     name: N;
     requestId: string;
-    response: ReturnType<Queries[N]>;
+    response: Awaited<ReturnType<Queries[N]>>;
   }) => void;
 };
 

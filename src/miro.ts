@@ -254,7 +254,7 @@ export async function attachToSocket() {
   type QueryImplementations = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [K in keyof Queries]: Queries[K] extends (...args: any[]) => unknown
-      ? (...args: Parameters<Queries[K]>) => Promise<ReturnType<Queries[K]>>
+      ? (...args: Parameters<Queries[K]>) => ReturnType<Queries[K]>
       : never;
   };
   const queryImplementations: QueryImplementations = {

@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
-import { getRelativePath } from "./get-relative-path";
-import { HandlerContext } from "./extension";
 import { invariant, readSymbols } from "./commands/create-card";
+import { HandlerContext } from "./extension";
+import { getRelativePath } from "./get-relative-path";
 
 export class AppExplorerLens implements vscode.CodeLensProvider {
   #handlerContext: HandlerContext;
@@ -40,8 +40,8 @@ export class AppExplorerLens implements vscode.CodeLensProvider {
           const codeLens = new vscode.CodeLens(range, c);
           return [codeLens];
         } else {
-          console.warn(`Symbol ${card.symbol} not found in ${path}`);
-          console.warn("symbols", symbols);
+          // console.warn(`Symbol ${card.symbol} not found in ${path}`);
+          // console.warn("symbols", symbols);
         }
       } else {
         console.warn("Not a symbol card", card);

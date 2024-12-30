@@ -17,7 +17,7 @@ export interface QueryResponseEvent<Req extends keyof Queries = keyof Queries>
   extends BaseEvent {
   type: "response";
   request: Req;
-  data: ReturnType<Queries[Req]>;
+  data: Awaited<ReturnType<Queries[Req]>>;
 }
 
 type QueryEvent = QueryRequestEvent | QueryResponseEvent;
