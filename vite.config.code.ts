@@ -26,10 +26,10 @@ export default defineConfig({
     "process.env.NODE_ENV": JSON.stringify("production"),
   },
   build: {
+    outDir: "dist-code",
     lib: {
       entry: {
         extension: "src/extension.ts",
-        miro: "index.html",
       },
       formats: ["cjs"],
     },

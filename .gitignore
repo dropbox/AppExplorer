@@ -5,3 +5,4 @@ node_modules
 *.vsix
 font/*
 !font/app-explorer.woff
+dist-code

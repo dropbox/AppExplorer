@@ -12,7 +12,7 @@
     "Other"
   ],
   "activationEvents": [],
-  "main": "./dist/extension.js",
+  "main": "./dist-code/extension.js",
   "contributes": {
     "commands": [
       {
@@ -67,7 +67,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "vite build --minify false",
+    "compile": "vite build --config vite.config.code.ts &&  vite build --config vite.config.miro.ts ",
     "font-icon": "npx svgtofont --sources public/ --output ./font --fontName app-explorer",
     "pretest": "npm run lint && npm run type-check && npm run format",
     "format": "prettier --write src",
