@@ -297,6 +297,7 @@ export async function attachToSocket() {
           const data = await extractCardData(updatedCard);
           if (data && data.miroLink) {
             socket.emit("card", { url: data.miroLink, card: data });
+            miro.board.notifications.showInfo(`Updated card: ${data.title}`);
           }
         }
       } catch (error) {
@@ -335,8 +336,10 @@ export async function attachToSocket() {
           });
           await miro.board.select({ id: card.id });
           await zoomIntoCards([card]);
+          miro.board.notifications.showInfo(`Selected card: ${card.title}`);
         } else {
           socket.emit("card", { url: cardUrl, card: null });
+          miro.board.notifications.showError(`Card not found ${cardUrl}`);
         }
       } catch (error) {
         console.error("AppExplorer: Error selecting card", error);
@@ -431,6 +434,7 @@ export async function attachToSocket() {
       if (data) {
         await miro.board.select({ id: appCard.id });
         socket.emit("navigateTo", data);
+        miro.board.notifications.showInfo("Opening card in VSCode");
       }
     } catch (error) {
       console.error("AppExplorer: Error opening app card", error);
@@ -443,6 +447,7 @@ export async function attachToSocket() {
       if (data) {
         await miro.board.select({ id: appCard.id });
         socket.emit("navigateTo", data);
+        miro.board.notifications.showInfo("Opening card in VSCode");
       }
     } catch (error) {
       console.error("AppExplorer: Error connecting app card", error);
@@ -456,6 +461,7 @@ export async function attachToSocket() {
         const data = await extractCardData(item);
         if (data?.miroLink) {
           socket.emit("card", { url: data.miroLink, card: data });
+          miro.board.notifications.showInfo("Deleting card in VSCode");
         }
         return null;
       }, Promise.resolve(null));

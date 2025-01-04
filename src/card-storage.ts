@@ -7,11 +7,20 @@ export type BoardInfo = {
   cards: Record<NonNullable<CardData["miroLink"]>, CardData>;
 };
 
-export class CardStorage {
+type StorageEvent =
+  | { type: "workspaceBoards"; boardIds: string[] }
+  | { type: "boardUpdate"; board: BoardInfo | null; boardId: BoardInfo["id"] }
+  | {
+      type: "cardUpdate";
+      miroLink: CardData["miroLink"];
+      card: CardData | null;
+    };
+
+export class CardStorage extends vscode.EventEmitter<StorageEvent> {
   private boards = new Map<BoardInfo["id"], BoardInfo>();
-  subscribers: Array<() => void> = [];
 
   constructor(private context: vscode.ExtensionContext) {
+    super();
     const boardIds = this.context.workspaceState.get<string[]>("boardIds");
 
     boardIds?.forEach((id) => {
@@ -23,21 +32,6 @@ export class CardStorage {
     this.context.subscriptions.push(this);
   }
 
-  dispose() {
-    this.subscribers = [];
-  }
-
-  subscribe(callback: () => void) {
-    this.subscribers.push(callback);
-    return () => {
-      this.subscribers = this.subscribers.filter((c) => c !== callback);
-    };
-  }
-
-  private notifySubscribers() {
-    this.subscribers.forEach((s) => s());
-  }
-
   async addBoard(boardId: string, name: string) {
     const board: BoardInfo = { id: boardId, name, cards: {} };
     this.boards.set(boardId, board);
@@ -45,7 +39,7 @@ export class CardStorage {
     boardIds?.push(boardId);
     await this.context.workspaceState.update("boardIds", boardIds);
     await this.context.workspaceState.update(`board-${boardId}`, board);
-    this.notifySubscribers();
+    this.fire({ type: "boardUpdate", board, boardId });
     return board;
   }
 
@@ -54,8 +48,8 @@ export class CardStorage {
     if (board) {
       board.cards[card.miroLink!] = card;
       await this.context.workspaceState.update(`board-${boardId}`, board);
+      this.fire({ type: "cardUpdate", card, miroLink: card.miroLink });
     }
-    this.notifySubscribers();
   }
 
   getBoard(boardId: string) {
@@ -67,8 +61,8 @@ export class CardStorage {
     if (board) {
       board.name = name;
       this.context.workspaceState.update(`board-${boardId}`, board);
+      this.fire({ type: "boardUpdate", board, boardId });
     }
-    this.notifySubscribers();
     return board;
   }
 
@@ -83,8 +77,8 @@ export class CardStorage {
         {} as Record<string, CardData>,
       );
       this.context.workspaceState.update(`board-${boardId}`, board);
+      this.fire({ type: "boardUpdate", board, boardId });
     }
-    this.notifySubscribers();
   }
 
   totalCards() {
@@ -105,18 +99,18 @@ export class CardStorage {
       if (b.cards[link]) {
         delete b.cards[link];
         this.context.workspaceState.update(`board-${b.id}`, b);
+        this.fire({ type: "cardUpdate", miroLink: link, card: null });
       }
     });
-    this.notifySubscribers();
   }
 
   clear() {
-    this.listBoardIds().forEach((id) => {
-      this.context.workspaceState.update(`board-${id}`, undefined);
+    this.listBoardIds().forEach((boardId) => {
+      this.context.workspaceState.update(`board-${boardId}`, undefined);
+      this.fire({ type: "boardUpdate", board: null, boardId: boardId });
     });
     this.boards.clear();
     this.context.workspaceState.update("boardIds", []);
-    this.notifySubscribers();
   }
 
   set(miroLink: string, card: CardData) {
@@ -128,9 +122,9 @@ export class CardStorage {
       if (board) {
         board.cards[miroLink] = card;
         this.context.workspaceState.update(`board-${boardId}`, board);
+        this.fire({ type: "cardUpdate", miroLink, card });
       }
     }
-    this.notifySubscribers();
   }
 
   setWorkspaceBoards(boardIds: string[]) {
@@ -139,7 +133,7 @@ export class CardStorage {
     } else {
       this.context.workspaceState.update(`board-filter`, boardIds);
     }
-    this.notifySubscribers();
+    this.fire({ type: "workspaceBoards", boardIds });
   }
   listWorkspaceBoards() {
     return (

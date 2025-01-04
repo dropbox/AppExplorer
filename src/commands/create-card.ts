@@ -1,9 +1,9 @@
 import * as vscode from "vscode";
-import { HandlerContext } from "../extension";
-import { getRelativePath } from "../get-relative-path";
 import { CardData } from "../EventTypes";
-import { selectRangeInEditor } from "../extension";
+import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
+import { getRelativePath } from "../get-relative-path";
+import { MiroServer } from "../server";
 
 export class UnreachableError extends Error {
   constructor(item: never) {
@@ -52,7 +52,10 @@ export async function selectConnectedBoard({
   }
 }
 
-export const makeNewCardHandler = (context: HandlerContext) =>
+export const makeNewCardHandler = (
+  context: HandlerContext,
+  miroServer: MiroServer,
+) =>
   async function (options: CreateCardOptions = {}) {
     const editor = vscode.window.activeTextEditor;
     if (editor) {
@@ -68,7 +71,7 @@ export const makeNewCardHandler = (context: HandlerContext) =>
           canPickMany: false,
         });
         if (cardData) {
-          context.queryHandler.query(boardId, "newCards", cardData, {
+          miroServer.query(boardId, "newCards", cardData, {
             connect: options.connect,
           });
         }

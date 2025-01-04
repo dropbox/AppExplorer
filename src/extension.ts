@@ -1,31 +1,29 @@
-import * as vscode from "vscode";
-import { makeExpressServer } from "./server";
-import type { CardData } from "./EventTypes";
 import type { Socket } from "socket.io";
-import { makeNewCardHandler } from "./commands/create-card";
+import * as vscode from "vscode";
+import { AppExplorerLens } from "./app-explorer-lens";
+import { CardStorage } from "./card-storage";
+import { makeAttachCardHandler } from "./commands/attach-card";
 import {
   findCardDestination,
   goToCardCode,
   makeBrowseHandler,
 } from "./commands/browse";
-import { makeAttachCardHandler } from "./commands/attach-card";
-import { makeTagCardHandler } from "./commands/tag-card";
-import { makeRenameHandler } from "./commands/rename-board";
-import { makeNavigationHandler } from "./commands/navigate";
-import { AppExplorerLens } from "./app-explorer-lens";
-import { EditorDecorator } from "./editor-decorator";
-import { StatusBarManager } from "./status-bar-manager";
-import { CardStorage } from "./card-storage";
-import { getGitHubUrl } from "./get-github-url";
+import { makeNewCardHandler, UnreachableError } from "./commands/create-card";
 import { makeWorkspaceBoardHandler } from "./commands/manage-workspace-boards";
-import { QueryHandler } from "./query-handler";
+import { makeNavigationHandler } from "./commands/navigate";
+import { makeRenameHandler } from "./commands/rename-board";
+import { makeTagCardHandler } from "./commands/tag-card";
+import { EditorDecorator } from "./editor-decorator";
+import type { CardData } from "./EventTypes";
+import { getGitHubUrl } from "./get-github-url";
+import { MiroServer } from "./server";
+import { StatusBarManager } from "./status-bar-manager";
 
 export type HandlerContext = {
   cardStorage: CardStorage;
   connectedBoards: Set<string>;
   renderStatusBar: () => void;
   waitForConnections: () => Promise<void>;
-  queryHandler: QueryHandler;
 };
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -37,13 +35,11 @@ export async function activate(context: vscode.ExtensionContext) {
     cardStorage,
     context,
   );
-  const queryHandler = new QueryHandler();
 
   const handlerContext: HandlerContext = {
     cardStorage,
     connectedBoards,
     renderStatusBar: statusBarManager.renderStatusBar.bind(statusBarManager),
-    queryHandler,
     async waitForConnections() {
       if (sockets.size > 0) {
         return;
@@ -106,7 +102,7 @@ export async function activate(context: vscode.ExtensionContext) {
           miroLink: codeLink ?? undefined,
         });
       }
-      handlerContext.queryHandler.query(card.boardId, "cardStatus", {
+      miroServer.query(card.boardId, "cardStatus", {
         miroLink: card.miroLink,
         status,
         codeLink,
@@ -115,9 +111,50 @@ export async function activate(context: vscode.ExtensionContext) {
     return status === "connected";
   };
 
-  context.subscriptions.push(
-    makeExpressServer(handlerContext, sockets, navigateToCard),
-  );
+  const miroServer = new MiroServer(handlerContext, sockets);
+  context.subscriptions.push(miroServer);
+  miroServer.event(async (event) => {
+    switch (event.type) {
+      case "navigateToCard": {
+        navigateToCard(event.card);
+        break;
+      }
+      case "updateCard": {
+        if (event.miroLink) {
+          const { card, miroLink } = event;
+          if (card) {
+            handlerContext.cardStorage.setCard(miroLink, card);
+          } else {
+            handlerContext.cardStorage.deleteCardByLink(miroLink);
+          }
+          handlerContext.renderStatusBar();
+        }
+        break;
+      }
+      case "disconnect": {
+        handlerContext.renderStatusBar();
+        break;
+      }
+      case "connect": {
+        const { boardInfo } = event;
+        const selection = await vscode.window.showInformationMessage(
+          `AppExplorer - Connected to board: ${boardInfo?.name ?? boardInfo.id}`,
+          "Rename Board",
+        );
+        if (selection === "Rename Board") {
+          vscode.commands.executeCommand(
+            "app-explorer.renameBoard",
+            boardInfo.id,
+          );
+        }
+        handlerContext.renderStatusBar();
+        break;
+      }
+      default:
+        throw new UnreachableError(event);
+    }
+  });
+
   context.subscriptions.push(
     vscode.commands.registerCommand("app-explorer.connect", () => {
       // This command doesn't really need to do anything. By activating the
@@ -140,41 +177,41 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.navigate",
-      makeNavigationHandler(handlerContext),
+      makeNavigationHandler(handlerContext, miroServer),
     ),
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.browseCards",
-      makeBrowseHandler(handlerContext, navigateToCard),
+      makeBrowseHandler(handlerContext, navigateToCard, miroServer),
     ),
   );
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.createCard",
-      makeNewCardHandler(handlerContext),
+      makeNewCardHandler(handlerContext, miroServer),
     ),
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.attachCard",
-      makeAttachCardHandler(handlerContext),
+      makeAttachCardHandler(handlerContext, miroServer),
     ),
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.tagCard",
-      makeTagCardHandler(handlerContext),
+      makeTagCardHandler(handlerContext, miroServer),
     ),
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.renameBoard",
-      makeRenameHandler(handlerContext),
+      makeRenameHandler(handlerContext, miroServer),
     ),
   );
 

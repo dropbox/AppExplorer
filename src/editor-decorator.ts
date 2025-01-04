@@ -87,10 +87,10 @@ export class EditorDecorator {
     if (this.#activeEdtior) {
       this.triggerUpdate();
     }
-    const dispose = handlerContext.cardStorage.subscribe(() =>
+    const disposable = handlerContext.cardStorage.event(() =>
       this.triggerUpdate(true),
     );
-    context.subscriptions.push({ dispose });
+    context.subscriptions.push(disposable);
   }
 
   async onJump(

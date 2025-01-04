@@ -41,7 +41,7 @@
       },
       {
         "command": "app-explorer.connect",
-        "title": "AppExplorer: Start Server for Miro"
+        "title": "AppExplorer: Start Local Miro Server"
       }
     ],
     "icons": {

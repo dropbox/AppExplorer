@@ -1,9 +1,10 @@
 import * as vscode from "vscode";
-import { HandlerContext, selectRangeInEditor } from "../extension";
 import { CardData } from "../EventTypes";
-import { getRelativePath } from "../get-relative-path";
-import { SymbolAnchor, readSymbols } from "./create-card";
+import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
+import { getRelativePath } from "../get-relative-path";
+import { MiroServer } from "../server";
+import { SymbolAnchor, readSymbols } from "./create-card";
 
 export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
   const boards = cardStorage
@@ -32,6 +33,7 @@ export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
 export const makeBrowseHandler = (
   context: HandlerContext,
   navigateToCard: (card: CardData, preview?: boolean) => Promise<boolean>,
+  miroServer: MiroServer,
 ) =>
   async function () {
     const { cardStorage } = context;
@@ -92,7 +94,7 @@ export const makeBrowseHandler = (
       onDidSelectItem: async (item: CardQuickPickItem) => {
         const card = cardStorage.getCardByLink(item.miroLink);
         if (card && card.miroLink) {
-          context.queryHandler.query(card.boardId, "hoverCard", card.miroLink);
+          miroServer.query(card.boardId, "hoverCard", card.miroLink);
           await navigateToCard(card, true);
         }
       },
@@ -105,7 +107,7 @@ export const makeBrowseHandler = (
     } else if (selected) {
       const card = cardStorage.getCardByLink(selected.miroLink);
       if (card) {
-        context.queryHandler.query(card.boardId, "selectCard", card.miroLink!);
+        miroServer.query(card.boardId, "selectCard", card.miroLink!);
         const dest = await findCardDestination(card);
         const status = (await goToCardCode(card))
           ? "connected"
@@ -135,7 +137,7 @@ export const makeBrowseHandler = (
             }
           }
 
-          context.queryHandler.query(card.boardId, "cardStatus", {
+          miroServer.query(card.boardId, "cardStatus", {
             miroLink: card.miroLink,
             status,
             codeLink,

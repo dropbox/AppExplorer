@@ -1,23 +1,24 @@
-import * as vscode from "vscode";
-import { HandlerContext } from "../extension";
-import { CardData, allColors } from "../EventTypes";
 import { TagColor } from "@mirohq/websdk-types";
+import * as vscode from "vscode";
+import { CardData, allColors } from "../EventTypes";
+import { HandlerContext } from "../extension";
+import { MiroServer } from "../server";
 
 export function notEmpty<T>(value: T | null | undefined): value is T {
   return value != null;
 }
 
-export const makeTagCardHandler = (context: HandlerContext) => {
+export const makeTagCardHandler = (
+  context: HandlerContext,
+  miroServer: MiroServer,
+) => {
   return async function () {
     await context.waitForConnections();
 
     const selectedCards = await [...context.connectedBoards.values()].reduce(
       async (p, boardId) => {
         const selected: CardData[] = await p;
-        const selectedCards = await context.queryHandler.query(
-          boardId,
-          "selected",
-        );
+        const selectedCards = await miroServer.query(boardId, "selected");
         return selected.concat(selectedCards).filter(notEmpty);
       },
       Promise.resolve([] as CardData[]),
@@ -44,7 +45,7 @@ export const makeTagCardHandler = (context: HandlerContext) => {
         id: "NEW_TAG",
       };
       const quickPicks: TagSelection[] = [newCard];
-      const tags = await context.queryHandler.query(boardId, "tags");
+      const tags = await miroServer.query(boardId, "tags");
       quickPicks.push(
         ...tags.map((tag) => ({
           label: tag.title,
@@ -69,7 +70,7 @@ export const makeTagCardHandler = (context: HandlerContext) => {
             title: "Tag Color",
           });
           if (color) {
-            context.queryHandler.query(boardId, "tagCards", {
+            miroServer.query(boardId, "tagCards", {
               miroLink: links,
               tag: {
                 title,
@@ -78,7 +79,7 @@ export const makeTagCardHandler = (context: HandlerContext) => {
             });
           }
         } else {
-          context.queryHandler.query(boardId, "tagCards", {
+          miroServer.query(boardId, "tagCards", {
             miroLink: links,
             tag: tag.id,
           });
