@@ -56,7 +56,7 @@ export type Queries = {
           title: string;
         };
   }) => Promise<void>;
-  selectCard: (miroLink: string) => Promise<void>;
+  selectCard: (miroLink: string) => Promise<boolean>;
   cardStatus: (data: {
     miroLink: string;
     status: "connected" | "disconnected";

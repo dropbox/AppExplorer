@@ -11,13 +11,25 @@ export const makeNavigationHandler = (
     const card = context.cardStorage.getCardByLink(miroLink);
     if (card && context.connectedBoards.size > 0) {
       const codeLink = await getGitHubUrl(locationLink);
-      vscode.window.showInformationMessage(`Selecting card ${card.title}`);
-      miroServer.query(card.boardId, "cardStatus", {
+      await miroServer.query(card.boardId, "cardStatus", {
         codeLink,
         miroLink,
         status: "connected",
       });
-      miroServer.query(card.boardId, "selectCard", miroLink);
+      const success = await miroServer.query(
+        card.boardId,
+        "selectCard",
+        miroLink,
+      );
+      if (success) {
+        await vscode.window.showInformationMessage(
+          `Selected card ${card.title} [${miroLink}]`,
+        );
+      } else {
+        await vscode.window.showErrorMessage(
+          `Failed to select card ${card.title} [${miroLink}]`,
+        );
+      }
     } else {
       vscode.window.showInformationMessage(
         `Opening card ${miroLink} in browser`,

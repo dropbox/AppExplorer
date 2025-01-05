@@ -337,13 +337,18 @@ export async function attachToSocket() {
           await miro.board.select({ id: card.id });
           await zoomIntoCards([card]);
           miro.board.notifications.showInfo(`Selected card: ${card.title}`);
+          return true;
         } else {
           socket.emit("card", { url: cardUrl, card: null });
           miro.board.notifications.showError(`Card not found ${cardUrl}`);
         }
       } catch (error) {
         console.error("AppExplorer: Error selecting card", error);
+        miro.board.notifications.showError(
+          `AppExplorer: Error selecting card ${error}`,
+        );
       }
+      return false;
     },
     cardStatus: async ({ miroLink, status, codeLink }) => {
       try {
