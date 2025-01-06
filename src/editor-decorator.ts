@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import { ExtensionContext } from "vscode";
 import { readSymbols } from "./commands/create-card";
 import { CardData } from "./EventTypes";
 import { HandlerContext } from "./extension";
@@ -14,11 +13,9 @@ export class EditorDecorator {
   #activeEdtior: vscode.TextEditor | undefined;
   timeout: NodeJS.Timeout | undefined;
   #decoratorMap = new WeakMap<vscode.TextEditor, CardDecoration[]>();
+  subscriptions: vscode.Disposable[] = [];
 
-  constructor(
-    private context: ExtensionContext,
-    private handlerContext: HandlerContext,
-  ) {
+  constructor(private handlerContext: HandlerContext) {
     this.#decorator = vscode.window.createTextEditorDecorationType({
       backgroundColor: new vscode.ThemeColor("appExplorer.backgroundHighlight"),
       overviewRulerColor: new vscode.ThemeColor("appExplorer.rulerColor"),
@@ -29,7 +26,7 @@ export class EditorDecorator {
     let lastPosition: vscode.Position | undefined;
     let lastEditor: vscode.TextEditor | undefined;
 
-    context.subscriptions.push(
+    this.subscriptions.push(
       vscode.window.onDidChangeActiveTextEditor(
         (editor) => {
           if (this.#activeEdtior && !editor) {
@@ -47,10 +44,10 @@ export class EditorDecorator {
           }
         },
         null,
-        this.context.subscriptions,
+        this.subscriptions,
       ),
     );
-    context.subscriptions.push(
+    this.subscriptions.push(
       vscode.workspace.onDidChangeTextDocument(
         (event) => {
           if (
@@ -61,11 +58,11 @@ export class EditorDecorator {
           }
         },
         null,
-        this.context.subscriptions,
+        this.subscriptions,
       ),
     );
 
-    context.subscriptions.push(
+    this.subscriptions.push(
       vscode.window.onDidChangeTextEditorSelection(
         async (event) => {
           const editor = event.textEditor;
@@ -80,7 +77,7 @@ export class EditorDecorator {
           }
         },
         null,
-        this.context.subscriptions,
+        this.subscriptions,
       ),
     );
 
@@ -90,7 +87,12 @@ export class EditorDecorator {
     const disposable = handlerContext.cardStorage.event(() =>
       this.triggerUpdate(true),
     );
-    context.subscriptions.push(disposable);
+    this.subscriptions.push(disposable);
+  }
+
+  dispose() {
+    this.#decorator.dispose();
+    this.subscriptions.forEach((s) => s.dispose());
   }
 
   async onJump(

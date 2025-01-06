@@ -104,48 +104,50 @@ export async function activate(context: vscode.ExtensionContext) {
   };
 
   const miroServer = new MiroServer(handlerContext);
-  context.subscriptions.push(miroServer);
-  miroServer.event(async (event) => {
-    switch (event.type) {
-      case "navigateToCard": {
-        navigateToCard(event.card);
-        break;
-      }
-      case "updateCard": {
-        if (event.miroLink) {
-          const { card, miroLink } = event;
-          if (card) {
-            handlerContext.cardStorage.setCard(miroLink, card);
-          } else {
-            handlerContext.cardStorage.deleteCardByLink(miroLink);
+  context.subscriptions.push(
+    miroServer,
+    miroServer.event(async (event) => {
+      switch (event.type) {
+        case "navigateToCard": {
+          navigateToCard(event.card);
+          break;
+        }
+        case "updateCard": {
+          if (event.miroLink) {
+            const { card, miroLink } = event;
+            if (card) {
+              handlerContext.cardStorage.setCard(miroLink, card);
+            } else {
+              handlerContext.cardStorage.deleteCardByLink(miroLink);
+            }
+            statusBarManager.renderStatusBar();
+          }
+          break;
+        }
+        case "disconnect": {
+          statusBarManager.renderStatusBar();
+          break;
+        }
+        case "connect": {
+          const { boardInfo } = event;
+          const selection = await vscode.window.showInformationMessage(
+            `AppExplorer - Connected to board: ${boardInfo?.name ?? boardInfo.id}`,
+            "Rename Board",
+          );
+          if (selection === "Rename Board") {
+            vscode.commands.executeCommand(
+              "app-explorer.renameBoard",
+              boardInfo.id,
+            );
           }
           statusBarManager.renderStatusBar();
+          break;
         }
-        break;
+        default:
+          throw new UnreachableError(event);
       }
-      case "disconnect": {
-        statusBarManager.renderStatusBar();
-        break;
-      }
-      case "connect": {
-        const { boardInfo } = event;
-        const selection = await vscode.window.showInformationMessage(
-          `AppExplorer - Connected to board: ${boardInfo?.name ?? boardInfo.id}`,
-          "Rename Board",
-        );
-        if (selection === "Rename Board") {
-          vscode.commands.executeCommand(
-            "app-explorer.renameBoard",
-            boardInfo.id,
-          );
-        }
-        statusBarManager.renderStatusBar();
-        break;
-      }
-      default:
-        throw new UnreachableError(event);
-    }
-  });
+    }),
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("app-explorer.connect", () => {
@@ -155,59 +157,35 @@ export async function activate(context: vscode.ExtensionContext) {
       // This is useful for connecting the board for navigation purposes
       // instead of creating new cards.
     }),
-  );
-
-  new EditorDecorator(context, handlerContext);
-
-  context.subscriptions.push(
+    new EditorDecorator(handlerContext),
     vscode.languages.registerCodeLensProvider(
       { scheme: "file" },
       new AppExplorerLens(handlerContext),
     ),
-  );
-
-  context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.navigate",
       makeNavigationHandler(handlerContext, miroServer),
     ),
-  );
-
-  context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.browseCards",
       makeBrowseHandler(handlerContext, navigateToCard, miroServer),
     ),
-  );
-  context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.createCard",
       makeNewCardHandler(handlerContext, miroServer),
     ),
-  );
-
-  context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.attachCard",
       makeAttachCardHandler(handlerContext, miroServer),
     ),
-  );
-
-  context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.tagCard",
       makeTagCardHandler(handlerContext, miroServer),
     ),
-  );
-
-  context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.renameBoard",
       makeRenameHandler(handlerContext, miroServer),
     ),
-  );
-
-  context.subscriptions.push(
     vscode.commands.registerCommand(
       "app-explorer.manageWorkspaceBoards",
       makeWorkspaceBoardHandler(handlerContext),
