@@ -10,9 +10,9 @@
   "include": ["src"],
   "compilerOptions": {
     "module": "commonjs",
-    "target": "ES2022",
+    "target": "ES2023",
     "noEmit": true,
-    "lib": ["ES2022", "DOM"],
+    "lib": ["ES2023", "DOM"],
     "sourceMap": true,
     "rootDir": "src",
     "strict": true,
@@ -21,6 +21,7 @@
     "noImplicitReturns": true /* Report error when not all code paths in function return a value. */,
     "noFallthroughCasesInSwitch": true /* Report errors for fallthrough cases in switch statement. */,
     "resolveJsonModule": true,
+    "esModuleInterop": true,
     "noUnusedParameters": true /* Report errors on unused parameters. */
   }
 }

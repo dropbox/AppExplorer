@@ -5,11 +5,14 @@ import { getGitHubUrl } from "../get-github-url";
 import { getRelativePath } from "../get-relative-path";
 import { MiroServer } from "../server";
 import { SymbolAnchor, readSymbols } from "./create-card";
+import { logger } from "../ChannelLogger";
+import { notEmpty } from "./tag-card";
 
 export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
   const boards = cardStorage
     .listWorkspaceBoards()
-    .map((boardId) => cardStorage.getBoard(boardId)!);
+    .map((boardId) => cardStorage.getBoard(boardId))
+    .filter(notEmpty);
   const items = boards.map(
     (board): vscode.QuickPickItem => ({
       label: board.name === board.id ? `Board ID: ${board.id}` : board.name,
@@ -42,6 +45,7 @@ export const makeBrowseHandler = (
     };
 
     const board = await selectBoard(cardStorage);
+    logger.log("Selected board", board);
     if (!board) {
       return;
     }
@@ -99,6 +103,7 @@ export const makeBrowseHandler = (
         }
       },
     });
+    logger.log("Selected card", selected);
     if (!selected && originalSelection) {
       const editor = await vscode.window.showTextDocument(
         activeEditor.document.uri,

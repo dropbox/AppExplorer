@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { CardStorage } from "./card-storage";
+import { logger } from "./ChannelLogger";
 
 export class StatusBarManager {
   public statusBar: vscode.StatusBarItem;
@@ -10,7 +11,10 @@ export class StatusBarManager {
       100,
     );
     this.statusBar.command = "app-explorer.browseCards";
-    cardStorage.event(() => this.renderStatusBar());
+    cardStorage.event((event) => {
+      logger.log("statusBarManager event", event.type);
+      this.renderStatusBar();
+    });
   }
 
   dispose() {
@@ -24,8 +28,14 @@ export class StatusBarManager {
     }
     const boardIds = this.cardStorage.listWorkspaceBoards();
     const allCards = boardIds.flatMap((boardId) =>
-      Object.values(this.cardStorage.getBoard(boardId)!.cards),
+      Object.values(this.cardStorage.getBoard(boardId)?.cards ?? []),
     );
+    logger.log("status bar boardIds", boardIds);
+    logger.log(
+      boardIds.map((boardId) => this.cardStorage.getBoard(boardId)),
+      // .map((b) => `${b?.id} ${b?.cards.length}`),
+    );
+    logger.log("status bar allCards", allCards);
     const totalCards = allCards.length;
     if (connectedBoards.length > 0) {
       const disconnected = allCards.filter(

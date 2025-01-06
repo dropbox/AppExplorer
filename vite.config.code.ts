@@ -9,6 +9,7 @@ const rollupOptions = {
     "http",
     "https",
     "net",
+    "node-ipc",
     "path",
     "querystring",
     "stream",
