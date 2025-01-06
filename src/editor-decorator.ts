@@ -20,8 +20,8 @@ export class EditorDecorator {
     private handlerContext: HandlerContext,
   ) {
     this.#decorator = vscode.window.createTextEditorDecorationType({
-      backgroundColor: "rgba(0, 0, 255, 0.05)",
-      overviewRulerColor: "blue",
+      backgroundColor: new vscode.ThemeColor("appExplorer.backgroundHighlight"),
+      overviewRulerColor: new vscode.ThemeColor("appExplorer.rulerColor"),
       overviewRulerLane: vscode.OverviewRulerLane.Right,
     });
     this.#activeEdtior = vscode.window.activeTextEditor;

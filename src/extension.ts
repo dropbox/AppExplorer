@@ -22,11 +22,12 @@ import { StatusBarManager } from "./status-bar-manager";
 export type HandlerContext = {
   cardStorage: CardStorage;
   connectedBoards: Set<string>;
-  renderStatusBar: () => void;
   waitForConnections: () => Promise<void>;
 };
 
 export async function activate(context: vscode.ExtensionContext) {
+  vscode.commands.executeCommand("setContext", "appExplorer.enabled", true);
+
   const cardStorage = new CardStorage(context);
   const sockets = new Map<string, Socket>();
   const connectedBoards = new Set<string>();
@@ -39,7 +40,6 @@ export async function activate(context: vscode.ExtensionContext) {
   const handlerContext: HandlerContext = {
     cardStorage,
     connectedBoards,
-    renderStatusBar: statusBarManager.renderStatusBar.bind(statusBarManager),
     async waitForConnections() {
       if (sockets.size > 0) {
         return;
@@ -127,12 +127,12 @@ export async function activate(context: vscode.ExtensionContext) {
           } else {
             handlerContext.cardStorage.deleteCardByLink(miroLink);
           }
-          handlerContext.renderStatusBar();
+          statusBarManager.renderStatusBar();
         }
         break;
       }
       case "disconnect": {
-        handlerContext.renderStatusBar();
+        statusBarManager.renderStatusBar();
         break;
       }
       case "connect": {
@@ -147,7 +147,7 @@ export async function activate(context: vscode.ExtensionContext) {
             boardInfo.id,
           );
         }
-        handlerContext.renderStatusBar();
+        statusBarManager.renderStatusBar();
         break;
       }
       default:
@@ -221,6 +221,11 @@ export async function activate(context: vscode.ExtensionContext) {
       makeWorkspaceBoardHandler(handlerContext),
     ),
   );
+
+  return {
+    // IDK what to use this for, I just want to verify it works.
+    appExplorer: true,
+  };
 }
 
 export function deactivate() {}

@@ -44,6 +44,58 @@
         "title": "AppExplorer: Start Local Miro Server"
       }
     ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "app-explorer.createCard",
+          "when": "appExplorer.enabled"
+        },
+        {
+          "command": "app-explorer.attachCard",
+          "when": "appExplorer.enabled"
+        },
+        {
+          "command": "app-explorer.tagCard",
+          "when": "appExplorer.enabled"
+        },
+        {
+          "command": "app-explorer.manageWorkspaceBoards",
+          "when": "appExplorer.enabled"
+        },
+        {
+          "command": "app-explorer.renameBoard",
+          "when": "appExplorer.enabled"
+        },
+        {
+          "command": "app-explorer.navigate",
+          "when": "appExplorer.enabled"
+        },
+        {
+          "command": "app-explorer.connect",
+          "when": "!appExplorer.enabled"
+        }
+      ]
+    },
+    "colors": [
+      {
+        "id": "appExplorer.backgroundHighlight",
+        "description": "Background applied to code that is connected to a card.",
+        "defaults": {
+          "dark": "#0000ff0d",
+          "light": "#0000ff0d",
+          "highContrast": "#0000ff0d"
+        }
+      },
+      {
+        "id": "appExplorer.rulerColor",
+        "description": "Color of the ruler line that represents cards.",
+        "defaults": {
+          "dark": "#0000ff",
+          "light": "#0000ff",
+          "highContrast": "#0000ff"
+        }
+      }
+    ],
     "icons": {
       "app-explorer": {
         "description": "AppExplorer Icon",

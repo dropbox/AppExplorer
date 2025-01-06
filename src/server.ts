@@ -27,6 +27,7 @@ type MiroEvents =
 
 export class MiroServer extends vscode.EventEmitter<MiroEvents> {
   subscriptions = [] as vscode.Disposable[];
+  httpServer: ReturnType<typeof createServer>;
 
   constructor(
     private context: HandlerContext,
@@ -34,11 +35,10 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     private sockets: Map<string, Socket<ResponseEvents, RequestEvents>>,
   ) {
     super();
-    this.event(() => this.context.renderStatusBar());
 
     const app = express();
-    const httpServer = createServer(app);
-    const io = new Server<ResponseEvents, RequestEvents>(httpServer);
+    this.httpServer = createServer(app);
+    const io = new Server<ResponseEvents, RequestEvents>(this.httpServer);
     io.on("connection", this.onConnection.bind(this));
 
     app.use(compression());
@@ -51,14 +51,19 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
 
     const port = 50505;
 
-    httpServer.on("error", (e) => {
+    this.httpServer.on("error", (e) => {
       vscode.window.showErrorMessage(`AppExplorer - ${String(e)}`);
     });
-    httpServer.listen(port, () => {
+    this.httpServer.listen(port, () => {
       vscode.window.showInformationMessage(
         `AppExplorer - Server started. Open a Miro board to connect.`,
       );
     });
+  }
+
+  destroy() {
+    this.subscriptions.forEach((s) => s.dispose());
+    this.httpServer.closeAllConnections();
   }
 
   async onConnection(
