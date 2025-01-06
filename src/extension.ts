@@ -1,4 +1,3 @@
-import type { Socket } from "socket.io";
 import * as vscode from "vscode";
 import { AppExplorerLens } from "./app-explorer-lens";
 import { CardStorage } from "./card-storage";
@@ -21,7 +20,6 @@ import { StatusBarManager } from "./status-bar-manager";
 
 export type HandlerContext = {
   cardStorage: CardStorage;
-  connectedBoards: Set<string>;
   waitForConnections: () => Promise<void>;
 };
 
@@ -29,19 +27,13 @@ export async function activate(context: vscode.ExtensionContext) {
   vscode.commands.executeCommand("setContext", "appExplorer.enabled", true);
 
   const cardStorage = new CardStorage(context);
-  const sockets = new Map<string, Socket>();
-  const connectedBoards = new Set<string>();
-  const statusBarManager = new StatusBarManager(
-    connectedBoards,
-    cardStorage,
-    context,
-  );
+  const statusBarManager = new StatusBarManager(cardStorage);
+  context.subscriptions.push(statusBarManager);
 
   const handlerContext: HandlerContext = {
     cardStorage,
-    connectedBoards,
     async waitForConnections() {
-      if (sockets.size > 0) {
+      if (cardStorage.getConnectedBoards().length > 0) {
         return;
       }
 
@@ -56,7 +48,7 @@ export async function activate(context: vscode.ExtensionContext) {
             console.log("User canceled the long running operation");
           });
 
-          while (sockets.size === 0) {
+          while (cardStorage.getConnectedBoards().length === 0) {
             await new Promise((resolve) => setTimeout(resolve, 500));
           }
         },
@@ -111,7 +103,7 @@ export async function activate(context: vscode.ExtensionContext) {
     return status === "connected";
   };
 
-  const miroServer = new MiroServer(handlerContext, sockets);
+  const miroServer = new MiroServer(handlerContext);
   context.subscriptions.push(miroServer);
   miroServer.event(async (event) => {
     switch (event.type) {
@@ -228,7 +220,9 @@ export async function activate(context: vscode.ExtensionContext) {
   };
 }
 
-export function deactivate() {}
+export function deactivate() {
+  vscode.commands.executeCommand("setContext", "appExplorer.enabled", false);
+}
 
 export function selectRangeInEditor(
   range: vscode.Range,

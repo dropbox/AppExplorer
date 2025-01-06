@@ -29,11 +29,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
   subscriptions = [] as vscode.Disposable[];
   httpServer: ReturnType<typeof createServer>;
 
-  constructor(
-    private context: HandlerContext,
-
-    private sockets: Map<string, Socket<ResponseEvents, RequestEvents>>,
-  ) {
+  constructor(private context: HandlerContext) {
     super();
 
     const app = express();
@@ -70,15 +66,11 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     socket: Socket<ResponseEvents, RequestEvents, DefaultEventsMap, any>,
   ) {
-    const { sockets, context } = this;
+    const { context } = this;
     const info = await querySocket(socket, "getBoardInfo");
     const boardId = info.boardId;
-    sockets.set(boardId, socket);
-    socket.on("disconnect", () => {
-      if (boardId) {
-        context.connectedBoards.delete(boardId);
-        sockets.delete(boardId);
-      }
+    context.cardStorage.connectBoard(boardId, socket);
+    socket.once("disconnect", () => {
       this.fire({ type: "disconnect" });
     });
     socket.on("navigateTo", async (card) =>
@@ -97,7 +89,6 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     }
     const cards = await querySocket(socket, "cards");
     context.cardStorage.setBoardCards(boardId, cards);
-    context.connectedBoards.add(boardId);
     this.fire({ type: "connect", boardInfo });
   }
   async query<Req extends keyof Queries, Res extends ReturnType<Queries[Req]>>(
@@ -105,7 +96,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     name: Req,
     ...data: Parameters<Queries[Req]>
   ): Promise<Res> {
-    const socket = this.sockets.get(boardId);
+    const socket = this.context.cardStorage.getBoardSocket(boardId);
     invariant(socket, `No connection to board ${boardId}`);
     return querySocket<Req, Res>(socket, name, ...data);
   }

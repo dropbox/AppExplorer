@@ -1,3 +1,4 @@
+import type { Socket } from "socket.io";
 import * as vscode from "vscode";
 import { CardData } from "./EventTypes";
 
@@ -10,6 +11,7 @@ export type BoardInfo = {
 type StorageEvent =
   | { type: "workspaceBoards"; boardIds: string[] }
   | { type: "boardUpdate"; board: BoardInfo | null; boardId: BoardInfo["id"] }
+  | { type: "connectedBoards"; boards: string[] }
   | {
       type: "cardUpdate";
       miroLink: CardData["miroLink"];
@@ -18,6 +20,9 @@ type StorageEvent =
 
 export class CardStorage extends vscode.EventEmitter<StorageEvent> {
   private boards = new Map<BoardInfo["id"], BoardInfo>();
+
+  private sockets = new Map<string, Socket>();
+  private connectedBoards = new Set<string>();
 
   constructor(private context: vscode.ExtensionContext) {
     super();
@@ -30,6 +35,31 @@ export class CardStorage extends vscode.EventEmitter<StorageEvent> {
       }
     });
     this.context.subscriptions.push(this);
+  }
+
+  getConnectedBoards() {
+    return Array.from(this.connectedBoards);
+  }
+
+  async connectBoard(boardId: string, socket: Socket) {
+    this.sockets.set(boardId, socket);
+    this.connectedBoards.add(boardId);
+    this.fire({
+      type: "connectedBoards",
+      boards: this.getConnectedBoards(),
+    });
+
+    socket.once("disconnect", () => {
+      this.sockets.delete(boardId);
+      this.fire({
+        type: "connectedBoards",
+        boards: this.getConnectedBoards(),
+      });
+    });
+  }
+
+  getBoardSocket(boardId: string) {
+    return this.sockets.get(boardId);
   }
 
   async addBoard(boardId: string, name: string) {

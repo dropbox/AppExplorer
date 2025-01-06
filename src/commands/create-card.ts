@@ -24,15 +24,12 @@ type CreateCardOptions = {
   connect?: string[];
 };
 
-export async function selectConnectedBoard({
-  connectedBoards,
-  cardStorage,
-}: HandlerContext) {
-  if (connectedBoards.size === 1) {
-    return connectedBoards.values().next().value;
+export async function selectConnectedBoard({ cardStorage }: HandlerContext) {
+  const connectedBoards = cardStorage.getConnectedBoards();
+  if (connectedBoards.length === 1) {
+    return connectedBoards[0];
   } else {
-    const connectedBoardIds = [...connectedBoards];
-    const boards = connectedBoardIds.map((k) => cardStorage.getBoard(k)!);
+    const boards = connectedBoards.map((k) => cardStorage.getBoard(k)!);
 
     const items = boards.map((board): vscode.QuickPickItem => {
       return {
@@ -48,7 +45,7 @@ export async function selectConnectedBoard({
       return;
     }
     const index = items.indexOf(selected);
-    return connectedBoardIds[index];
+    return connectedBoards[index];
   }
 }
 

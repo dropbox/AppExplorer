@@ -9,7 +9,7 @@ export const makeNavigationHandler = (
 ) => {
   return async (miroLink: string, locationLink: vscode.LocationLink) => {
     const card = context.cardStorage.getCardByLink(miroLink);
-    if (card && context.connectedBoards.size > 0) {
+    if (card && context.cardStorage.getConnectedBoards().length > 0) {
       const codeLink = await getGitHubUrl(locationLink);
       await miroServer.query(card.boardId, "cardStatus", {
         codeLink,

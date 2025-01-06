@@ -8,7 +8,7 @@ export function makeRenameHandler(
 ) {
   return async function renameHandler(boardId?: string) {
     await context.waitForConnections();
-    const connectedBoardIds = [...context.connectedBoards.values()];
+    const connectedBoardIds = context.cardStorage.getConnectedBoards();
     const boards = connectedBoardIds.map(
       (k) => context.cardStorage.getBoard(k)!,
     );

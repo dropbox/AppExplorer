@@ -18,14 +18,16 @@ export const makeAttachCardHandler = (
         return;
       }
       await context.waitForConnections();
-      const selectedCards = await [...context.connectedBoards.values()].reduce(
-        async (p, boardId) => {
-          const selected: CardData[] = await p;
-          const selectedCards = await miroServer.query(boardId, "selected");
-          return selected.concat(selectedCards).filter(notEmpty);
-        },
-        Promise.resolve([] as CardData[]),
-      );
+      const selectedCards = await context.cardStorage
+        .getConnectedBoards()
+        .reduce(
+          async (p, boardId) => {
+            const selected: CardData[] = await p;
+            const selectedCards = await miroServer.query(boardId, "selected");
+            return selected.concat(selectedCards).filter(notEmpty);
+          },
+          Promise.resolve([] as CardData[]),
+        );
 
       if (selectedCards.length === 1) {
         const boardId = selectedCards[0].boardId;

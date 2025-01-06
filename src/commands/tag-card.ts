@@ -15,7 +15,7 @@ export const makeTagCardHandler = (
   return async function () {
     await context.waitForConnections();
 
-    const selectedCards = await [...context.connectedBoards.values()].reduce(
+    const selectedCards = await context.cardStorage.getConnectedBoards().reduce(
       async (p, boardId) => {
         const selected: CardData[] = await p;
         const selectedCards = await miroServer.query(boardId, "selected");
