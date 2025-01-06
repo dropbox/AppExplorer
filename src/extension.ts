@@ -7,7 +7,7 @@ import {
   goToCardCode,
   makeBrowseHandler,
 } from "./commands/browse";
-import { makeNewCardHandler, UnreachableError } from "./commands/create-card";
+import { makeNewCardHandler } from "./commands/create-card";
 import { makeWorkspaceBoardHandler } from "./commands/manage-workspace-boards";
 import { makeNavigationHandler } from "./commands/navigate";
 import { makeRenameHandler } from "./commands/rename-board";
@@ -15,22 +15,29 @@ import { makeTagCardHandler } from "./commands/tag-card";
 import { EditorDecorator } from "./editor-decorator";
 import type { CardData } from "./EventTypes";
 import { getGitHubUrl } from "./get-github-url";
-import { MiroServer } from "./server";
+import { isWebserverRunning, MiroServer } from "./server";
 import { StatusBarManager } from "./status-bar-manager";
+import { logger } from "./ChannelLogger";
 
 export type HandlerContext = {
+  mode: "host" | "client";
   cardStorage: CardStorage;
   waitForConnections: () => Promise<void>;
 };
 
 export async function activate(context: vscode.ExtensionContext) {
   vscode.commands.executeCommand("setContext", "appExplorer.enabled", true);
+  context.subscriptions.push(logger);
 
   const cardStorage = new CardStorage(context);
   const statusBarManager = new StatusBarManager(cardStorage);
   context.subscriptions.push(statusBarManager);
+  statusBarManager.renderStatusBar();
+  const mode = (await isWebserverRunning()) ? "client" : "host";
+  logger.log("mode:", mode);
 
   const handlerContext: HandlerContext = {
+    mode,
     cardStorage,
     async waitForConnections() {
       if (cardStorage.getConnectedBoards().length > 0) {
@@ -45,11 +52,12 @@ export async function activate(context: vscode.ExtensionContext) {
         },
         async (_progress, token) => {
           token.onCancellationRequested(() => {
-            console.log("User canceled the long running operation");
+            logger.log("User canceled the long running operation");
           });
 
           while (cardStorage.getConnectedBoards().length === 0) {
             await new Promise((resolve) => setTimeout(resolve, 500));
+            statusBarManager.renderStatusBar();
           }
         },
       );
@@ -107,6 +115,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     miroServer,
     miroServer.event(async (event) => {
+      logger.log("Miro event", event.type, Object.keys(event));
       switch (event.type) {
         case "navigateToCard": {
           navigateToCard(event.card);
@@ -120,16 +129,17 @@ export async function activate(context: vscode.ExtensionContext) {
             } else {
               handlerContext.cardStorage.deleteCardByLink(miroLink);
             }
-            statusBarManager.renderStatusBar();
           }
           break;
         }
         case "disconnect": {
-          statusBarManager.renderStatusBar();
           break;
         }
         case "connect": {
           const { boardInfo } = event;
+          logger.log("Connected to board", boardInfo.id, boardInfo.name, {
+            cards: boardInfo.cards.length,
+          });
           const selection = await vscode.window.showInformationMessage(
             `AppExplorer - Connected to board: ${boardInfo?.name ?? boardInfo.id}`,
             "Rename Board",
@@ -140,12 +150,12 @@ export async function activate(context: vscode.ExtensionContext) {
               boardInfo.id,
             );
           }
-          statusBarManager.renderStatusBar();
           break;
         }
         default:
-          throw new UnreachableError(event);
+        // throw new UnreachableError(event);
       }
+      statusBarManager.renderStatusBar();
     }),
   );
 

@@ -11,11 +11,19 @@ import { HandlerContext } from "./extension";
 import compression = require("compression");
 import express = require("express");
 import morgan = require("morgan");
+import { BoardInfo } from "./card-storage";
+import { logger } from "./ChannelLogger";
 
-type MiroEvents =
+export function isWebserverRunning() {
+  return fetch("http://localhost:50505")
+    .then((res) => res.ok)
+    .catch(() => false);
+}
+
+export type MiroEvents =
   | {
       type: "connect";
-      boardInfo: { id: string; name: string };
+      boardInfo: BoardInfo;
     }
   | { type: "disconnect" }
   | { type: "navigateToCard"; card: CardData }
@@ -27,14 +35,21 @@ type MiroEvents =
 
 export class MiroServer extends vscode.EventEmitter<MiroEvents> {
   subscriptions = [] as vscode.Disposable[];
-  httpServer: ReturnType<typeof createServer>;
 
   constructor(private context: HandlerContext) {
     super();
+    this.init();
+  }
 
+  init() {
     const app = express();
-    this.httpServer = createServer(app);
-    const io = new Server<ResponseEvents, RequestEvents>(this.httpServer);
+    const httpServer = createServer(app);
+    this.subscriptions.push({
+      dispose: () => {
+        httpServer.closeAllConnections();
+      },
+    });
+    const io = new Server<ResponseEvents, RequestEvents>(httpServer);
     io.on("connection", this.onConnection.bind(this));
 
     app.use(compression());
@@ -47,10 +62,10 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
 
     const port = 50505;
 
-    this.httpServer.on("error", (e) => {
+    httpServer.on("error", (e) => {
       vscode.window.showErrorMessage(`AppExplorer - ${String(e)}`);
     });
-    this.httpServer.listen(port, () => {
+    httpServer.listen(port, () => {
       vscode.window.showInformationMessage(
         `AppExplorer - Server started. Open a Miro board to connect.`,
       );
@@ -59,17 +74,16 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
 
   destroy() {
     this.subscriptions.forEach((s) => s.dispose());
-    this.httpServer.closeAllConnections();
   }
 
   async onConnection(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     socket: Socket<ResponseEvents, RequestEvents, DefaultEventsMap, any>,
   ) {
+    logger.log("onConnection");
     const { context } = this;
     const info = await querySocket(socket, "getBoardInfo");
     const boardId = info.boardId;
-    context.cardStorage.connectBoard(boardId, socket);
     socket.once("disconnect", () => {
       this.fire({ type: "disconnect" });
     });
@@ -81,14 +95,19 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     });
 
     let boardInfo = context.cardStorage.getBoard(boardId);
+    logger.log("Stored board info", !!boardInfo);
     if (!boardInfo) {
       boardInfo = await context.cardStorage.addBoard(boardId, info.name);
     } else if (boardInfo.name !== info.name) {
-      context.cardStorage.setBoardName(boardId, info.name);
+      await context.cardStorage.setBoardName(boardId, info.name);
       boardInfo = { ...boardInfo, name: info.name };
     }
     const cards = await querySocket(socket, "cards");
-    context.cardStorage.setBoardCards(boardId, cards);
+    context.cardStorage.connectBoard(boardId, socket);
+    await context.cardStorage.setBoardCards(boardId, cards);
+    const storedCards = context.cardStorage.getBoard(boardId)?.cards;
+    logger.log("cards", cards?.length);
+    logger.log("Stored cards", Object.keys(storedCards ?? {}).length);
     this.fire({ type: "connect", boardInfo });
   }
   async query<Req extends keyof Queries, Res extends ReturnType<Queries[Req]>>(
