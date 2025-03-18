@@ -9,3 +9,4 @@ dist-code
 .husky/
 public/miro.js
 public/miro.js.map
+coverage/

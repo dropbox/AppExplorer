@@ -1,12 +1,11 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { getRelativePath } from "./get-relative-path";
-import * as util from "util";
-import * as child_process from "child_process";
-export const exec = util.promisify(child_process.exec);
+import { GitUtils, DefaultGitUtils } from "./git-utils";
 
 export async function getGitHubUrl(
   locationLink: vscode.LocationLink,
+  gitUtils: GitUtils = new DefaultGitUtils(),
 ): Promise<string | null> {
   const document = await vscode.workspace.openTextDocument(
     locationLink.targetUri,
@@ -14,36 +13,20 @@ export async function getGitHubUrl(
   const uri = document.uri;
   const filePath = uri.fsPath;
   const relativeFilePath = getRelativePath(uri);
+  const cwd = path.dirname(filePath);
 
-  // Get the current git hash
-  const gitHash = await exec("git rev-parse HEAD", {
-    cwd: path.dirname(filePath),
-  })
-    .then(({ stdout }) => stdout.trim())
-    .catch(() => null);
-
+  const gitHash = await gitUtils.getCurrentHash(cwd);
   if (!gitHash) {
     return null;
   }
 
-  const gitRemotes = await exec("git remote", {
-    cwd: path.dirname(filePath),
-  })
-    .then(({ stdout }) => stdout.trim().split("\n"))
-    .catch(() => [] as string[]);
-
+  const gitRemotes = await gitUtils.getRemotes(cwd);
   let remoteName = "origin";
   if (!gitRemotes.includes(remoteName)) {
     remoteName = gitRemotes[0];
   }
 
-  // Get the remote URL for the current repository
-  const gitRemoteUrl = await exec(`git config --get remote.${remoteName}.url`, {
-    cwd: path.dirname(filePath),
-  })
-    .then(({ stdout }) => stdout.trim())
-    .catch(() => null);
-
+  const gitRemoteUrl = await gitUtils.getRemoteUrl(remoteName, cwd);
   if (!gitRemoteUrl) {
     return null;
   }
