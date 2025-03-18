@@ -40,7 +40,9 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     app.use(compression());
     app.use(
       "/",
-      express.static(path.join(__dirname, "../dist"), { index: "index.html" }),
+      express.static(path.join(__dirname, "../public"), {
+        index: "index.html",
+      }),
     );
 
     app.use(morgan("tiny"));

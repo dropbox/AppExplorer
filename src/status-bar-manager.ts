@@ -20,7 +20,7 @@ export class StatusBarManager {
   renderStatusBar() {
     const connectedBoards = this.cardStorage.getConnectedBoards();
     if (connectedBoards.length == 0) {
-      this.statusBar.backgroundColor = "red";
+      // this.statusBar.backgroundColor = "red";
     }
     const boardIds = this.cardStorage.listWorkspaceBoards();
     const allCards = boardIds.flatMap((boardId) =>

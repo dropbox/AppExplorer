@@ -6,3 +6,6 @@ node_modules
 font/*
 !font/app-explorer.woff
 dist-code
+.husky/
+public/miro.js
+public/miro.js.map

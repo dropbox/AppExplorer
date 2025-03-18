@@ -21,6 +21,8 @@
     "noImplicitReturns": true /* Report error when not all code paths in function return a value. */,
     "noFallthroughCasesInSwitch": true /* Report errors for fallthrough cases in switch statement. */,
     "resolveJsonModule": true,
-    "noUnusedParameters": true /* Report errors on unused parameters. */
+    "noUnusedParameters": true /* Report errors on unused parameters. */,
+    "skipLibCheck": true /* Skip type checking of declaration files. */,
+    "noImplicitAny": true /* Raise error on expressions and declarations with an implied 'any' type. */
   }
 }

@@ -6,13 +6,27 @@
   "publisher": "dropbox",
   "repository": "https://github.com/dropbox/AppExplorer",
   "engines": {
-    "vscode": "^1.80.0"
+    "vscode": "^1.98.0"
   },
   "categories": [
     "Other"
   ],
   "activationEvents": [],
-  "main": "./dist-code/extension.js",
+  "main": "./dist/extension.js",
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.cjs",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.cjs --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.cjs --production",
+    "compile-tests": "tsc -p .  --noEmit false --outDir out",
+    "watch-tests": "tsc -p .  -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
   "contributes": {
     "commands": [
       {
@@ -117,34 +131,25 @@
       }
     ]
   },
-  "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "vite build --config vite.config.code.ts &&  vite build --config vite.config.miro.ts ",
-    "font-icon": "npx svgtofont --sources public/ --output ./font --fontName app-explorer",
-    "pretest": "npm run lint && npm run type-check && npm run format",
-    "format": "prettier --write src",
-    "lint": "eslint src --ext ts",
-    "type-check": "tsc --noEmit",
-    "type-check:watch": "tsc --noEmit --watch",
-    "test": "true",
-    "prepare": "husky"
-  },
   "devDependencies": {
     "@types/compression": "^1.7.3",
     "@types/express": "^4.17.17",
-    "@types/mocha": "^10.0.1",
+    "@types/mocha": "^10.0.10",
     "@types/morgan": "^1.9.5",
-    "@types/node": "^20.17.6",
+    "@types/node": "20.x",
     "@types/socket.io-client": "^3.0.0",
-    "@types/vscode": "1.80",
+    "@types/vscode": "^1.98.0",
     "@types/ws": "^8.5.5",
-    "@typescript-eslint/eslint-plugin": "^6.7.0",
-    "@typescript-eslint/parser": "^6.7.0",
-    "@vscode/test-electron": "^2.3.4",
-    "eslint": "^8.47.0",
+    "@typescript-eslint/eslint-plugin": "^8.25.0",
+    "@typescript-eslint/parser": "^8.25.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "esbuild": "^0.25.0",
+    "eslint": "^9.21.0",
     "husky": "^9.1.7",
     "mocha": "^10.2.0",
-    "typescript": "5.5",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.7.3",
     "vite": "^5.4.11"
   },
   "dependencies": {
