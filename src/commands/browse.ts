@@ -3,8 +3,9 @@ import { CardData } from "../EventTypes";
 import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
 import { getRelativePath } from "../get-relative-path";
+import { LocationFinder } from "../location-finder";
 import { MiroServer } from "../server";
-import { SymbolAnchor, readSymbols } from "./create-card";
+import { SymbolAnchor } from "./create-card";
 
 export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
   const boards = cardStorage
@@ -62,8 +63,12 @@ export const makeBrowseHandler = (
       ...Object.values(board.cards)
         .sort((a, b) => {
           if (a.path !== b.path) {
-            if (a.path === curentPath) return -1;
-            if (b.path === curentPath) return 1;
+            if (a.path === curentPath) {
+              return -1;
+            }
+            if (b.path === curentPath) {
+              return 1;
+            }
           }
           return a.path.localeCompare(b.path) || a.title.localeCompare(b.title);
         })
@@ -179,7 +184,8 @@ export async function findCardDestination(
         }
 
         if ("symbol" in card) {
-          const symbols = await readSymbols(uri);
+          const locationFinder = new LocationFinder();
+          const symbols = await locationFinder.findSymbolsInDocument(uri);
           const symbol = symbols.find((symbol) => symbol.label === card.symbol);
           return symbol ?? uri;
         }

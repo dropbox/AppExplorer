@@ -4,6 +4,7 @@ import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
 import { getRelativePath } from "../get-relative-path";
 import { MiroServer } from "../server";
+import { LocationFinder } from "../location-finder";
 
 export class UnreachableError extends Error {
   constructor(item: never) {
@@ -159,22 +160,15 @@ async function showSymbolPicker(
     canPickMany?: boolean;
   },
 ): Promise<Anchor[] | undefined | typeof cancel> {
-  const allSymbols = await readSymbols(editor.document.uri);
-
-  const selectedSymbol = allSymbols.reduce(
-    (acc, symbol) => {
-      if (symbol.range.contains(position)) {
-        if (!acc || acc.range.contains(symbol.range)) {
-          // Symbol is smaller than the current selection
-          return symbol;
-        }
-
-        return symbol;
-      }
-      return acc;
-    },
-    null as null | SymbolAnchor,
+  const locationFinder = new LocationFinder();
+  const allSymbols = await locationFinder.findSymbolsInDocument(
+    editor.document.uri,
   );
+  const selectedSymbol = await locationFinder.findSymbolInPosition(
+    editor.document.uri,
+    position,
+  );
+
   if (options?.canPickMany && selectedSymbol) {
     allSymbols.sort((a, b) => {
       if (a.label === selectedSymbol.label) {
@@ -253,48 +247,3 @@ export type GroupAnchor = {
 };
 
 export type Anchor = SymbolAnchor | GroupAnchor;
-
-export async function readSymbols(
-  uri: vscode.Uri,
-): Promise<Array<SymbolAnchor>> {
-  const symbols =
-    (await vscode.commands.executeCommand<
-      Array<vscode.SymbolInformation | vscode.DocumentSymbol>
-    >("vscode.executeDocumentSymbolProvider", uri)) || [];
-
-  const sortedSymbols = [...symbols];
-  const allSymbols = sortedSymbols.flatMap(function optionFromSymbol(
-    this: void | undefined,
-    symbol,
-  ): SymbolAnchor[] {
-    let children: Array<SymbolAnchor> = [];
-    if ("children" in symbol) {
-      children = symbol.children.flatMap((s) =>
-        optionFromSymbol({
-          ...s,
-          name: `${symbol.name}/${s.name}`,
-        }),
-      );
-    }
-    let range;
-    if ("location" in symbol) {
-      range = symbol.location.range;
-      uri = symbol.location.uri;
-    } else {
-      range = symbol.range;
-    }
-
-    return [
-      {
-        type: "symbol",
-        label: symbol.name,
-        range,
-        uri,
-        target: symbol,
-      },
-      ...children,
-    ];
-  });
-
-  return allSymbols;
-}

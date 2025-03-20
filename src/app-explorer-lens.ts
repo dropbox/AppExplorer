@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
-import { invariant, readSymbols } from "./commands/create-card";
+import { invariant } from "./commands/create-card";
 import { HandlerContext } from "./extension";
 import { getRelativePath } from "./get-relative-path";
+import { LocationFinder } from "./location-finder";
 
 export class AppExplorerLens implements vscode.CodeLensProvider {
   #handlerContext: HandlerContext;
@@ -16,7 +17,8 @@ export class AppExplorerLens implements vscode.CodeLensProvider {
     const cards = [...this.#handlerContext.cardStorage.listAllCards()].filter(
       (card) => card.path === path,
     );
-    const symbols = await readSymbols(document.uri);
+    const locationFinder = new LocationFinder();
+    const symbols = await locationFinder.findSymbolsInDocument(document.uri);
     return cards.flatMap((card): vscode.CodeLens[] => {
       if (card?.type === "symbol") {
         const symbol = symbols.find((symbol) => symbol.label === card.symbol);

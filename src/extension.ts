@@ -210,25 +210,3 @@ export function selectRangeInEditor(
   editor.selection = newSelection;
   editor.revealRange(newSelection);
 }
-
-export async function getReferencesInFile(
-  document: vscode.TextDocument,
-): Promise<vscode.Location[]> {
-  const symbols = await vscode.commands.executeCommand<
-    vscode.SymbolInformation[]
-  >("vscode.executeDocumentSymbolProvider", document.uri);
-  const references: vscode.Location[] = [];
-  for (const symbol of symbols) {
-    const locations = await vscode.commands.executeCommand<vscode.Location[]>(
-      "vscode.executeReferenceProvider",
-      document.uri,
-      symbol.location.range.start,
-    );
-    for (const location of locations) {
-      if (location.uri.toString() === document.uri.toString()) {
-        references.push(location);
-      }
-    }
-  }
-  return references;
-}

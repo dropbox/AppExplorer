@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
-import { readSymbols } from "./commands/create-card";
 import { CardData } from "./EventTypes";
 import { HandlerContext } from "./extension";
 import { getRelativePath } from "./get-relative-path";
+import { LocationFinder } from "./location-finder";
 
 interface CardDecoration extends vscode.DecorationOptions {
   card: CardData;
@@ -161,7 +161,8 @@ export class EditorDecorator {
     }
     const document = editor.document;
     const cards = this.getCardsInEditor(editor);
-    const symbols = await readSymbols(document.uri);
+    const locationFinder = new LocationFinder();
+    const symbols = await locationFinder.findSymbolsInDocument(document.uri);
 
     const ranges = cards.flatMap((card): CardDecoration[] => {
       if (card?.type === "symbol") {
