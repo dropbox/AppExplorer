@@ -17,6 +17,7 @@ import type { CardData } from "./EventTypes";
 import { getGitHubUrl } from "./get-github-url";
 import { MiroServer } from "./server";
 import { StatusBarManager } from "./status-bar-manager";
+import { LocationFinder } from "./location-finder";
 
 export type HandlerContext = {
   cardStorage: CardStorage;
@@ -26,6 +27,7 @@ export type HandlerContext = {
 export async function activate(context: vscode.ExtensionContext) {
   vscode.commands.executeCommand("setContext", "appExplorer.enabled", true);
 
+  const locationFinder = new LocationFinder();
   const cardStorage = new CardStorage(context);
   const statusBarManager = new StatusBarManager(cardStorage);
   context.subscriptions.push(statusBarManager);
@@ -57,7 +59,7 @@ export async function activate(context: vscode.ExtensionContext) {
   };
 
   const navigateToCard = async (card: CardData, preview = false) => {
-    const dest = await findCardDestination(card);
+    const dest = await locationFinder.findCardDestination(card);
 
     // Only connect if it's able to reach the symbol
     const status = (await goToCardCode(card, preview))

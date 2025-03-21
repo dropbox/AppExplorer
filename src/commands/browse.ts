@@ -38,6 +38,7 @@ export const makeBrowseHandler = (
 ) =>
   async function () {
     const { cardStorage } = context;
+    const locationFinder = new LocationFinder();
     type CardQuickPickItem = vscode.QuickPickItem & {
       miroLink: string;
     };
@@ -113,7 +114,7 @@ export const makeBrowseHandler = (
       const card = cardStorage.getCardByLink(selected.miroLink);
       if (card) {
         miroServer.query(card.boardId, "selectCard", card.miroLink!);
-        const dest = await findCardDestination(card);
+        const dest = await locationFinder.findCardDestination(card);
         const status = (await goToCardCode(card))
           ? "connected"
           : "disconnected";
@@ -155,50 +156,13 @@ export const makeBrowseHandler = (
 export async function findCardDestination(
   card: CardData,
 ): Promise<SymbolAnchor | vscode.Uri | null> {
-  if (card.path) {
-    const path = card.path[0] === "/" ? card.path.slice(1) : card.path;
-    // Get the root directory's URI
-
-    // This reduce acts like a find(), returning the first promise with a value.
-    return (vscode.workspace.workspaceFolders ?? []).reduce(
-      async (result: Promise<SymbolAnchor | vscode.Uri | null>, folder) => {
-        const dest = await result;
-        if (dest != null) {
-          return dest;
-        }
-
-        const rootUri = folder.uri;
-        // Append the relative path to the root directory's URI
-        const uri = rootUri.with({ path: rootUri.path + "/" + path });
-        // Check if this URI exists
-        try {
-          const stat = await vscode.workspace.fs.stat(uri);
-
-          if (stat.type !== vscode.FileType.File) {
-            return null;
-          }
-        } catch (e) {
-          console.error(e);
-          // stat throws if the file doesn't exist.
-          return null;
-        }
-
-        if ("symbol" in card) {
-          const locationFinder = new LocationFinder();
-          const symbols = await locationFinder.findSymbolsInDocument(uri);
-          const symbol = symbols.find((symbol) => symbol.label === card.symbol);
-          return symbol ?? uri;
-        }
-        return uri;
-      },
-      Promise.resolve(null),
-    );
-  }
-  return null;
+  const locationFinder = new LocationFinder();
+  return locationFinder.findCardDestination(card);
 }
 
 export async function goToCardCode(card: CardData, preview = false) {
-  const symbol = await findCardDestination(card);
+  const locationFinder = new LocationFinder();
+  const symbol = await locationFinder.findCardDestination(card);
   if (symbol && "range" in symbol) {
     const editor = await vscode.window.showTextDocument(symbol.uri, {
       preview,

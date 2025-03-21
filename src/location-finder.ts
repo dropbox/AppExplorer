@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { SymbolAnchor, GroupAnchor } from "./commands/create-card";
+import { CardData } from "./EventTypes";
 
 export class LocationFinder {
   async findSymbolsInDocument(uri: vscode.Uri): Promise<Array<SymbolAnchor>> {
@@ -27,6 +28,47 @@ export class LocationFinder {
       },
       null as SymbolAnchor | null,
     );
+  }
+
+  async findCardDestination(
+    card: CardData,
+  ): Promise<SymbolAnchor | vscode.Uri | null> {
+    if (card.path) {
+      const path = card.path[0] === "/" ? card.path.slice(1) : card.path;
+
+      return (vscode.workspace.workspaceFolders ?? []).reduce(
+        async (result: Promise<SymbolAnchor | vscode.Uri | null>, folder) => {
+          const dest = await result;
+          if (dest != null) {
+            return dest;
+          }
+
+          const rootUri = folder.uri;
+          const uri = rootUri.with({ path: rootUri.path + "/" + path });
+
+          try {
+            const stat = await vscode.workspace.fs.stat(uri);
+            if (stat.type !== vscode.FileType.File) {
+              return null;
+            }
+          } catch (e) {
+            console.error(e);
+            return null;
+          }
+
+          if ("symbol" in card) {
+            const symbols = await this.findSymbolsInDocument(uri);
+            const symbol = symbols.find(
+              (symbol) => symbol.label === card.symbol,
+            );
+            return symbol ?? uri;
+          }
+          return uri;
+        },
+        Promise.resolve(null),
+      );
+    }
+    return null;
   }
 
   private flattenSymbols(

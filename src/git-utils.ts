@@ -1,6 +1,6 @@
 import * as util from "util";
-import * as child_process from "child_process";
-const exec = util.promisify(child_process.exec);
+import * as childProcess from "child_process";
+const exec = util.promisify(childProcess.exec);
 
 export interface GitUtils {
   getCurrentHash(cwd: string): Promise<string | null>;
