@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { SymbolAnchor, GroupAnchor } from "./commands/create-card";
+import { SymbolAnchor } from "./commands/create-card";
 import { CardData } from "./EventTypes";
 
 export class LocationFinder {
@@ -39,7 +39,7 @@ export class LocationFinder {
       return (vscode.workspace.workspaceFolders ?? []).reduce(
         async (result: Promise<SymbolAnchor | vscode.Uri | null>, folder) => {
           const dest = await result;
-          if (dest != null) {
+          if (dest !== null && dest !== undefined) {
             return dest;
           }
 

@@ -8,16 +8,26 @@ import type {
   Rect,
   Tag,
 } from "@mirohq/websdk-types";
-import { type Socket } from "socket.io-client";
+import { httpBatchLink } from "@trpc/client";
+import { createTRPCJotai } from "jotai-trpc";
+import { getDefaultStore } from "jotai/vanilla";
 import invariant from "tiny-invariant";
 import {
   type AppExplorerTag,
   type CardData,
   type Handler,
   type Queries,
-  type RequestEvents,
-  type ResponseEvents,
 } from "./EventTypes";
+import type { AppRouter } from "./server";
+const store = getDefaultStore();
+
+const trpc = createTRPCJotai<AppRouter>({
+  links: [
+    httpBatchLink({
+      url: "http://localhost:9042/trpc",
+    }),
+  ],
+});
 
 function decode(str: string) {
   return str.replaceAll(/&#([0-9A-F]{2});/g, (_, charCode) =>
@@ -240,22 +250,18 @@ async function zoomIntoCards(cards: AppCard[]) {
 }
 
 export async function attachToSocket() {
-  const { io } = await import(
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore I need to use a dynamic import to avoid importing from
-    // index-{hash}.js
-    "https://cdn.socket.io/4.3.2/socket.io.esm.min.js"
-  );
-
-  const socket = io() as Socket<RequestEvents, ResponseEvents>;
+  console.log("AppExplorer: Attaching to socket");
+  const echoAtom = trpc.echo.atomWithQuery(() => "ping");
+  console.log("echo", await store.get(echoAtom));
 
   type QueryImplementations = {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [K in keyof Queries]: Queries[K] extends (...args: any[]) => unknown
       ? (...args: Parameters<Queries[K]>) => ReturnType<Queries[K]>
       : never;
   };
+
   const queryImplementations: QueryImplementations = {
+    echo: async (str: string) => str,
     setBoardName: async (name: string) => {
       await miro.board.setAppData("name", name);
     },
@@ -294,7 +300,8 @@ export async function attachToSocket() {
           await miro.board.select({ id: card.id });
           const data = await extractCardData(updatedCard);
           if (data && data.miroLink) {
-            socket.emit("card", { url: data.miroLink, card: data });
+            await store.set(trpc.updateCard.atomWithMutation(), data);
+
             miro.board.notifications.showInfo(`Updated card: ${data.title}`);
           }
         }
@@ -337,7 +344,7 @@ export async function attachToSocket() {
           miro.board.notifications.showInfo(`Selected card: ${card.title}`);
           return true;
         } else {
-          socket.emit("card", { url: cardUrl, card: null });
+          await store.set(trpc.deleteCard.atomWithMutation(), cardUrl);
           miro.board.notifications.showError(`Card not found ${cardUrl}`);
         }
       } catch (error) {
@@ -418,25 +425,14 @@ export async function attachToSocket() {
     },
   };
 
-  socket.on("query", async ({ name, requestId, data }) => {
-    try {
-      const response = await queryImplementations[name](...data);
-      socket.emit("queryResult", {
-        name,
-        requestId,
-        response,
-      });
-    } catch (error) {
-      console.error(`AppExplorer: Error querying ${name}`, error);
-    }
-  });
   miro.board.ui.on("app_card:open", async (event) => {
     try {
       const { appCard } = event;
       const data = await extractCardData(appCard);
       if (data) {
         await miro.board.select({ id: appCard.id });
-        socket.emit("navigateTo", data);
+
+        await store.set(trpc.navigateToCard.atomWithMutation(), data);
         miro.board.notifications.showInfo("Opening card in VSCode");
       }
     } catch (error) {
@@ -449,7 +445,7 @@ export async function attachToSocket() {
       const data = await extractCardData(appCard);
       if (data) {
         await miro.board.select({ id: appCard.id });
-        socket.emit("navigateTo", data);
+        await store.set(trpc.navigateToCard.atomWithMutation(), data);
         miro.board.notifications.showInfo("Opening card in VSCode");
       }
     } catch (error) {
@@ -464,7 +460,7 @@ export async function attachToSocket() {
           await promise;
           const data = await extractCardData(item);
           if (data?.miroLink) {
-            socket.emit("card", { url: data.miroLink, card: data });
+            await store.set(trpc.deleteCard.atomWithMutation(), data.miroLink);
             miro.board.notifications.showInfo("Deleting card in VSCode");
           }
           return null;
@@ -484,12 +480,11 @@ export async function attachToSocket() {
       ).filter(notEmpty);
 
       if (data.length > 0) {
-        data.forEach((card) => {
-          socket.emit("card", {
-            url: card.miroLink!,
-            card,
-          });
-        });
+        await Promise.all(
+          data.map((card) =>
+            store.set(trpc.updateCard.atomWithMutation(), card),
+          ),
+        );
       }
     } catch (error) {
       console.error(
@@ -498,10 +493,17 @@ export async function attachToSocket() {
       );
     }
   });
+
+  const boardId = await miro.board.getInfo().then((info) => info.id);
+  const subscriptionAtom = trpc.miroQueries.atomWithSubscription(() => boardId);
+  store.sub(subscriptionAtom, () => {
+    const data = store.get(subscriptionAtom);
+    console.log("AppExplorer: Received data from VSCode", data);
+  });
 }
 
 function notEmpty<T>(t: T | null): t is T {
-  return t != null;
+  return t !== null && t !== undefined;
 }
 
 async function extractCardData(card: Item): Promise<CardData | null> {

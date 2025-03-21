@@ -1,6 +1,6 @@
-import * as vscode from "vscode";
-import * as path from "path";
 import * as assert from "assert";
+import * as path from "path";
+import * as vscode from "vscode";
 
 export async function waitFor<T>(
   assertion: () => Promise<T> | T,
@@ -27,14 +27,23 @@ export async function waitFor<T>(
   }
 }
 
-export function uriForFile(filePath: string) {
-  const workspaceFolders = vscode.workspace.workspaceFolders;
-  assert.equal(
-    workspaceFolders?.length,
-    1,
-    "Expected exactly 1 workspace folder",
-  );
-  const workspaceUri = workspaceFolders?.[0].uri!;
-  const exampleUri = vscode.Uri.file(path.join(workspaceUri.fsPath, filePath));
-  return exampleUri;
+export let testName = "";
+export function setTestName(n: string) {
+  testName = n;
+}
+export async function uriForFile(filePath: string) {
+  const workspaceFolders = await waitFor(() => {
+    const folders = vscode.workspace.workspaceFolders;
+    assert.equal(folders?.length, 1);
+    return folders!;
+  });
+
+  const workspaceUri = workspaceFolders?.[0].uri;
+  if (workspaceUri) {
+    const exampleUri = vscode.Uri.file(
+      path.join(workspaceUri.fsPath, filePath),
+    );
+    return exampleUri;
+  }
+  throw new Error("No workspace folder found");
 }

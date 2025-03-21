@@ -10,7 +10,13 @@
   <body>
     <script type="module">
       import { attachToSocket } from "/miro.js";
-      attachToSocket();
+      attachToSocket()
+        .then(() => {
+          console.log("AppExplorer initialized");
+        })
+        .catch((err) => {
+          console.error("Error initializing AppExplorer", err);
+        });
     </script>
 
     <div class="container">

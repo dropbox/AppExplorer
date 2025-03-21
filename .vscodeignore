@@ -1,8 +1,6 @@
 .vscode/**
 .vscode-test/**
-out/**
 node_modules/**
-src/**
 .gitignore
 .yarnrc
 esbuild.js
@@ -11,6 +9,4 @@ vsc-extension-quickstart.md
 esbuild.cjs
 **/tsconfig.json
 **/eslint.config.mjs
-**/*.map
-**/*.ts
 **/.vscode-test.*

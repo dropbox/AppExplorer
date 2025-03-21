@@ -5,7 +5,7 @@ import { HandlerContext } from "../extension";
 import { MiroServer } from "../server";
 
 export function notEmpty<T>(value: T | null | undefined): value is T {
-  return value != null;
+  return value !== null && value !== undefined;
 }
 
 export const makeTagCardHandler = (
@@ -65,7 +65,9 @@ export const makeTagCardHandler = (
           const title = await vscode.window.showInputBox({
             title: "New Tag Name",
           });
-          if (!title) return;
+          if (!title) {
+            return;
+          }
           const color = await vscode.window.showQuickPick(allColors, {
             title: "Tag Color",
           });

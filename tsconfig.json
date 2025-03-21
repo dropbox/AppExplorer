@@ -2,7 +2,7 @@
   "exclude": [
     "public",
     "dist",
-    "out",
+    "compiled-tests",
     "vite.config.ts",
     "node_modules",
     "node_modules/path-scurry"
