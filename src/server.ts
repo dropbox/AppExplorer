@@ -47,7 +47,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
 
     app.use(morgan("tiny"));
 
-    const port = 50505;
+    const port = 9042;
 
     this.httpServer.on("error", (e) => {
       vscode.window.showErrorMessage(`AppExplorer - ${String(e)}`);

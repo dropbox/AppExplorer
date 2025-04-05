@@ -65,7 +65,7 @@ AppExplorer is a VSCode Extension that leverages VSCode's Language Server
 support. This is much easier than coding directly against language servers and
 having to figure out exactly how to configure and launch each one.
 
-This extension also hosts a webserver on http://localhost:50505/ that is a Miro
+This extension also hosts a webserver on http://localhost:9042/ that is a Miro
 extension. Miro was chosen because it's the most flexible solution with the most
 features. I could make diagrams with graphviz, but I lose the ability to
 customize the layout. This tool is not a scanner, it's for leaving a trail as
@@ -115,7 +115,7 @@ npm install -g @vscode/vsce   # On first install
 npm install                   # after updates
 
 # Run
-rm *.vsix; vsce pack && code --install-extension app-explorer-*.vsix
+rm *.vsix; vsce pack; code --install-extension app-explorer-*.vsix
 ```
 
 ### Running Remotely
