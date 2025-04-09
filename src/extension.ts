@@ -12,12 +12,15 @@ import { makeWorkspaceBoardHandler } from "./commands/manage-workspace-boards";
 import { makeNavigationHandler } from "./commands/navigate";
 import { makeRenameHandler } from "./commands/rename-board";
 import { makeTagCardHandler } from "./commands/tag-card";
+import { registerUpdateCommand } from "./commands/update-extension";
 import { EditorDecorator } from "./editor-decorator";
 import type { CardData } from "./EventTypes";
 import { getGitHubUrl } from "./get-github-url";
 import { MiroServer } from "./server";
 import { StatusBarManager } from "./status-bar-manager";
 import { LocationFinder } from "./location-finder";
+import path = require("node:path");
+import fs = require("node:fs");
 
 export type HandlerContext = {
   cardStorage: CardStorage;
@@ -25,6 +28,12 @@ export type HandlerContext = {
 };
 
 export async function activate(context: vscode.ExtensionContext) {
+  registerUpdateCommand(context);
+  setUpdateCommandContext(context);
+  vscode.workspace.onDidChangeWorkspaceFolders(() => {
+    setUpdateCommandContext(context);
+  });
+
   vscode.commands.executeCommand("setContext", "appExplorer.enabled", true);
 
   const locationFinder = new LocationFinder();
@@ -200,8 +209,41 @@ export async function activate(context: vscode.ExtensionContext) {
   };
 }
 
+function setUpdateCommandContext(context: vscode.ExtensionContext) {
+  let updateWorkspacePath: string | undefined = undefined;
+  if (vscode.workspace.workspaceFolders) {
+    for (const folder of vscode.workspace.workspaceFolders) {
+      const packageJsonPath = path.join(folder.uri.fsPath, "package.json");
+      if (fs.existsSync(packageJsonPath)) {
+        try {
+          const packageJson = JSON.parse(
+            fs.readFileSync(packageJsonPath, "utf8"),
+          );
+          if (packageJson.name === "app-explorer") {
+            updateWorkspacePath = folder.uri.fsPath;
+            break;
+          }
+        } catch (error) {
+          console.error("Error parsing package.json:", error);
+        }
+      }
+    }
+  }
+  vscode.commands.executeCommand(
+    "setContext",
+    "app-explorer.enableUpdate",
+    !!updateWorkspacePath,
+  );
+  context.workspaceState.update("updateWorkspacePath", updateWorkspacePath);
+}
+
 export function deactivate() {
   vscode.commands.executeCommand("setContext", "appExplorer.enabled", false);
+  vscode.commands.executeCommand(
+    "setContext",
+    "app-explorer.enableUpdate",
+    false,
+  );
 }
 
 export function selectRangeInEditor(
