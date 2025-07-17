@@ -1,12 +1,8 @@
 import * as vscode from "vscode";
 import { AppExplorerLens } from "./app-explorer-lens";
-import { CardStorage } from "./card-storage";
+import { CardStorage, createVSCodeCardStorage } from "./card-storage";
 import { makeAttachCardHandler } from "./commands/attach-card";
-import {
-  findCardDestination,
-  goToCardCode,
-  makeBrowseHandler,
-} from "./commands/browse";
+import { goToCardCode, makeBrowseHandler } from "./commands/browse";
 import { makeNewCardHandler, UnreachableError } from "./commands/create-card";
 import { makeWorkspaceBoardHandler } from "./commands/manage-workspace-boards";
 import { makeNavigationHandler } from "./commands/navigate";
@@ -16,9 +12,9 @@ import { registerUpdateCommand } from "./commands/update-extension";
 import { EditorDecorator } from "./editor-decorator";
 import type { CardData } from "./EventTypes";
 import { getGitHubUrl } from "./get-github-url";
+import { LocationFinder } from "./location-finder";
 import { MiroServer } from "./server";
 import { StatusBarManager } from "./status-bar-manager";
-import { LocationFinder } from "./location-finder";
 import path = require("node:path");
 import fs = require("node:fs");
 
@@ -37,7 +33,7 @@ export async function activate(context: vscode.ExtensionContext) {
   vscode.commands.executeCommand("setContext", "appExplorer.enabled", true);
 
   const locationFinder = new LocationFinder();
-  const cardStorage = new CardStorage(context);
+  const cardStorage = createVSCodeCardStorage(context);
   const statusBarManager = new StatusBarManager(cardStorage);
   context.subscriptions.push(statusBarManager);
 

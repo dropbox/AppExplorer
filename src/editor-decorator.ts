@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { CardStorage } from "./card-storage";
 import { CardData } from "./EventTypes";
 import { HandlerContext } from "./extension";
 import { getRelativePath } from "./get-relative-path";
@@ -13,6 +14,15 @@ export class EditorDecorator {
   #activeEdtior: vscode.TextEditor | undefined;
   timeout: NodeJS.Timeout | undefined;
   #decoratorMap = new WeakMap<vscode.TextEditor, CardDecoration[]>();
+  #cardStorage: CardStorage | undefined;
+  #eventListeners:
+    | {
+        boardUpdate: () => void;
+        cardUpdate: () => void;
+        connectedBoards: () => void;
+        workspaceBoards: () => void;
+      }
+    | undefined;
   subscriptions: vscode.Disposable[] = [];
 
   constructor(private handlerContext: HandlerContext) {
@@ -84,13 +94,51 @@ export class EditorDecorator {
     if (this.#activeEdtior) {
       this.triggerUpdate();
     }
-    const disposable = handlerContext.cardStorage.event(() =>
-      this.triggerUpdate(true),
+
+    // Store CardStorage reference for cleanup
+    this.#cardStorage = handlerContext.cardStorage;
+
+    // Create event listener functions that can be removed later
+    this.#eventListeners = {
+      boardUpdate: () => this.triggerUpdate(true),
+      cardUpdate: () => this.triggerUpdate(true),
+      connectedBoards: () => this.triggerUpdate(true),
+      workspaceBoards: () => this.triggerUpdate(true),
+    };
+
+    // Listen to all storage events that might affect card display
+    this.#cardStorage.on("boardUpdate", this.#eventListeners.boardUpdate);
+    this.#cardStorage.on("cardUpdate", this.#eventListeners.cardUpdate);
+    this.#cardStorage.on(
+      "connectedBoards",
+      this.#eventListeners.connectedBoards,
     );
-    this.subscriptions.push(disposable);
+    this.#cardStorage.on(
+      "workspaceBoards",
+      this.#eventListeners.workspaceBoards,
+    );
   }
 
   dispose() {
+    // Remove event listeners to prevent memory leaks
+    if (this.#cardStorage && this.#eventListeners) {
+      this.#cardStorage.off("boardUpdate", this.#eventListeners.boardUpdate);
+      this.#cardStorage.off("cardUpdate", this.#eventListeners.cardUpdate);
+      this.#cardStorage.off(
+        "connectedBoards",
+        this.#eventListeners.connectedBoards,
+      );
+      this.#cardStorage.off(
+        "workspaceBoards",
+        this.#eventListeners.workspaceBoards,
+      );
+    }
+
+    // Clear references
+    this.#cardStorage = undefined;
+    this.#eventListeners = undefined;
+
+    // Dispose of other resources
     this.#decorator.dispose();
     this.subscriptions.forEach((s) => s.dispose());
   }

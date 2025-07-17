@@ -1,6 +1,52 @@
+import { EventEmitter } from "events";
 import type { Socket } from "socket.io";
 import * as vscode from "vscode";
 import { CardData } from "./EventTypes";
+
+// Storage adapter interface to abstract persistence layer
+export interface StorageAdapter {
+  get<T>(key: string): T | undefined;
+  set(key: string, value: any): Promise<void>;
+  delete(key: string): Promise<void>;
+}
+
+// VSCode adapter that uses ExtensionContext.workspaceState
+export class VSCodeAdapter implements StorageAdapter {
+  constructor(private context: vscode.ExtensionContext) {}
+
+  get<T>(key: string): T | undefined {
+    return this.context.workspaceState.get<T>(key);
+  }
+
+  async set(key: string, value: any): Promise<void> {
+    await this.context.workspaceState.update(key, value);
+  }
+
+  async delete(key: string): Promise<void> {
+    await this.context.workspaceState.update(key, undefined);
+  }
+
+  addToSubscriptions(disposable: vscode.Disposable): void {
+    this.context.subscriptions.push(disposable);
+  }
+}
+
+// Memory adapter that uses Map for in-memory storage
+export class MemoryAdapter implements StorageAdapter {
+  private storage = new Map<string, any>();
+
+  get<T>(key: string): T | undefined {
+    return this.storage.get(key) as T | undefined;
+  }
+
+  async set(key: string, value: any): Promise<void> {
+    this.storage.set(key, value);
+  }
+
+  async delete(key: string): Promise<void> {
+    this.storage.delete(key);
+  }
+}
 
 export type BoardInfo = {
   id: string;
@@ -18,23 +64,26 @@ type StorageEvent =
       card: CardData | null;
     };
 
-export class CardStorage extends vscode.EventEmitter<StorageEvent> {
+export class CardStorage extends EventEmitter implements vscode.Disposable {
   private boards = new Map<BoardInfo["id"], BoardInfo>();
-
   private sockets = new Map<string, Socket>();
   private connectedBoards = new Set<string>();
 
-  constructor(private context: vscode.ExtensionContext) {
+  constructor(private storage: StorageAdapter) {
     super();
-    const boardIds = this.context.workspaceState.get<string[]>("boardIds");
+    const boardIds = this.storage.get<string[]>("boardIds");
 
     boardIds?.forEach((id) => {
-      const board = this.context.workspaceState.get<BoardInfo>(`board-${id}`);
+      const board = this.storage.get<BoardInfo>(`board-${id}`);
       if (board) {
         this.boards.set(board.id, board);
       }
     });
-    this.context.subscriptions.push(this);
+  }
+
+  dispose(): void {
+    // Clean up any resources if needed
+    this.removeAllListeners();
   }
 
   getConnectedBoards() {
@@ -44,14 +93,14 @@ export class CardStorage extends vscode.EventEmitter<StorageEvent> {
   async connectBoard(boardId: string, socket: Socket) {
     this.sockets.set(boardId, socket);
     this.connectedBoards.add(boardId);
-    this.fire({
+    this.emit("connectedBoards", {
       type: "connectedBoards",
       boards: this.getConnectedBoards(),
     });
 
     socket.once("disconnect", () => {
       this.sockets.delete(boardId);
-      this.fire({
+      this.emit("connectedBoards", {
         type: "connectedBoards",
         boards: this.getConnectedBoards(),
       });
@@ -65,11 +114,11 @@ export class CardStorage extends vscode.EventEmitter<StorageEvent> {
   async addBoard(boardId: string, name: string) {
     const board: BoardInfo = { id: boardId, name, cards: {} };
     this.boards.set(boardId, board);
-    const boardIds = this.context.workspaceState.get<string[]>("boardIds");
-    boardIds?.push(boardId);
-    await this.context.workspaceState.update("boardIds", boardIds);
-    await this.context.workspaceState.update(`board-${boardId}`, board);
-    this.fire({ type: "boardUpdate", board, boardId });
+    const boardIds = this.storage.get<string[]>("boardIds") || [];
+    boardIds.push(boardId);
+    await this.storage.set("boardIds", boardIds);
+    await this.storage.set(`board-${boardId}`, board);
+    this.emit("boardUpdate", { type: "boardUpdate", board, boardId });
     return board;
   }
 
@@ -77,8 +126,12 @@ export class CardStorage extends vscode.EventEmitter<StorageEvent> {
     const board = this.boards.get(boardId);
     if (board) {
       board.cards[card.miroLink!] = card;
-      await this.context.workspaceState.update(`board-${boardId}`, board);
-      this.fire({ type: "cardUpdate", card, miroLink: card.miroLink });
+      await this.storage.set(`board-${boardId}`, board);
+      this.emit("cardUpdate", {
+        type: "cardUpdate",
+        card,
+        miroLink: card.miroLink,
+      });
     }
   }
 
@@ -90,8 +143,8 @@ export class CardStorage extends vscode.EventEmitter<StorageEvent> {
     const board = this.boards.get(boardId);
     if (board) {
       board.name = name;
-      this.context.workspaceState.update(`board-${boardId}`, board);
-      this.fire({ type: "boardUpdate", board, boardId });
+      this.storage.set(`board-${boardId}`, board);
+      this.emit("boardUpdate", { type: "boardUpdate", board, boardId });
     }
     return board;
   }
@@ -106,8 +159,8 @@ export class CardStorage extends vscode.EventEmitter<StorageEvent> {
         },
         {} as Record<string, CardData>,
       );
-      this.context.workspaceState.update(`board-${boardId}`, board);
-      this.fire({ type: "boardUpdate", board, boardId });
+      this.storage.set(`board-${boardId}`, board);
+      this.emit("boardUpdate", { type: "boardUpdate", board, boardId });
     }
   }
 
@@ -128,19 +181,27 @@ export class CardStorage extends vscode.EventEmitter<StorageEvent> {
     [...this.boards.values()].forEach((b) => {
       if (b.cards[link]) {
         delete b.cards[link];
-        this.context.workspaceState.update(`board-${b.id}`, b);
-        this.fire({ type: "cardUpdate", miroLink: link, card: null });
+        this.storage.set(`board-${b.id}`, b);
+        this.emit("cardUpdate", {
+          type: "cardUpdate",
+          miroLink: link,
+          card: null,
+        });
       }
     });
   }
 
   clear() {
     this.listBoardIds().forEach((boardId) => {
-      this.context.workspaceState.update(`board-${boardId}`, undefined);
-      this.fire({ type: "boardUpdate", board: null, boardId: boardId });
+      this.storage.delete(`board-${boardId}`);
+      this.emit("boardUpdate", {
+        type: "boardUpdate",
+        board: null,
+        boardId: boardId,
+      });
     });
     this.boards.clear();
-    this.context.workspaceState.update("boardIds", []);
+    this.storage.set("boardIds", []);
   }
 
   set(miroLink: string, card: CardData) {
@@ -151,25 +212,22 @@ export class CardStorage extends vscode.EventEmitter<StorageEvent> {
       const board = this.boards.get(boardId);
       if (board) {
         board.cards[miroLink] = card;
-        this.context.workspaceState.update(`board-${boardId}`, board);
-        this.fire({ type: "cardUpdate", miroLink, card });
+        this.storage.set(`board-${boardId}`, board);
+        this.emit("cardUpdate", { type: "cardUpdate", miroLink, card });
       }
     }
   }
 
   setWorkspaceBoards(boardIds: string[]) {
     if (this.listBoardIds().length === boardIds.length) {
-      this.context.workspaceState.update(`board-filter`, undefined);
+      this.storage.delete(`board-filter`);
     } else {
-      this.context.workspaceState.update(`board-filter`, boardIds);
+      this.storage.set(`board-filter`, boardIds);
     }
-    this.fire({ type: "workspaceBoards", boardIds });
+    this.emit("workspaceBoards", { type: "workspaceBoards", boardIds });
   }
   listWorkspaceBoards() {
-    return (
-      this.context.workspaceState.get<string[]>(`board-filter`) ??
-      this.listBoardIds()
-    );
+    return this.storage.get<string[]>(`board-filter`) ?? this.listBoardIds();
   }
 
   listBoardIds() {
@@ -178,4 +236,19 @@ export class CardStorage extends vscode.EventEmitter<StorageEvent> {
   listAllCards() {
     return [...this.boards.values()].flatMap((b) => Object.values(b.cards));
   }
+}
+
+// Factory functions for creating CardStorage with different adapters
+export function createVSCodeCardStorage(
+  context: vscode.ExtensionContext,
+): CardStorage {
+  const adapter = new VSCodeAdapter(context);
+  const storage = new CardStorage(adapter);
+  adapter.addToSubscriptions(storage);
+  return storage;
+}
+
+export function createMemoryCardStorage(): CardStorage {
+  const adapter = new MemoryAdapter();
+  return new CardStorage(adapter);
 }
