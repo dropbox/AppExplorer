@@ -61,6 +61,36 @@
         "command": "app-explorer.updateExtension",
         "title": "AppExplorer: Update Extension",
         "when": "app-explorer.enableUpdate"
+      },
+      {
+        "command": "app-explorer.launchMockMiroClient",
+        "title": "AppExplorer: Launch Mock Miro Client",
+        "category": "AppExplorer"
+      },
+      {
+        "command": "app-explorer.mockMiro.showCardList",
+        "title": "MockMiro: Show Card List",
+        "category": "AppExplorer"
+      },
+      {
+        "command": "app-explorer.mockMiro.simulateCardOpen",
+        "title": "MockMiro: Simulate Card Open",
+        "category": "AppExplorer"
+      },
+      {
+        "command": "app-explorer.mockMiro.simulateCardSelection",
+        "title": "MockMiro: Simulate Card Selection",
+        "category": "AppExplorer"
+      },
+      {
+        "command": "app-explorer.mockMiro.simulateCardUpdate",
+        "title": "MockMiro: Simulate Card Update",
+        "category": "AppExplorer"
+      },
+      {
+        "command": "app-explorer.mockMiro.showStatus",
+        "title": "MockMiro: Show Status",
+        "category": "AppExplorer"
       }
     ],
     "menus": {
@@ -96,6 +126,30 @@
         {
           "command": "app-explorer.updateExtension",
           "when": "app-explorer.enableUpdate"
+        },
+        {
+          "command": "app-explorer.launchMockMiroClient",
+          "when": "appExplorer.enabled"
+        },
+        {
+          "command": "app-explorer.mockMiro.showCardList",
+          "when": "mockMiroClient.connected"
+        },
+        {
+          "command": "app-explorer.mockMiro.simulateCardOpen",
+          "when": "mockMiroClient.connected"
+        },
+        {
+          "command": "app-explorer.mockMiro.simulateCardSelection",
+          "when": "mockMiroClient.connected"
+        },
+        {
+          "command": "app-explorer.mockMiro.simulateCardUpdate",
+          "when": "mockMiroClient.connected"
+        },
+        {
+          "command": "app-explorer.mockMiro.showStatus",
+          "when": "mockMiroClient.connected"
         }
       ]
     },

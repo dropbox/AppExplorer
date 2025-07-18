@@ -4,6 +4,7 @@ import { CardStorage, createVSCodeCardStorage } from "./card-storage";
 import { makeAttachCardHandler } from "./commands/attach-card";
 import { goToCardCode, makeBrowseHandler } from "./commands/browse";
 import { makeNewCardHandler, UnreachableError } from "./commands/create-card";
+import { makeDebugMockClientHandler } from "./commands/debug-mock-client";
 import { makeWorkspaceBoardHandler } from "./commands/manage-workspace-boards";
 import { makeNavigationHandler } from "./commands/navigate";
 import { makeRenameHandler } from "./commands/rename-board";
@@ -37,6 +38,13 @@ export async function activate(context: vscode.ExtensionContext) {
   });
 
   vscode.commands.executeCommand("setContext", "appExplorer.enabled", true);
+
+  // Initialize MockMiro context (disabled by default)
+  vscode.commands.executeCommand(
+    "setContext",
+    "mockMiroClient.connected",
+    false,
+  );
 
   // Initialize feature flag manager for migration
   const featureFlagManager = new FeatureFlagManager(context);
@@ -318,6 +326,10 @@ export async function activate(context: vscode.ExtensionContext) {
       "app-explorer.manageWorkspaceBoards",
       makeWorkspaceBoardHandler(handlerContext),
     ),
+    vscode.commands.registerCommand(
+      "app-explorer.launchMockMiroClient",
+      makeDebugMockClientHandler(handlerContext, context),
+    ),
   );
 
   return {
@@ -359,6 +371,11 @@ export function deactivate() {
   vscode.commands.executeCommand(
     "setContext",
     "app-explorer.enableUpdate",
+    false,
+  );
+  vscode.commands.executeCommand(
+    "setContext",
+    "mockMiroClient.connected",
     false,
   );
 }
