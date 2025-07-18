@@ -9,5 +9,11 @@
     "dist": true // set this to false to include "dist" folder in search results
   },
   // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
-  "typescript.tsc.autoDetect": "off"
+  "typescript.tsc.autoDetect": "off",
+
+  // AppExplorer Migration Settings (Development Configuration)
+  // Uncomment the settings below to enable migration features during development
+  "appExplorer.migration.enableServerDiscovery": true,
+  "appExplorer.migration.enableWorkspaceWebsockets": true,
+  "appExplorer.migration.debugMode": true
 }

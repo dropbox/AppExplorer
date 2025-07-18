@@ -11,9 +11,14 @@ import { makeTagCardHandler } from "./commands/tag-card";
 import { registerUpdateCommand } from "./commands/update-extension";
 import { EditorDecorator } from "./editor-decorator";
 import type { CardData } from "./EventTypes";
+import { FeatureFlagManager } from "./feature-flag-manager";
 import { getGitHubUrl } from "./get-github-url";
 import { LocationFinder } from "./location-finder";
+import { logger } from "./logger";
 import { MiroServer } from "./server";
+import { ServerDiscovery } from "./server-discovery";
+import { ServerHealthMonitor } from "./server-health-monitor";
+import { ServerLauncher } from "./server-launcher";
 import { StatusBarManager } from "./status-bar-manager";
 import path = require("node:path");
 import fs = require("node:fs");
@@ -31,6 +36,17 @@ export async function activate(context: vscode.ExtensionContext) {
   });
 
   vscode.commands.executeCommand("setContext", "appExplorer.enabled", true);
+
+  // Initialize feature flag manager for migration
+  const featureFlagManager = new FeatureFlagManager(context);
+
+  // Initialize logger with feature flag manager
+  logger.initialize(featureFlagManager);
+
+  // Create extension logger
+  const extensionLogger = logger.withPrefix("extension");
+  extensionLogger.info("AppExplorer extension activating");
+  extensionLogger.debug("Migration flags:", featureFlagManager.getFlags());
 
   const locationFinder = new LocationFinder();
   const cardStorage = createVSCodeCardStorage(context);
@@ -110,9 +126,69 @@ export async function activate(context: vscode.ExtensionContext) {
     return status === "connected";
   };
 
-  const miroServer = new MiroServer(handlerContext);
+  // Initialize server discovery and launcher
+  const serverDiscovery = new ServerDiscovery();
+  const serverLauncher = new ServerLauncher(
+    context,
+    featureFlagManager,
+    serverDiscovery,
+  );
+
+  // Initialize server based on migration flags
+  extensionLogger.info("Initializing server...");
+  const serverResult = await serverLauncher.initializeServer(handlerContext);
+
+  let miroServer: MiroServer;
+  let healthMonitor: ServerHealthMonitor | undefined;
+
+  if (serverResult.mode === "server" && serverResult.server) {
+    // This workspace is running the server
+    miroServer = serverResult.server;
+    extensionLogger.info("Running in server mode");
+
+    // Start health monitoring if enabled
+    if (featureFlagManager.isEnabled("enableServerFailover")) {
+      healthMonitor = new ServerHealthMonitor(
+        serverDiscovery,
+        featureFlagManager,
+        serverLauncher,
+        handlerContext,
+      );
+      healthMonitor.startMonitoring();
+      context.subscriptions.push({ dispose: () => healthMonitor?.dispose() });
+    }
+  } else if (serverResult.mode === "client") {
+    // This workspace should connect as a client
+    // Since websocket client isn't implemented yet, we'll show an error and disable functionality
+    // TODO: In later phases, this will be replaced with workspace websocket client
+    extensionLogger.error(
+      "Client mode detected but not yet implemented - extension will be disabled",
+      {
+        serverUrl: serverResult.serverUrl,
+      },
+    );
+
+    vscode.window.showErrorMessage(
+      "AppExplorer: Another workspace is already running the server. " +
+        "Multi-workspace support is not yet fully implemented. " +
+        "Please close other AppExplorer workspaces or disable migration flags.",
+    );
+
+    // Create a dummy server that won't try to bind to port
+    // We'll throw an error to prevent it from actually starting
+    throw new Error("Client mode not yet implemented");
+  } else {
+    // Fallback or error case
+    extensionLogger.warn("Server initialization failed, using fallback", {
+      error: serverResult.error,
+    });
+    miroServer = new MiroServer(handlerContext);
+  }
+
+  // Add server to subscriptions and set up event handling
   context.subscriptions.push(
     miroServer,
+    serverLauncher,
     miroServer.event(async (event) => {
       switch (event.type) {
         case "navigateToCard": {
