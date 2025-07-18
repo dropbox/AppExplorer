@@ -35,15 +35,28 @@ export class ServerLauncher {
   async initializeServer(
     handlerContext: HandlerContext,
   ): Promise<ServerLaunchResult> {
+    this.logger.info("Initializing server", {
+      enableServerDiscovery: this.featureFlagManager.isEnabled(
+        "enableServerDiscovery",
+      ),
+      enableWorkspaceWebsockets: this.featureFlagManager.isEnabled(
+        "enableWorkspaceWebsockets",
+      ),
+    });
+
     // Check if server discovery is enabled
     if (!this.featureFlagManager.isEnabled("enableServerDiscovery")) {
-      // Legacy mode - always launch server in this workspace
+      this.logger.info(
+        "Server discovery disabled, launching server in legacy mode",
+      );
       return this.launchServer(handlerContext);
     }
 
     try {
       // Step 1: Check if server already exists
+      this.logger.debug("Checking for existing server...");
       const serverExists = await this.serverDiscovery.checkServerHealth();
+      this.logger.debug("Server health check result", { serverExists });
 
       if (serverExists) {
         // Step 2a: Server exists, connect as client
@@ -59,6 +72,9 @@ export class ServerLauncher {
         };
       } else {
         // Step 2b: No server exists, try to launch one
+        this.logger.debug(
+          "No existing server found, attempting to launch new server",
+        );
         return this.attemptServerLaunch(handlerContext);
       }
     } catch (error) {
@@ -78,6 +94,8 @@ export class ServerLauncher {
   private async attemptServerLaunch(
     handlerContext: HandlerContext,
   ): Promise<ServerLaunchResult> {
+    this.logger.debug("Attempting to launch server in this workspace");
+
     try {
       // Try to launch server - if another workspace wins the race, this will fail
       const server = await this.launchServer(handlerContext);
@@ -90,25 +108,45 @@ export class ServerLauncher {
       }
     } catch (launchError) {
       // Server launch failed - likely another workspace won the race
-      this.logger.debug(
+      this.logger.info(
         "Server launch failed (likely race condition), attempting to connect as client",
-        { launchError },
+        {
+          error:
+            launchError instanceof Error
+              ? launchError.message
+              : String(launchError),
+          isPortInUse:
+            String(launchError).includes("EADDRINUSE") ||
+            String(launchError).includes("already in use"),
+        },
       );
 
       // Wait a moment for the other server to fully start
+      this.logger.debug("Waiting for other server to fully start...");
       await this.delay(1000);
 
       // Try to connect as client to the server that won the race
+      this.logger.debug("Checking if other server is now available...");
       const serverExists = await this.serverDiscovery.checkServerHealth();
+      this.logger.debug("Post-race server health check result", {
+        serverExists,
+      });
 
       if (serverExists) {
         const serverUrl = this.serverDiscovery.getServerUrl();
+        this.logger.info(
+          "Successfully connecting as client after race condition",
+          { serverUrl },
+        );
         return {
           mode: "client",
           serverUrl,
         };
       } else {
         // Still no server - something went wrong
+        this.logger.error("No server available after race condition handling", {
+          launchError,
+        });
         return {
           mode: "disabled",
           error: `Failed to launch server and no existing server found: ${launchError}`,
@@ -124,10 +162,11 @@ export class ServerLauncher {
     handlerContext: HandlerContext,
   ): Promise<ServerLaunchResult> {
     try {
-      const server = new MiroServer(handlerContext);
-
-      // The MiroServer constructor will attempt to bind to port 9042
-      // If it fails due to port already in use, it will throw an error
+      // Create and start server instance with proper error handling
+      const server = await MiroServer.create(
+        handlerContext,
+        this.featureFlagManager,
+      );
 
       return {
         mode: "server",
@@ -136,6 +175,7 @@ export class ServerLauncher {
       };
     } catch (error) {
       // Port binding failed - another process is using the port
+      this.logger.debug("Server launch failed", { error });
       throw error;
     }
   }

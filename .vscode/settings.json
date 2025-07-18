@@ -15,5 +15,7 @@
   // Uncomment the settings below to enable migration features during development
   "appExplorer.migration.enableServerDiscovery": true,
   "appExplorer.migration.enableWorkspaceWebsockets": true,
+  "appExplorer.migration.enableDualStorage": true,
+  "appExplorer.migration.enableServerFailover": true,
   "appExplorer.migration.debugMode": true
 }

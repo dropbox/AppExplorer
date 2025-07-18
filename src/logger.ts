@@ -82,7 +82,7 @@ export class Logger {
     const timestamp = new Date().toISOString();
     const levelUpper = level.toUpperCase().padEnd(5); // Pad for alignment
 
-    let formattedMessage = `[${timestamp}] [${prefix}] [${levelUpper}] ${message}`;
+    let formattedMessage = `[${timestamp}] [${levelUpper}] [${prefix}] ${message}`;
 
     // Add additional arguments if provided
     if (args.length > 0) {
@@ -96,24 +96,6 @@ export class Logger {
 
     // Write to output channel
     this.outputChannel.appendLine(formattedMessage);
-
-    // Also log to console for development
-    if (this.shouldShowDebug()) {
-      switch (level) {
-        case "debug":
-          console.debug(`[${prefix}]`, message, ...args);
-          break;
-        case "info":
-          console.info(`[${prefix}]`, message, ...args);
-          break;
-        case "warn":
-          console.warn(`[${prefix}]`, message, ...args);
-          break;
-        case "error":
-          console.error(`[${prefix}]`, message, ...args);
-          break;
-      }
-    }
   }
 
   /**

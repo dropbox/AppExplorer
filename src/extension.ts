@@ -20,6 +20,7 @@ import { ServerDiscovery } from "./server-discovery";
 import { ServerHealthMonitor } from "./server-health-monitor";
 import { ServerLauncher } from "./server-launcher";
 import { StatusBarManager } from "./status-bar-manager";
+import { WorkspaceWebsocketClient } from "./workspace-websocket-client";
 import path = require("node:path");
 import fs = require("node:fs");
 
@@ -159,30 +160,74 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   } else if (serverResult.mode === "client") {
     // This workspace should connect as a client
-    // Since websocket client isn't implemented yet, we'll show an error and disable functionality
-    // TODO: In later phases, this will be replaced with workspace websocket client
-    extensionLogger.error(
-      "Client mode detected but not yet implemented - extension will be disabled",
+    extensionLogger.info("Running in client mode, connecting to server", {
+      serverUrl: serverResult.serverUrl,
+    });
+
+    // Create workspace websocket client
+    const workspaceId = `workspace-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const workspaceClient = new WorkspaceWebsocketClient(
       {
-        serverUrl: serverResult.serverUrl,
+        serverUrl: serverResult.serverUrl!,
+        workspaceId,
+        workspaceName: vscode.workspace.name,
+        rootPath: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
       },
+      featureFlagManager,
+      handlerContext,
     );
 
-    vscode.window.showErrorMessage(
-      "AppExplorer: Another workspace is already running the server. " +
-        "Multi-workspace support is not yet fully implemented. " +
-        "Please close other AppExplorer workspaces or disable migration flags.",
-    );
+    // Set up client event handlers
+    workspaceClient.on("stateChange", (event) => {
+      extensionLogger.debug("Workspace client state changed", {
+        from: event.previousState,
+        to: event.state,
+      });
+    });
 
-    // Create a dummy server that won't try to bind to port
-    // We'll throw an error to prevent it from actually starting
-    throw new Error("Client mode not yet implemented");
+    workspaceClient.on("registrationComplete", (event) => {
+      extensionLogger.info("Workspace registration complete", {
+        workspaceId: event.response.workspaceId,
+        assignedBoards: event.response.assignedBoards,
+      });
+    });
+
+    workspaceClient.on("error", (event) => {
+      extensionLogger.error("Workspace client error", {
+        error: event.error,
+        code: event.code,
+      });
+    });
+
+    // Connect to server
+    try {
+      await workspaceClient.connect();
+      extensionLogger.info(
+        "Successfully connected to server as workspace client",
+      );
+    } catch (error) {
+      extensionLogger.error("Failed to connect as workspace client", { error });
+      vscode.window.showErrorMessage(
+        `AppExplorer: Failed to connect to server at ${serverResult.serverUrl}. ` +
+          `Error: ${error}`,
+      );
+      throw error;
+    }
+
+    // Add client to subscriptions for cleanup
+    context.subscriptions.push(workspaceClient);
+
+    // For now, still create a MiroServer for legacy functionality
+    // This ensures existing commands and Miro board connections still work
+    // TODO: Phase 2 - Replace with pure client mode that proxies all operations through workspace client
+    // TODO: Phase 3 - Remove MiroServer entirely from client mode once query proxying is implemented
+    miroServer = await MiroServer.create(handlerContext, featureFlagManager);
   } else {
     // Fallback or error case
     extensionLogger.warn("Server initialization failed, using fallback", {
       error: serverResult.error,
     });
-    miroServer = new MiroServer(handlerContext);
+    miroServer = await MiroServer.create(handlerContext, featureFlagManager);
   }
 
   // Add server to subscriptions and set up event handling
