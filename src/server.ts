@@ -48,6 +48,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
   private constructor(
     private context: HandlerContext,
     private featureFlagManager?: FeatureFlagManager,
+    private port: number = 9042,
   ) {
     super();
 
@@ -107,8 +108,9 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
   static async create(
     context: HandlerContext,
     featureFlagManager?: FeatureFlagManager,
+    port?: number,
   ): Promise<MiroServer> {
-    const server = new MiroServer(context, featureFlagManager);
+    const server = new MiroServer(context, featureFlagManager, port);
     await server.startServer();
     return server;
   }
@@ -117,7 +119,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
    * Start the HTTP server with proper error handling
    */
   private async startServer(): Promise<void> {
-    const port = 9042;
+    const port = this.port;
 
     return new Promise((resolve, reject) => {
       // Set up error handling for port binding failures

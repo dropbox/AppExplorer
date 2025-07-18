@@ -12,55 +12,42 @@ function isSymbolCard(card: CardData): card is SymbolCardData {
  * All cards use the MockMiroClient board ID for consistency
  */
 export const TEST_CARDS: CardData[] = [
+  // Use symbols that we know work from the debug output
   {
     boardId: "mock-board-test-123",
     type: "symbol",
-    title: "UserProfile.render",
-    path: "sample-workspace/src/components/UserProfile.ts",
-    symbol: "render",
+    title: "TestClass",
+    path: "example.ts",
+    symbol: "TestClass",
     miroLink: "https://miro.com/app/board/mock-board-test-123/card1",
-    codeLink:
-      "https://github.com/asa-codelabs/AppExplorer/blob/main/sample-workspace/src/components/UserProfile.ts#L15",
+    codeLink: "https://github.com/test/repo/blob/main/example.ts#L1",
     status: "connected",
   },
   {
     boardId: "mock-board-test-123",
     type: "symbol",
-    title: "UserProfile.updateProfile",
-    path: "sample-workspace/src/components/UserProfile.ts",
-    symbol: "updateProfile",
+    title: "TestClass.testMethod",
+    path: "example.ts",
+    symbol: "testMethod",
     miroLink: "https://miro.com/app/board/mock-board-test-123/card2",
-    codeLink:
-      "https://github.com/asa-codelabs/AppExplorer/blob/main/sample-workspace/src/components/UserProfile.ts#L26",
+    codeLink: "https://github.com/test/repo/blob/main/example.ts#L3",
     status: "connected",
   },
   {
     boardId: "mock-board-test-123",
     type: "symbol",
-    title: "ApiService.fetchData",
-    path: "sample-workspace/src/services/ApiService.ts",
-    symbol: "fetchData",
+    title: "testFunction",
+    path: "example.ts",
+    symbol: "testFunction",
     miroLink: "https://miro.com/app/board/mock-board-test-123/card3",
-    codeLink:
-      "https://github.com/asa-codelabs/AppExplorer/blob/main/sample-workspace/src/services/ApiService.ts#L22",
-    status: "connected",
-  },
-  {
-    boardId: "mock-board-test-123",
-    type: "symbol",
-    title: "ApiService.postData",
-    path: "sample-workspace/src/services/ApiService.ts",
-    symbol: "postData",
-    miroLink: "https://miro.com/app/board/mock-board-test-123/card4",
-    codeLink:
-      "https://github.com/asa-codelabs/AppExplorer/blob/main/sample-workspace/src/services/ApiService.ts#L48",
+    codeLink: "https://github.com/test/repo/blob/main/example.ts#L5",
     status: "connected",
   },
   {
     boardId: "mock-board-test-123",
     type: "symbol",
     title: "formatDate",
-    path: "sample-workspace/src/utils/helpers.ts",
+    path: "src/utils/helpers.ts",
     symbol: "formatDate",
     miroLink: "https://miro.com/app/board/mock-board-test-123/card5",
     codeLink:
@@ -71,7 +58,7 @@ export const TEST_CARDS: CardData[] = [
     boardId: "mock-board-test-123",
     type: "symbol",
     title: "debounce",
-    path: "sample-workspace/src/utils/helpers.ts",
+    path: "src/utils/helpers.ts",
     symbol: "debounce",
     miroLink: "https://miro.com/app/board/mock-board-test-123/card6",
     codeLink:
