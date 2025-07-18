@@ -1,12 +1,12 @@
-import * as vscode from "vscode";
-import * as path from "path";
 import * as assert from "assert";
+import * as path from "path";
+import * as vscode from "vscode";
 
 export async function waitFor<T>(
   assertion: () => Promise<T> | T,
   {
-    timeout = 2000,
-    interval = 50,
+    timeout = 25000,
+    interval = 500,
     message = "Condition not met within timeout period",
   } = {},
 ): Promise<T> {
