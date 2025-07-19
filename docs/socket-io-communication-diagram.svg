@@ -1,0 +1,936 @@
+<svg aria-roledescription="sequence" role="graphics-document document" viewBox="-157 -10 1865 6492"
+  style="max-width: 1865px;" xmlns:xlink="http://www.w3.org/1999/xlink"
+  xmlns="http://www.w3.org/2000/svg" width="100%" id="mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59">
+  <rect class="rect" height="360" width="603" fill="rgb(220, 237, 200)" y="5884" x="-56.5"></rect>
+  <rect class="rect" height="735" width="1592" fill="rgb(255, 243, 205)" y="5139" x="-6.5"></rect>
+  <rect class="rect" height="925" width="1613" fill="rgb(221, 160, 221)" y="4204" x="-27.5"></rect>
+  <rect class="rect" height="958" width="1622.5" fill="rgb(255, 218, 185)" y="3236" x="-37"></rect>
+  <rect class="rect" height="1055" width="1553" fill="rgb(230, 230, 250)" y="2171" x="32.5"></rect>
+  <rect class="rect" height="945" width="1294" fill="rgb(255, 229, 217)" y="1216" x="-16.5"></rect>
+  <rect class="rect" height="293" width="689" fill="rgb(255, 243, 205)" y="913" x="476.5"></rect>
+  <rect class="rect" height="764" width="1702.5" fill="rgb(220, 237, 200)" y="139" x="-107"></rect>
+  <g>
+    <rect class="actor actor-bottom" ry="3" rx="3" name="WSNamespace" height="65" width="195"
+      stroke="#666" fill="#eaeaea" y="6406" x="1463"></rect>
+    <text style="text-anchor: middle; font-size: 16px; font-weight: 400;" class="actor actor-box"
+      alignment-baseline="central" dominant-baseline="central" y="6438.5" x="1560.5">
+      <tspan dy="0" x="1560.5">Workspace Namespace</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="actor actor-bottom" ry="3" rx="3" name="CardStorage" height="65" width="150"
+      stroke="#666" fill="#eaeaea" y="6406" x="1167.5"></rect>
+    <text style="text-anchor: middle; font-size: 16px; font-weight: 400;" class="actor actor-box"
+      alignment-baseline="central" dominant-baseline="central" y="6438.5" x="1242.5">
+      <tspan dy="0" x="1242.5">CardStorage</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="actor actor-bottom" ry="3" rx="3" name="Miro" height="65" width="150" stroke="#666"
+      fill="#eaeaea" y="6406" x="793.5"></rect>
+    <text style="text-anchor: middle; font-size: 16px; font-weight: 400;" class="actor actor-box"
+      alignment-baseline="central" dominant-baseline="central" y="6438.5" x="868.5">
+      <tspan dy="0" x="868.5">Miro Board</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="actor actor-bottom" ry="3" rx="3" name="Server" height="65" width="208"
+      stroke="#666" fill="#eaeaea" y="6406" x="407.5"></rect>
+    <text style="text-anchor: middle; font-size: 16px; font-weight: 400;" class="actor actor-box"
+      alignment-baseline="central" dominant-baseline="central" y="6438.5" x="511.5">
+      <tspan dy="0" x="511.5">Local Server (MiroServer)</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="actor actor-bottom" ry="3" rx="3" name="VSCode" height="65" width="155"
+      stroke="#666" fill="#eaeaea" y="6406" x="0"></rect>
+    <text style="text-anchor: middle; font-size: 16px; font-weight: 400;" class="actor actor-box"
+      alignment-baseline="central" dominant-baseline="central" y="6438.5" x="77.5">
+      <tspan dy="0" x="77.5">VSCode Extension</tspan>
+    </text>
+  </g>
+  <g>
+    <line name="WSNamespace" stroke="#999" stroke-width="0.5px" class="actor-line 200" y2="6406"
+      x2="1560.5" y1="65" x1="1560.5" id="actor14"></line>
+    <g id="root-14">
+      <rect class="actor actor-top" ry="3" rx="3" name="WSNamespace" height="65" width="195"
+        stroke="#666" fill="#eaeaea" y="0" x="1463"></rect>
+      <text style="text-anchor: middle; font-size: 16px; font-weight: 400;" class="actor actor-box"
+        alignment-baseline="central" dominant-baseline="central" y="32.5" x="1560.5">
+        <tspan dy="0" x="1560.5">Workspace Namespace</tspan>
+      </text>
+    </g>
+  </g>
+  <g>
+    <line name="CardStorage" stroke="#999" stroke-width="0.5px" class="actor-line 200" y2="6406"
+      x2="1242.5" y1="65" x1="1242.5" id="actor13"></line>
+    <g id="root-13">
+      <rect class="actor actor-top" ry="3" rx="3" name="CardStorage" height="65" width="150"
+        stroke="#666" fill="#eaeaea" y="0" x="1167.5"></rect>
+      <text style="text-anchor: middle; font-size: 16px; font-weight: 400;" class="actor actor-box"
+        alignment-baseline="central" dominant-baseline="central" y="32.5" x="1242.5">
+        <tspan dy="0" x="1242.5">CardStorage</tspan>
+      </text>
+    </g>
+  </g>
+  <g>
+    <line name="Miro" stroke="#999" stroke-width="0.5px" class="actor-line 200" y2="6406" x2="868.5"
+      y1="65" x1="868.5" id="actor12"></line>
+    <g id="root-12">
+      <rect class="actor actor-top" ry="3" rx="3" name="Miro" height="65" width="150" stroke="#666"
+        fill="#eaeaea" y="0" x="793.5"></rect>
+      <text style="text-anchor: middle; font-size: 16px; font-weight: 400;" class="actor actor-box"
+        alignment-baseline="central" dominant-baseline="central" y="32.5" x="868.5">
+        <tspan dy="0" x="868.5">Miro Board</tspan>
+      </text>
+    </g>
+  </g>
+  <g>
+    <line name="Server" stroke="#999" stroke-width="0.5px" class="actor-line 200" y2="6406"
+      x2="511.5" y1="65" x1="511.5" id="actor11"></line>
+    <g id="root-11">
+      <rect class="actor actor-top" ry="3" rx="3" name="Server" height="65" width="208"
+        stroke="#666" fill="#eaeaea" y="0" x="407.5"></rect>
+      <text style="text-anchor: middle; font-size: 16px; font-weight: 400;" class="actor actor-box"
+        alignment-baseline="central" dominant-baseline="central" y="32.5" x="511.5">
+        <tspan dy="0" x="511.5">Local Server (MiroServer)</tspan>
+      </text>
+    </g>
+  </g>
+  <g>
+    <line name="VSCode" stroke="#999" stroke-width="0.5px" class="actor-line 200" y2="6406"
+      x2="77.5" y1="65" x1="77.5" id="actor10"></line>
+    <g id="root-10">
+      <rect class="actor actor-top" ry="3" rx="3" name="VSCode" height="65" width="155"
+        stroke="#666" fill="#eaeaea" y="0" x="0"></rect>
+      <text style="text-anchor: middle; font-size: 16px; font-weight: 400;" class="actor actor-box"
+        alignment-baseline="central" dominant-baseline="central" y="32.5" x="77.5">
+        <tspan dy="0" x="77.5">VSCode Extension</tspan>
+      </text>
+    </g>
+  </g>
+  <style>#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59{font-family:"trebuchet
+    ms",verdana,arial,sans-serif;font-size:16px;fill:#000000;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .error-icon{fill:#e9ecef;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .error-text{fill:#161310;stroke:#161310;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .edge-thickness-normal{stroke-width:1px;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .edge-thickness-thick{stroke-width:3.5px;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .edge-pattern-solid{stroke-dasharray:0;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .edge-thickness-invisible{stroke-width:0;fill:none;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .edge-pattern-dashed{stroke-dasharray:3;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .edge-pattern-dotted{stroke-dasharray:2;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .marker{fill:#333333;stroke:#333333;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .marker.cross{stroke:#333333;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    svg{font-family:"trebuchet
+    ms",verdana,arial,sans-serif;font-size:16px;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    p{margin:0;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .actor{stroke:#333333;fill:#ffffff;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    text.actor&gt;tspan{fill:#000000;stroke:none;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .actor-line{stroke:#333333;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .messageLine0{stroke-width:1.5;stroke-dasharray:none;stroke:#000000;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .messageLine1{stroke-width:1.5;stroke-dasharray:2,2;stroke:#000000;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    #arrowhead path{fill:#000000;stroke:#000000;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .sequenceNumber{fill:#cccccc;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    #sequencenumber{fill:#000000;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59 #crosshead
+    path{fill:#000000;stroke:#000000;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .messageText{fill:#000000;stroke:none;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .labelBox{stroke:#333333;fill:#ffffff;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .labelText,#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .labelText&gt;tspan{fill:#000000;stroke:none;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .loopText,#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .loopText&gt;tspan{fill:#000000;stroke:none;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .loopLine{stroke-width:2px;stroke-dasharray:2,2;stroke:#333333;fill:#333333;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .note{stroke:hsl(52.6829268293, 60%,
+    73.9215686275%);fill:#fff5ad;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .noteText,#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .noteText&gt;tspan{fill:#333;stroke:none;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .activation0{fill:#f8f9fa;stroke:hsl(210, 16.6666666667%,
+    87.6470588235%);}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .activation1{fill:#f8f9fa;stroke:hsl(210, 16.6666666667%,
+    87.6470588235%);}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .activation2{fill:#f8f9fa;stroke:hsl(210, 16.6666666667%,
+    87.6470588235%);}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .actorPopupMenu{position:absolute;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    .actorPopupMenuPanel{position:absolute;fill:#ffffff;box-shadow:0px 8px 16px 0px
+    rgba(0,0,0,0.2);filter:drop-shadow(3px 5px 2px rgb(0 0 0 /
+    0.4));}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59 .actor-man
+    line{stroke:#333333;fill:#ffffff;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59 .actor-man
+    circle,#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    line{stroke:#333333;fill:#ffffff;stroke-width:2px;}#mermaid-ce2d44c4-bd27-404c-a250-430f38a51c59
+    :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style>
+  <g></g>
+  <defs>
+    <symbol height="24" width="24" id="computer">
+      <path
+        d="M2 2v13h20v-13h-20zm18 11h-16v-9h16v9zm-10.228 6l.466-1h3.524l.467 1h-4.457zm14.228 3h-24l2-6h2.104l-1.33 4h18.45l-1.297-4h2.073l2 6zm-5-10h-14v-7h14v7z"
+        transform="scale(.5)"></path>
+    </symbol>
+  </defs>
+  <defs>
+    <symbol clip-rule="evenodd" fill-rule="evenodd" id="database">
+      <path
+        d="M12.258.001l.256.004.255.005.253.008.251.01.249.012.247.015.246.016.242.019.241.02.239.023.236.024.233.027.231.028.229.031.225.032.223.034.22.036.217.038.214.04.211.041.208.043.205.045.201.046.198.048.194.05.191.051.187.053.183.054.18.056.175.057.172.059.168.06.163.061.16.063.155.064.15.066.074.033.073.033.071.034.07.034.069.035.068.035.067.035.066.035.064.036.064.036.062.036.06.036.06.037.058.037.058.037.055.038.055.038.053.038.052.038.051.039.05.039.048.039.047.039.045.04.044.04.043.04.041.04.04.041.039.041.037.041.036.041.034.041.033.042.032.042.03.042.029.042.027.042.026.043.024.043.023.043.021.043.02.043.018.044.017.043.015.044.013.044.012.044.011.045.009.044.007.045.006.045.004.045.002.045.001.045v17l-.001.045-.002.045-.004.045-.006.045-.007.045-.009.044-.011.045-.012.044-.013.044-.015.044-.017.043-.018.044-.02.043-.021.043-.023.043-.024.043-.026.043-.027.042-.029.042-.03.042-.032.042-.033.042-.034.041-.036.041-.037.041-.039.041-.04.041-.041.04-.043.04-.044.04-.045.04-.047.039-.048.039-.05.039-.051.039-.052.038-.053.038-.055.038-.055.038-.058.037-.058.037-.06.037-.06.036-.062.036-.064.036-.064.036-.066.035-.067.035-.068.035-.069.035-.07.034-.071.034-.073.033-.074.033-.15.066-.155.064-.16.063-.163.061-.168.06-.172.059-.175.057-.18.056-.183.054-.187.053-.191.051-.194.05-.198.048-.201.046-.205.045-.208.043-.211.041-.214.04-.217.038-.22.036-.223.034-.225.032-.229.031-.231.028-.233.027-.236.024-.239.023-.241.02-.242.019-.246.016-.247.015-.249.012-.251.01-.253.008-.255.005-.256.004-.258.001-.258-.001-.256-.004-.255-.005-.253-.008-.251-.01-.249-.012-.247-.015-.245-.016-.243-.019-.241-.02-.238-.023-.236-.024-.234-.027-.231-.028-.228-.031-.226-.032-.223-.034-.22-.036-.217-.038-.214-.04-.211-.041-.208-.043-.204-.045-.201-.046-.198-.048-.195-.05-.19-.051-.187-.053-.184-.054-.179-.056-.176-.057-.172-.059-.167-.06-.164-.061-.159-.063-.155-.064-.151-.066-.074-.033-.072-.033-.072-.034-.07-.034-.069-.035-.068-.035-.067-.035-.066-.035-.064-.036-.063-.036-.062-.036-.061-.036-.06-.037-.058-.037-.057-.037-.056-.038-.055-.038-.053-.038-.052-.038-.051-.039-.049-.039-.049-.039-.046-.039-.046-.04-.044-.04-.043-.04-.041-.04-.04-.041-.039-.041-.037-.041-.036-.041-.034-.041-.033-.042-.032-.042-.03-.042-.029-.042-.027-.042-.026-.043-.024-.043-.023-.043-.021-.043-.02-.043-.018-.044-.017-.043-.015-.044-.013-.044-.012-.044-.011-.045-.009-.044-.007-.045-.006-.045-.004-.045-.002-.045-.001-.045v-17l.001-.045.002-.045.004-.045.006-.045.007-.045.009-.044.011-.045.012-.044.013-.044.015-.044.017-.043.018-.044.02-.043.021-.043.023-.043.024-.043.026-.043.027-.042.029-.042.03-.042.032-.042.033-.042.034-.041.036-.041.037-.041.039-.041.04-.041.041-.04.043-.04.044-.04.046-.04.046-.039.049-.039.049-.039.051-.039.052-.038.053-.038.055-.038.056-.038.057-.037.058-.037.06-.037.061-.036.062-.036.063-.036.064-.036.066-.035.067-.035.068-.035.069-.035.07-.034.072-.034.072-.033.074-.033.151-.066.155-.064.159-.063.164-.061.167-.06.172-.059.176-.057.179-.056.184-.054.187-.053.19-.051.195-.05.198-.048.201-.046.204-.045.208-.043.211-.041.214-.04.217-.038.22-.036.223-.034.226-.032.228-.031.231-.028.234-.027.236-.024.238-.023.241-.02.243-.019.245-.016.247-.015.249-.012.251-.01.253-.008.255-.005.256-.004.258-.001.258.001zm-9.258 20.499v.01l.001.021.003.021.004.022.005.021.006.022.007.022.009.023.01.022.011.023.012.023.013.023.015.023.016.024.017.023.018.024.019.024.021.024.022.025.023.024.024.025.052.049.056.05.061.051.066.051.07.051.075.051.079.052.084.052.088.052.092.052.097.052.102.051.105.052.11.052.114.051.119.051.123.051.127.05.131.05.135.05.139.048.144.049.147.047.152.047.155.047.16.045.163.045.167.043.171.043.176.041.178.041.183.039.187.039.19.037.194.035.197.035.202.033.204.031.209.03.212.029.216.027.219.025.222.024.226.021.23.02.233.018.236.016.24.015.243.012.246.01.249.008.253.005.256.004.259.001.26-.001.257-.004.254-.005.25-.008.247-.011.244-.012.241-.014.237-.016.233-.018.231-.021.226-.021.224-.024.22-.026.216-.027.212-.028.21-.031.205-.031.202-.034.198-.034.194-.036.191-.037.187-.039.183-.04.179-.04.175-.042.172-.043.168-.044.163-.045.16-.046.155-.046.152-.047.148-.048.143-.049.139-.049.136-.05.131-.05.126-.05.123-.051.118-.052.114-.051.11-.052.106-.052.101-.052.096-.052.092-.052.088-.053.083-.051.079-.052.074-.052.07-.051.065-.051.06-.051.056-.05.051-.05.023-.024.023-.025.021-.024.02-.024.019-.024.018-.024.017-.024.015-.023.014-.024.013-.023.012-.023.01-.023.01-.022.008-.022.006-.022.006-.022.004-.022.004-.021.001-.021.001-.021v-4.127l-.077.055-.08.053-.083.054-.085.053-.087.052-.09.052-.093.051-.095.05-.097.05-.1.049-.102.049-.105.048-.106.047-.109.047-.111.046-.114.045-.115.045-.118.044-.12.043-.122.042-.124.042-.126.041-.128.04-.13.04-.132.038-.134.038-.135.037-.138.037-.139.035-.142.035-.143.034-.144.033-.147.032-.148.031-.15.03-.151.03-.153.029-.154.027-.156.027-.158.026-.159.025-.161.024-.162.023-.163.022-.165.021-.166.02-.167.019-.169.018-.169.017-.171.016-.173.015-.173.014-.175.013-.175.012-.177.011-.178.01-.179.008-.179.008-.181.006-.182.005-.182.004-.184.003-.184.002h-.37l-.184-.002-.184-.003-.182-.004-.182-.005-.181-.006-.179-.008-.179-.008-.178-.01-.176-.011-.176-.012-.175-.013-.173-.014-.172-.015-.171-.016-.17-.017-.169-.018-.167-.019-.166-.02-.165-.021-.163-.022-.162-.023-.161-.024-.159-.025-.157-.026-.156-.027-.155-.027-.153-.029-.151-.03-.15-.03-.148-.031-.146-.032-.145-.033-.143-.034-.141-.035-.14-.035-.137-.037-.136-.037-.134-.038-.132-.038-.13-.04-.128-.04-.126-.041-.124-.042-.122-.042-.12-.044-.117-.043-.116-.045-.113-.045-.112-.046-.109-.047-.106-.047-.105-.048-.102-.049-.1-.049-.097-.05-.095-.05-.093-.052-.09-.051-.087-.052-.085-.053-.083-.054-.08-.054-.077-.054v4.127zm0-5.654v.011l.001.021.003.021.004.021.005.022.006.022.007.022.009.022.01.022.011.023.012.023.013.023.015.024.016.023.017.024.018.024.019.024.021.024.022.024.023.025.024.024.052.05.056.05.061.05.066.051.07.051.075.052.079.051.084.052.088.052.092.052.097.052.102.052.105.052.11.051.114.051.119.052.123.05.127.051.131.05.135.049.139.049.144.048.147.048.152.047.155.046.16.045.163.045.167.044.171.042.176.042.178.04.183.04.187.038.19.037.194.036.197.034.202.033.204.032.209.03.212.028.216.027.219.025.222.024.226.022.23.02.233.018.236.016.24.014.243.012.246.01.249.008.253.006.256.003.259.001.26-.001.257-.003.254-.006.25-.008.247-.01.244-.012.241-.015.237-.016.233-.018.231-.02.226-.022.224-.024.22-.025.216-.027.212-.029.21-.03.205-.032.202-.033.198-.035.194-.036.191-.037.187-.039.183-.039.179-.041.175-.042.172-.043.168-.044.163-.045.16-.045.155-.047.152-.047.148-.048.143-.048.139-.05.136-.049.131-.05.126-.051.123-.051.118-.051.114-.052.11-.052.106-.052.101-.052.096-.052.092-.052.088-.052.083-.052.079-.052.074-.051.07-.052.065-.051.06-.05.056-.051.051-.049.023-.025.023-.024.021-.025.02-.024.019-.024.018-.024.017-.024.015-.023.014-.023.013-.024.012-.022.01-.023.01-.023.008-.022.006-.022.006-.022.004-.021.004-.022.001-.021.001-.021v-4.139l-.077.054-.08.054-.083.054-.085.052-.087.053-.09.051-.093.051-.095.051-.097.05-.1.049-.102.049-.105.048-.106.047-.109.047-.111.046-.114.045-.115.044-.118.044-.12.044-.122.042-.124.042-.126.041-.128.04-.13.039-.132.039-.134.038-.135.037-.138.036-.139.036-.142.035-.143.033-.144.033-.147.033-.148.031-.15.03-.151.03-.153.028-.154.028-.156.027-.158.026-.159.025-.161.024-.162.023-.163.022-.165.021-.166.02-.167.019-.169.018-.169.017-.171.016-.173.015-.173.014-.175.013-.175.012-.177.011-.178.009-.179.009-.179.007-.181.007-.182.005-.182.004-.184.003-.184.002h-.37l-.184-.002-.184-.003-.182-.004-.182-.005-.181-.007-.179-.007-.179-.009-.178-.009-.176-.011-.176-.012-.175-.013-.173-.014-.172-.015-.171-.016-.17-.017-.169-.018-.167-.019-.166-.02-.165-.021-.163-.022-.162-.023-.161-.024-.159-.025-.157-.026-.156-.027-.155-.028-.153-.028-.151-.03-.15-.03-.148-.031-.146-.033-.145-.033-.143-.033-.141-.035-.14-.036-.137-.036-.136-.037-.134-.038-.132-.039-.13-.039-.128-.04-.126-.041-.124-.042-.122-.043-.12-.043-.117-.044-.116-.044-.113-.046-.112-.046-.109-.046-.106-.047-.105-.048-.102-.049-.1-.049-.097-.05-.095-.051-.093-.051-.09-.051-.087-.053-.085-.052-.083-.054-.08-.054-.077-.054v4.139zm0-5.666v.011l.001.02.003.022.004.021.005.022.006.021.007.022.009.023.01.022.011.023.012.023.013.023.015.023.016.024.017.024.018.023.019.024.021.025.022.024.023.024.024.025.052.05.056.05.061.05.066.051.07.051.075.052.079.051.084.052.088.052.092.052.097.052.102.052.105.051.11.052.114.051.119.051.123.051.127.05.131.05.135.05.139.049.144.048.147.048.152.047.155.046.16.045.163.045.167.043.171.043.176.042.178.04.183.04.187.038.19.037.194.036.197.034.202.033.204.032.209.03.212.028.216.027.219.025.222.024.226.021.23.02.233.018.236.017.24.014.243.012.246.01.249.008.253.006.256.003.259.001.26-.001.257-.003.254-.006.25-.008.247-.01.244-.013.241-.014.237-.016.233-.018.231-.02.226-.022.224-.024.22-.025.216-.027.212-.029.21-.03.205-.032.202-.033.198-.035.194-.036.191-.037.187-.039.183-.039.179-.041.175-.042.172-.043.168-.044.163-.045.16-.045.155-.047.152-.047.148-.048.143-.049.139-.049.136-.049.131-.051.126-.05.123-.051.118-.052.114-.051.11-.052.106-.052.101-.052.096-.052.092-.052.088-.052.083-.052.079-.052.074-.052.07-.051.065-.051.06-.051.056-.05.051-.049.023-.025.023-.025.021-.024.02-.024.019-.024.018-.024.017-.024.015-.023.014-.024.013-.023.012-.023.01-.022.01-.023.008-.022.006-.022.006-.022.004-.022.004-.021.001-.021.001-.021v-4.153l-.077.054-.08.054-.083.053-.085.053-.087.053-.09.051-.093.051-.095.051-.097.05-.1.049-.102.048-.105.048-.106.048-.109.046-.111.046-.114.046-.115.044-.118.044-.12.043-.122.043-.124.042-.126.041-.128.04-.13.039-.132.039-.134.038-.135.037-.138.036-.139.036-.142.034-.143.034-.144.033-.147.032-.148.032-.15.03-.151.03-.153.028-.154.028-.156.027-.158.026-.159.024-.161.024-.162.023-.163.023-.165.021-.166.02-.167.019-.169.018-.169.017-.171.016-.173.015-.173.014-.175.013-.175.012-.177.01-.178.01-.179.009-.179.007-.181.006-.182.006-.182.004-.184.003-.184.001-.185.001-.185-.001-.184-.001-.184-.003-.182-.004-.182-.006-.181-.006-.179-.007-.179-.009-.178-.01-.176-.01-.176-.012-.175-.013-.173-.014-.172-.015-.171-.016-.17-.017-.169-.018-.167-.019-.166-.02-.165-.021-.163-.023-.162-.023-.161-.024-.159-.024-.157-.026-.156-.027-.155-.028-.153-.028-.151-.03-.15-.03-.148-.032-.146-.032-.145-.033-.143-.034-.141-.034-.14-.036-.137-.036-.136-.037-.134-.038-.132-.039-.13-.039-.128-.041-.126-.041-.124-.041-.122-.043-.12-.043-.117-.044-.116-.044-.113-.046-.112-.046-.109-.046-.106-.048-.105-.048-.102-.048-.1-.05-.097-.049-.095-.051-.093-.051-.09-.052-.087-.052-.085-.053-.083-.053-.08-.054-.077-.054v4.153zm8.74-8.179l-.257.004-.254.005-.25.008-.247.011-.244.012-.241.014-.237.016-.233.018-.231.021-.226.022-.224.023-.22.026-.216.027-.212.028-.21.031-.205.032-.202.033-.198.034-.194.036-.191.038-.187.038-.183.04-.179.041-.175.042-.172.043-.168.043-.163.045-.16.046-.155.046-.152.048-.148.048-.143.048-.139.049-.136.05-.131.05-.126.051-.123.051-.118.051-.114.052-.11.052-.106.052-.101.052-.096.052-.092.052-.088.052-.083.052-.079.052-.074.051-.07.052-.065.051-.06.05-.056.05-.051.05-.023.025-.023.024-.021.024-.02.025-.019.024-.018.024-.017.023-.015.024-.014.023-.013.023-.012.023-.01.023-.01.022-.008.022-.006.023-.006.021-.004.022-.004.021-.001.021-.001.021.001.021.001.021.004.021.004.022.006.021.006.023.008.022.01.022.01.023.012.023.013.023.014.023.015.024.017.023.018.024.019.024.02.025.021.024.023.024.023.025.051.05.056.05.06.05.065.051.07.052.074.051.079.052.083.052.088.052.092.052.096.052.101.052.106.052.11.052.114.052.118.051.123.051.126.051.131.05.136.05.139.049.143.048.148.048.152.048.155.046.16.046.163.045.168.043.172.043.175.042.179.041.183.04.187.038.191.038.194.036.198.034.202.033.205.032.21.031.212.028.216.027.22.026.224.023.226.022.231.021.233.018.237.016.241.014.244.012.247.011.25.008.254.005.257.004.26.001.26-.001.257-.004.254-.005.25-.008.247-.011.244-.012.241-.014.237-.016.233-.018.231-.021.226-.022.224-.023.22-.026.216-.027.212-.028.21-.031.205-.032.202-.033.198-.034.194-.036.191-.038.187-.038.183-.04.179-.041.175-.042.172-.043.168-.043.163-.045.16-.046.155-.046.152-.048.148-.048.143-.048.139-.049.136-.05.131-.05.126-.051.123-.051.118-.051.114-.052.11-.052.106-.052.101-.052.096-.052.092-.052.088-.052.083-.052.079-.052.074-.051.07-.052.065-.051.06-.05.056-.05.051-.05.023-.025.023-.024.021-.024.02-.025.019-.024.018-.024.017-.023.015-.024.014-.023.013-.023.012-.023.01-.023.01-.022.008-.022.006-.023.006-.021.004-.022.004-.021.001-.021.001-.021-.001-.021-.001-.021-.004-.021-.004-.022-.006-.021-.006-.023-.008-.022-.01-.022-.01-.023-.012-.023-.013-.023-.014-.023-.015-.024-.017-.023-.018-.024-.019-.024-.02-.025-.021-.024-.023-.024-.023-.025-.051-.05-.056-.05-.06-.05-.065-.051-.07-.052-.074-.051-.079-.052-.083-.052-.088-.052-.092-.052-.096-.052-.101-.052-.106-.052-.11-.052-.114-.052-.118-.051-.123-.051-.126-.051-.131-.05-.136-.05-.139-.049-.143-.048-.148-.048-.152-.048-.155-.046-.16-.046-.163-.045-.168-.043-.172-.043-.175-.042-.179-.041-.183-.04-.187-.038-.191-.038-.194-.036-.198-.034-.202-.033-.205-.032-.21-.031-.212-.028-.216-.027-.22-.026-.224-.023-.226-.022-.231-.021-.233-.018-.237-.016-.241-.014-.244-.012-.247-.011-.25-.008-.254-.005-.257-.004-.26-.001-.26.001z"
+        transform="scale(.5)"></path>
+    </symbol>
+  </defs>
+  <defs>
+    <symbol height="24" width="24" id="clock">
+      <path
+        d="M12 2c5.514 0 10 4.486 10 10s-4.486 10-10 10-10-4.486-10-10 4.486-10 10-10zm0-2c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm5.848 12.459c.202.038.202.333.001.372-1.907.361-6.045 1.111-6.547 1.111-.719 0-1.301-.582-1.301-1.301 0-.512.77-5.447 1.125-7.445.034-.192.312-.181.343.014l.985 6.238 5.394 1.011z"
+        transform="scale(.5)"></path>
+    </symbol>
+  </defs>
+  <defs>
+    <marker orient="auto-start-reverse" markerHeight="12" markerWidth="12"
+      markerUnits="userSpaceOnUse" refY="5" refX="7.9" id="arrowhead">
+      <path d="M -1 0 L 10 5 L 0 10 z"></path>
+    </marker>
+  </defs>
+  <defs>
+    <marker refY="4.5" refX="4" orient="auto" markerHeight="8" markerWidth="15" id="crosshead">
+      <path style="stroke-dasharray: 0, 0;" d="M 1,2 L 6,7 M 6,2 L 1,7" stroke-width="1pt"
+        stroke="#000000" fill="none"></path>
+    </marker>
+  </defs>
+  <defs>
+    <marker orient="auto" markerHeight="28" markerWidth="20" refY="7" refX="15.5" id="filled-head">
+      <path d="M 18,7 L9,13 L14,7 L9,1 Z"></path>
+    </marker>
+  </defs>
+  <defs>
+    <marker orient="auto" markerHeight="40" markerWidth="60" refY="15" refX="15" id="sequencenumber">
+      <circle r="6" cy="15" cx="15"></circle>
+    </marker>
+  </defs>
+  <g>
+    <rect class="note" height="54" width="841" stroke="#666" fill="#EDF2AE" y="75" x="52.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="80" x="473">
+      <tspan x="473">AppExplorer Socket.IO Communication Protocol</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="97" x="473">
+      <tspan x="473">Phase 1 Migration State - Dual Communication Paths</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="37" width="1533" stroke="#666" fill="#EDF2AE" y="159" x="52.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="164" x="819">
+      <tspan x="819">Phase 1: Infrastructure Setup</tspan>
+    </text>
+  </g>
+  <g></g>
+  <g></g>
+  <g>
+    <rect class="note" height="37" width="344" stroke="#666" fill="#EDF2AE" y="499" x="102.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="504" x="275">
+      <tspan x="275">Feature Flag: enableWorkspaceWebsockets</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="71" width="260" stroke="#666" fill="#EDF2AE" y="600" x="102.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="605" x="233">
+      <tspan x="233">{ type: "workspaceRegistration",</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="622" x="233">
+      <tspan x="233">workspaceId: "workspace-1",</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="639" x="233">
+      <tspan x="233">boardIds: ["board-123"] }</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="54" width="268" stroke="#666" fill="#EDF2AE" y="735" x="1267.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="740" x="1402">
+      <tspan x="1402">{ capabilities: { dualStorage: true,</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="757" x="1402">
+      <tspan x="1402">queryProxying: false } }</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="37" width="329" stroke="#666" fill="#EDF2AE" y="846" x="-87"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="851" x="78">
+      <tspan x="78">Legacy mode - no workspace websockets</tspan>
+    </text>
+  </g>
+  <g>
+    <line class="loopLine" y2="398" x2="1575.5" y1="398" x1="-97"></line>
+    <line class="loopLine" y2="893" x2="1575.5" y1="398" x1="1575.5"></line>
+    <line class="loopLine" y2="893" x2="1575.5" y1="893" x1="-97"></line>
+    <line class="loopLine" y2="893" x2="-97" y1="398" x1="-97"></line>
+    <line style="stroke-dasharray: 3, 3;" class="loopLine" y2="804" x2="1575.5" y1="804" x1="-97"></line>
+    <polygon class="labelBox" points="-97,398 -47,398 -47,411 -55.4,418 -97,418"></polygon>
+    <text style="font-size: 16px; font-weight: 400;" class="labelText" alignment-baseline="middle"
+      dominant-baseline="middle" text-anchor="middle" y="411" x="-72">alt</text>
+    <text style="font-size: 16px; font-weight: 400;" class="loopText" text-anchor="middle" y="416"
+      x="764.25">
+      <tspan x="764.25">[enableWorkspaceWebsockets = true]</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" class="loopText" text-anchor="middle" y="822"
+      x="739.25">[enableWorkspaceWebsockets = false]</text>
+  </g>
+  <g>
+    <rect class="note" height="37" width="407" stroke="#666" fill="#EDF2AE" y="933" x="486.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="938" x="690">
+      <tspan x="690">Miro Board Connection (Always Active)</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="activation1" height="4838" width="10" stroke="#666" fill="#EDF2AE" y="1026"
+      x="511.5"></rect>
+  </g>
+  <g>
+    <rect class="note" height="54" width="262" stroke="#666" fill="#EDF2AE" y="1142" x="893.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="1147" x="1025">
+      <tspan x="1025">{ boardId: "board-123",</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="1164" x="1025">
+      <tspan x="1025">name: "My Architecture Board" }</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="37" width="781" stroke="#666" fill="#EDF2AE" y="1236" x="486.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="1241" x="877">
+      <tspan x="877">Phase 2: Data Synchronization</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="37" width="265" stroke="#666" fill="#EDF2AE" y="1468" x="379"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="1473" x="512">
+      <tspan x="512">Feature Flag: enableDualStorage</tspan>
+    </text>
+  </g>
+  <g>
+    <line class="loopLine" y2="1337" x2="1253.5" y1="1337" x1="339"></line>
+    <line class="loopLine" y2="1862" x2="1253.5" y1="1337" x1="1253.5"></line>
+    <line class="loopLine" y2="1862" x2="1253.5" y1="1862" x1="339"></line>
+    <line class="loopLine" y2="1862" x2="339" y1="1337" x1="339"></line>
+    <line style="stroke-dasharray: 3, 3;" class="loopLine" y2="1766" x2="1253.5" y1="1766" x1="339"></line>
+    <polygon class="labelBox" points="339,1337 389,1337 389,1350 380.6,1357 339,1357"></polygon>
+    <text style="font-size: 16px; font-weight: 400;" class="labelText" alignment-baseline="middle"
+      dominant-baseline="middle" text-anchor="middle" y="1350" x="364">alt</text>
+    <text style="font-size: 16px; font-weight: 400;" class="loopText" text-anchor="middle" y="1355"
+      x="821.25">
+      <tspan x="821.25">[enableDualStorage = true]</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" class="loopText" text-anchor="middle" y="1784"
+      x="796.25">[enableDualStorage = false]</text>
+  </g>
+  <g>
+    <rect class="note" height="54" width="214" stroke="#666" fill="#EDF2AE" y="1973" x="272.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="1978" x="380">
+      <tspan x="380">{ type: "boardConnected",</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="1995" x="380">
+      <tspan x="380">boardInfo: { id, name } }</tspan>
+    </text>
+  </g>
+  <g>
+    <line class="loopLine" y2="1872" x2="531.5" y1="1872" x1="-6.5"></line>
+    <line class="loopLine" y2="2151" x2="531.5" y1="1872" x1="531.5"></line>
+    <line class="loopLine" y2="2151" x2="531.5" y1="2151" x1="-6.5"></line>
+    <line class="loopLine" y2="2151" x2="-6.5" y1="1872" x1="-6.5"></line>
+    <polygon class="labelBox" points="-6.5,1872 43.5,1872 43.5,1885 35.1,1892 -6.5,1892"></polygon>
+    <text style="font-size: 16px; font-weight: 400;" class="labelText" alignment-baseline="middle"
+      dominant-baseline="middle" text-anchor="middle" y="1885" x="19">alt</text>
+    <text style="font-size: 16px; font-weight: 400;" class="loopText" text-anchor="middle" y="1890"
+      x="287.5">
+      <tspan x="287.5">[enableWorkspaceWebsockets = true]</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="37" width="841" stroke="#666" fill="#EDF2AE" y="2191" x="52.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2196" x="473">
+      <tspan x="473">Phase 3: Query Operations</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="37" width="841" stroke="#666" fill="#EDF2AE" y="2285" x="52.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2290" x="473">
+      <tspan x="473">Legacy Direct Path</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="37" width="841" stroke="#666" fill="#EDF2AE" y="2649" x="52.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2654" x="473">
+      <tspan x="473">New Websocket Path</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="105" width="284" stroke="#666" fill="#EDF2AE" y="2750" x="102.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2755" x="245">
+      <tspan x="245">Feature Flag: enableQueryProxying</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2772" x="245">
+      <tspan x="245">{ type: "queryRequest",</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2789" x="245">
+      <tspan x="245">requestId: "req-456",</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2806" x="245">
+      <tspan x="245">boardId: "board-123",</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2823" x="245">
+      <tspan x="245">query: "createCards" }</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="71" width="204" stroke="#666" fill="#EDF2AE" y="3135" x="1331.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="3140" x="1434">
+      <tspan x="1434">{ type: "queryResponse",</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="3157" x="1434">
+      <tspan x="1434">requestId: "req-456",</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="3174" x="1434">
+      <tspan x="1434">result: [...cards] }</tspan>
+    </text>
+  </g>
+  <g>
+    <line class="loopLine" y2="2238" x2="1575.5" y1="2238" x1="42.5"></line>
+    <line class="loopLine" y2="3216" x2="1575.5" y1="2238" x1="1575.5"></line>
+    <line class="loopLine" y2="3216" x2="1575.5" y1="3216" x1="42.5"></line>
+    <line class="loopLine" y2="3216" x2="42.5" y1="2238" x1="42.5"></line>
+    <line style="stroke-dasharray: 3, 3;" class="loopLine" y2="2607" x2="1575.5" y1="2607" x1="42.5"></line>
+    <polygon class="labelBox" points="42.5,2238 92.5,2238 92.5,2251 84.1,2258 42.5,2258"></polygon>
+    <text style="font-size: 16px; font-weight: 400;" class="labelText" alignment-baseline="middle"
+      dominant-baseline="middle" text-anchor="middle" y="2251" x="68">alt</text>
+    <text style="font-size: 16px; font-weight: 400;" class="loopText" text-anchor="middle" y="2256"
+      x="834">
+      <tspan x="834">[enableQueryProxying = false (Current Legacy Path)]</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" class="loopText" text-anchor="middle" y="2625"
+      x="809">[enableQueryProxying = true (Future State)]</text>
+  </g>
+  <g>
+    <rect class="note" height="37" width="841" stroke="#666" fill="#EDF2AE" y="3256" x="52.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="3261" x="473">
+      <tspan x="473">Phase 4: Event Routing</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="37" width="484" stroke="#666" fill="#EDF2AE" y="3488" x="52.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="3493" x="295">
+      <tspan x="295">Legacy Direct Event Handling</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="37" width="484" stroke="#666" fill="#EDF2AE" y="3720" x="52.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="3725" x="295">
+      <tspan x="295">Server-Routed Events</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="37" width="321" stroke="#666" fill="#EDF2AE" y="3851" x="351"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="3856" x="512">
+      <tspan x="512">Feature Flag: enableServerEventRouting</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="54" width="264" stroke="#666" fill="#EDF2AE" y="4006" x="1271.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="4011" x="1404">
+      <tspan x="1404">{ type: "navigateToCard",</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="4028" x="1404">
+      <tspan x="1404">card: { path, symbol, miroLink } }</tspan>
+    </text>
+  </g>
+  <g>
+    <line class="loopLine" y2="3441" x2="1575.5" y1="3441" x1="-27"></line>
+    <line class="loopLine" y2="4184" x2="1575.5" y1="3441" x1="1575.5"></line>
+    <line class="loopLine" y2="4184" x2="1575.5" y1="4184" x1="-27"></line>
+    <line class="loopLine" y2="4184" x2="-27" y1="3441" x1="-27"></line>
+    <line style="stroke-dasharray: 3, 3;" class="loopLine" y2="3678" x2="1575.5" y1="3678" x1="-27"></line>
+    <polygon class="labelBox" points="-27,3441 23,3441 23,3454 14.6,3461 -27,3461"></polygon>
+    <text style="font-size: 16px; font-weight: 400;" class="labelText" alignment-baseline="middle"
+      dominant-baseline="middle" text-anchor="middle" y="3454" x="-2">alt</text>
+    <text style="font-size: 16px; font-weight: 400;" class="loopText" text-anchor="middle" y="3459"
+      x="799.25">
+      <tspan x="799.25">[enableServerEventRouting = false (Current State)]</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" class="loopText" text-anchor="middle" y="3696"
+      x="774.25">[enableServerEventRouting = true (Future State)]</text>
+  </g>
+  <g>
+    <rect class="note" height="37" width="484" stroke="#666" fill="#EDF2AE" y="4224" x="52.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="4229" x="295">
+      <tspan x="295">Phase 5: Status Bar Updates</tspan>
+    </text>
+  </g>
+  <g>
+    <line class="loopLine" y2="4325" x2="1253.5" y1="4325" x1="427.5"></line>
+    <line class="loopLine" y2="4611" x2="1253.5" y1="4325" x1="1253.5"></line>
+    <line class="loopLine" y2="4611" x2="1253.5" y1="4611" x1="427.5"></line>
+    <line class="loopLine" y2="4611" x2="427.5" y1="4325" x1="427.5"></line>
+    <line style="stroke-dasharray: 3, 3;" class="loopLine" y2="4515" x2="1253.5" y1="4515"
+      x1="427.5"></line>
+    <polygon class="labelBox" points="427.5,4325 477.5,4325 477.5,4338 469.1,4345 427.5,4345"></polygon>
+    <text style="font-size: 16px; font-weight: 400;" class="labelText" alignment-baseline="middle"
+      dominant-baseline="middle" text-anchor="middle" y="4338" x="453">alt</text>
+    <text style="font-size: 16px; font-weight: 400;" class="loopText" text-anchor="middle" y="4343"
+      x="865.5">
+      <tspan x="865.5">[enableDualStorage = true]</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" class="loopText" text-anchor="middle" y="4533"
+      x="840.5">[enableDualStorage = false]</text>
+  </g>
+  <g>
+    <rect class="note" height="37" width="327" stroke="#666" fill="#EDF2AE" y="4668" x="348"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="4673" x="512">
+      <tspan x="512">Feature Flag: enableWebsocketStatusBar</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="71" width="195" stroke="#666" fill="#EDF2AE" y="4823" x="1340.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="4828" x="1438">
+      <tspan x="1438">{ type: "cardUpdate",</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="4845" x="1438">
+      <tspan x="1438">boardId: "board-123",</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="4862" x="1438">
+      <tspan x="1438">card: {...cardData} }</tspan>
+    </text>
+  </g>
+  <g>
+    <line class="loopLine" y2="4621" x2="1575.5" y1="4621" x1="66.5"></line>
+    <line class="loopLine" y2="5005" x2="1575.5" y1="4621" x1="1575.5"></line>
+    <line class="loopLine" y2="5005" x2="1575.5" y1="5005" x1="66.5"></line>
+    <line class="loopLine" y2="5005" x2="66.5" y1="4621" x1="66.5"></line>
+    <line style="stroke-dasharray: 3, 3;" class="loopLine" y2="4909" x2="1575.5" y1="4909" x1="66.5"></line>
+    <polygon class="labelBox" points="66.5,4621 116.5,4621 116.5,4634 108.1,4641 66.5,4641"></polygon>
+    <text style="font-size: 16px; font-weight: 400;" class="labelText" alignment-baseline="middle"
+      dominant-baseline="middle" text-anchor="middle" y="4634" x="92">alt</text>
+    <text style="font-size: 16px; font-weight: 400;" class="loopText" text-anchor="middle" y="4639"
+      x="846">
+      <tspan x="846">[enableWebsocketStatusBar = true]</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" class="loopText" text-anchor="middle" y="4927"
+      x="821">[enableWebsocketStatusBar = false]</text>
+  </g>
+  <g>
+    <rect class="note" height="37" width="841" stroke="#666" fill="#EDF2AE" y="5159" x="52.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="5164" x="473">
+      <tspan x="473">Board Disconnection Cleanup</tspan>
+    </text>
+  </g>
+  <g>
+    <line class="loopLine" y2="5314" x2="621" y1="5314" x1="422"></line>
+    <line class="loopLine" y2="5497" x2="621" y1="5314" x1="621"></line>
+    <line class="loopLine" y2="5497" x2="621" y1="5497" x1="422"></line>
+    <line class="loopLine" y2="5497" x2="422" y1="5314" x1="422"></line>
+    <polygon class="labelBox" points="422,5314 472,5314 472,5327 463.6,5334 422,5334"></polygon>
+    <text style="font-size: 16px; font-weight: 400;" class="labelText" alignment-baseline="middle"
+      dominant-baseline="middle" text-anchor="middle" y="5327" x="447">alt</text>
+    <text style="font-size: 16px; font-weight: 400;" class="loopText" text-anchor="middle" y="5332"
+      x="546.5">
+      <tspan x="546.5">[enableDualStorag-</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" class="loopText" text-anchor="middle" y="5349"
+      x="546.5">
+      <tspan x="546.5">e = true]</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="54" width="235" stroke="#666" fill="#EDF2AE" y="5662" x="1300.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="5667" x="1418">
+      <tspan x="1418">{ type: "boardDisconnected",</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="5684" x="1418">
+      <tspan x="1418">boardId: "board-123" }</tspan>
+    </text>
+  </g>
+  <g>
+    <line class="loopLine" y2="5507" x2="1575.5" y1="5507" x1="66.5"></line>
+    <line class="loopLine" y2="5726" x2="1575.5" y1="5507" x1="1575.5"></line>
+    <line class="loopLine" y2="5726" x2="1575.5" y1="5726" x1="66.5"></line>
+    <line class="loopLine" y2="5726" x2="66.5" y1="5507" x1="66.5"></line>
+    <polygon class="labelBox" points="66.5,5507 116.5,5507 116.5,5520 108.1,5527 66.5,5527"></polygon>
+    <text style="font-size: 16px; font-weight: 400;" class="labelText" alignment-baseline="middle"
+      dominant-baseline="middle" text-anchor="middle" y="5520" x="92">alt</text>
+    <text style="font-size: 16px; font-weight: 400;" class="loopText" text-anchor="middle" y="5525"
+      x="846">
+      <tspan x="846">[enableWorkspaceWebsockets = true]</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="37" width="484" stroke="#666" fill="#EDF2AE" y="5904" x="52.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="5909" x="295">
+      <tspan x="295">Workspace Health Monitoring</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="37" width="279" stroke="#666" fill="#EDF2AE" y="6052" x="102.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="6057" x="242">
+      <tspan x="242">Feature Flag: enableServerFailover</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="71" width="228" stroke="#666" fill="#EDF2AE" y="6153" x="-36.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="6158" x="78">
+      <tspan x="78">If health check fails:</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="6175" x="78">
+      <tspan x="78">Detect server failure</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="6192" x="78">
+      <tspan x="78">Launch new server instance</tspan>
+    </text>
+  </g>
+  <g>
+    <line class="loopLine" y2="5951" x2="526.5" y1="5951" x1="-46.5"></line>
+    <line class="loopLine" y2="6234" x2="526.5" y1="5951" x1="526.5"></line>
+    <line class="loopLine" y2="6234" x2="526.5" y1="6234" x1="-46.5"></line>
+    <line class="loopLine" y2="6234" x2="-46.5" y1="5951" x1="-46.5"></line>
+    <polygon class="labelBox" points="-46.5,5951 3.5,5951 3.5,5964 -4.9,5971 -46.5,5971"></polygon>
+    <text style="font-size: 16px; font-weight: 400;" class="labelText" alignment-baseline="middle"
+      dominant-baseline="middle" text-anchor="middle" y="5964" x="-21">alt</text>
+    <text style="font-size: 16px; font-weight: 400;" class="loopText" text-anchor="middle" y="5969"
+      x="265">
+      <tspan x="265">[enableServerFailover = true]</tspan>
+    </text>
+  </g>
+  <g>
+    <rect class="note" height="132" width="841" stroke="#666" fill="#EDF2AE" y="6254" x="52.5"></rect>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="6259" x="473">
+      <tspan x="473">Legend:</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="6276" x="473">
+      <tspan x="473">🟢 Phase 1: Infrastructure (Green)</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="6295" x="473">
+      <tspan x="473">🟠 Phase 2: Data Sync (Orange)</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="6314" x="473">
+      <tspan x="473">🔵 Phase 3: Query Proxying (Blue)</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="6333" x="473">
+      <tspan x="473">🟡 Phase 4: Event Routing (Peach)</tspan>
+    </text>
+    <text style="font-size: 16px; font-weight: 400;" dy="1em" class="noteText"
+      alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="6352" x="473">
+      <tspan x="473">🟣 Phase 5: Status Bar (Purple)</tspan>
+    </text>
+  </g>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="211" x="291">Start
+    extension activation</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="250" x2="503.5" y1="250" x1="78.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="265" x="517">Launch
+    HTTP server on :9042</text>
+  <path style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" d="M 516.5,304 C 576.5,294 576.5,334 516.5,324"></path>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="349" x="1035">Create
+    /workspace namespace</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="388" x2="1552.5" y1="388" x1="516.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="450" x="816">Connect
+    to /workspace namespace</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="489" x2="1552.5" y1="489" x1="78.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="551" x="816">Send
+    workspaceRegistration event</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="590" x2="1552.5" y1="590" x1="78.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="686" x="819">Send
+    serverCapabilities</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="725" x2="81.5" y1="725" x1="1555.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="985" x="694">Socket.IO
+    connect to main namespace</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="1024" x2="519.5" y1="1024" x1="867.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="1039" x="693">Request
+    getBoardInfo query</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="1078" x2="864.5" y1="1078" x1="521.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="1093" x="696">Return
+    board info</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="1132" x2="524.5" y1="1132" x1="867.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="1288" x="880">connectBoard(boardId,
+    socket) - Legacy path</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="1327" x2="1238.5" y1="1327" x1="521.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="1389" x="522">serverCardStorage.connectBoard()
+    - New path</text>
+  <path style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" d="M 521.5,1428 C 581.5,1418 581.5,1458 521.5,1448"></path>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="1520" x="693">Request
+    cards query</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="1559" x2="864.5" y1="1559" x1="521.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="1574" x="696">Return
+    all cards data</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="1613" x2="524.5" y1="1613" x1="867.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="1628" x="880">setBoardCards()
+    - Legacy storage</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="1667" x2="1238.5" y1="1667" x1="521.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="1682" x="522">setBoardCards()
+    - Server storage (dual sync)</text>
+  <path style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" d="M 521.5,1721 C 581.5,1711 581.5,1751 521.5,1741"></path>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="1813" x="880">setBoardCards()
+    - Legacy storage only</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="1852" x2="1238.5" y1="1852" x1="521.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="1924" x="294">Emit
+    boardConnected via workspace namespace</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="1963" x2="81.5" y1="1963" x1="506.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2042" x="79">Update
+    status bar</text>
+  <path style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" d="M 78.5,2081 C 138.5,2071 138.5,2111 78.5,2101"></path>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2337" x="291">Execute
+    createCard command</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="2376" x2="503.5" y1="2376" x1="78.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2391" x="880">getBoardSocket(boardId)
+    - Direct access</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="2430" x2="1238.5" y1="2430" x1="521.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2445" x="1057">Send
+    createCards query via direct socket</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="2484" x2="872.5" y1="2484" x1="1241.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2499" x="1054">Return
+    created cards</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="2538" x2="1238.5" y1="2538" x1="869.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2553" x="662">Fire
+    navigateToCard event</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="2592" x2="81.5" y1="2592" x1="1241.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2701" x="816">Send
+    queryRequest via workspace websocket</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="2740" x2="1552.5" y1="2740" x1="78.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2870" x="1040">Forward
+    to server</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="2909" x2="524.5" y1="2909" x1="1555.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2924" x="693">Forward
+    query to board socket</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="2963" x2="864.5" y1="2963" x1="521.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="2978" x="696">Return
+    query result</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="3017" x2="524.5" y1="3017" x1="867.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="3032" x="1037">Prepare
+    response</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="3071" x2="1552.5" y1="3071" x1="521.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="3086" x="819">Send
+    queryResponse</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="3125" x2="81.5" y1="3125" x1="1555.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="3308" x="696">UI
+    event (app_card:open)</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="3347" x2="524.5" y1="3347" x1="867.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="3362" x="522">Extract
+    card data</text>
+  <path style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" d="M 521.5,3401 C 581.5,3391 581.5,3431 521.5,3421"></path>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="3540" x="294">Emit
+    navigateToCard via EventEmitter</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="3579" x2="81.5" y1="3579" x1="506.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="3594" x="79">Navigate
+    to code location</text>
+  <path style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" d="M 78.5,3633 C 138.5,3623 138.5,3663 78.5,3653"></path>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="3772" x="522">Route
+    to appropriate workspace</text>
+  <path style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" d="M 521.5,3811 C 581.5,3801 581.5,3841 521.5,3831"></path>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="3903" x="1037">Forward
+    event</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="3942" x2="1552.5" y1="3942" x1="521.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="3957" x="819">Send
+    navigateToCard via workspace websocket</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="3996" x2="81.5" y1="3996" x1="1555.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="4075" x="79">Navigate
+    to code location</text>
+  <path style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" d="M 78.5,4114 C 138.5,4104 138.5,4144 78.5,4134"></path>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="4276" x="696">Card
+    update event</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="4315" x2="524.5" y1="4315" x1="867.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="4377" x="880">Update
+    legacy storage</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="4416" x2="1238.5" y1="4416" x1="521.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="4431" x="522">Update
+    server storage</text>
+  <path style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" d="M 521.5,4470 C 581.5,4460 581.5,4500 521.5,4490"></path>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="4562" x="880">Update
+    legacy storage only</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="4601" x2="1238.5" y1="4601" x1="521.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="4720" x="1037">Broadcast
+    cardUpdate</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="4759" x2="1552.5" y1="4759" x1="521.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="4774" x="819">Send
+    cardUpdate via workspace websocket</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="4813" x2="81.5" y1="4813" x1="1555.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="4956" x="659">Direct
+    status bar access (legacy)</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="4995" x2="1238.5" y1="4995" x1="78.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="5020" x="79">Update
+    status bar display</text>
+  <path style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" d="M 78.5,5059 C 138.5,5049 138.5,5089 78.5,5079"></path>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="5211" x="696">Socket
+    disconnect</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="5250" x2="524.5" y1="5250" x1="867.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="5265" x="880">Remove
+    board connection - Legacy</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="5304" x2="1238.5" y1="5304" x1="521.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="5388" x="522">Clean
+    up server storage</text>
+  <path style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" d="M 521.5,5427 C 581.5,5417 581.5,5457 521.5,5447"></path>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="5559" x="1037">Emit
+    boardDisconnected</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="5598" x2="1552.5" y1="5598" x1="521.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="5613" x="819">Send
+    boardDisconnected</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="5652" x2="81.5" y1="5652" x1="1555.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="5741" x="79">Update
+    status bar</text>
+  <path style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" d="M 78.5,5780 C 138.5,5770 138.5,5810 78.5,5800"></path>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="5825" x="1037">Cleanup
+    namespace if needed</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="5864" x2="1552.5" y1="5864" x1="521.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="6003" x="291">Send
+    serverHealthCheck</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="6042" x2="503.5" y1="6042" x1="78.5"></line>
+  <text style="font-size: 16px; font-weight: 400;" dy="1em" class="messageText"
+    alignment-baseline="middle" dominant-baseline="middle" text-anchor="middle" y="6104" x="294">Send
+    serverHealthResponse</text>
+  <line style="fill: none;" marker-end="url(#arrowhead)" stroke="none" stroke-width="2"
+    class="messageLine0" y2="6143" x2="81.5" y1="6143" x1="506.5"></line>
+</svg>

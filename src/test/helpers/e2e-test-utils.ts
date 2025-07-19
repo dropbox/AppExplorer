@@ -21,6 +21,9 @@ export class E2ETestUtils {
   private static mockClient: MockMiroClient | null = null;
   private static locationFinder: LocationFinder = new LocationFinder();
   private static testMiroServer: any = null; // MiroServer instance for testing
+  private static cardStorage: any = null; // CardStorage instance
+  private static serverCardStorage: any = null; // ServerCardStorage instance
+  private static capturedEvents: Map<string, any[]> = new Map(); // Event capture for testing
 
   /**
    * Initialize test port allocation for the test suite
@@ -652,5 +655,142 @@ export class E2ETestUtils {
     }
 
     console.log("=== END DEBUG ===\n");
+  }
+
+  /**
+   * Set up MockMiroClient and return it
+   */
+  static async setupMockMiroClient(): Promise<MockMiroClient> {
+    const testPort = TestPortManager.getAllocatedPort();
+    const serverUrl = `http://localhost:${testPort}`;
+
+    console.log(
+      `[E2ETestUtils] Setting up MockMiroClient with server URL: ${serverUrl}`,
+    );
+
+    this.mockClient = new MockMiroClient(serverUrl);
+    await this.mockClient.connect();
+
+    console.log("MockMiroClient setup complete");
+    return this.mockClient;
+  }
+
+  /**
+   * Get the current CardStorage instance
+   */
+  static getCardStorage(): any {
+    if (!this.cardStorage && this.testMiroServer) {
+      this.cardStorage = this.testMiroServer.getCardStorage?.();
+    }
+    return this.cardStorage;
+  }
+
+  /**
+   * Get the current ServerCardStorage instance
+   */
+  static getServerCardStorage(): any {
+    if (!this.serverCardStorage && this.testMiroServer) {
+      this.serverCardStorage = this.testMiroServer.getServerCardStorage?.();
+    }
+    return this.serverCardStorage;
+  }
+
+  /**
+   * Open a file and position cursor at a specific symbol
+   */
+  static async openFileAtSymbol(
+    filePath: string,
+    symbolName: string,
+  ): Promise<void> {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      throw new Error("No workspace folders found");
+    }
+
+    const fullPath = vscode.Uri.joinPath(workspaceFolders[0].uri, filePath);
+    const document = await vscode.workspace.openTextDocument(fullPath);
+    const editor = await vscode.window.showTextDocument(document);
+
+    // Find the symbol position
+    const symbolPosition = await this.findSymbolPosition(document, symbolName);
+    if (symbolPosition) {
+      editor.selection = new vscode.Selection(symbolPosition, symbolPosition);
+      editor.revealRange(new vscode.Range(symbolPosition, symbolPosition));
+    }
+  }
+
+  /**
+   * Find the position of a symbol in a document
+   */
+  static async findSymbolPosition(
+    document: vscode.TextDocument,
+    symbolName: string,
+  ): Promise<vscode.Position | null> {
+    const symbols = await this.locationFinder.findSymbolsInDocument(
+      document.uri,
+    );
+    const symbol = symbols.find(
+      (s) => s.label === symbolName || s.label.includes(symbolName),
+    );
+
+    if (symbol) {
+      return symbol.range.start;
+    }
+
+    return null;
+  }
+
+  /**
+   * Navigate to a specific symbol in the current editor
+   */
+  static async navigateToSymbol(
+    editor: vscode.TextEditor,
+    symbolName: string,
+  ): Promise<void> {
+    const symbolPosition = await this.findSymbolPosition(
+      editor.document,
+      symbolName,
+    );
+    if (symbolPosition) {
+      editor.selection = new vscode.Selection(symbolPosition, symbolPosition);
+      editor.revealRange(new vscode.Range(symbolPosition, symbolPosition));
+    } else {
+      throw new Error(`Symbol ${symbolName} not found in document`);
+    }
+  }
+
+  /**
+   * Capture events for testing
+   */
+  static captureEvent(eventType: string, eventData: any): void {
+    if (!this.capturedEvents.has(eventType)) {
+      this.capturedEvents.set(eventType, []);
+    }
+    this.capturedEvents.get(eventType)!.push(eventData);
+  }
+
+  /**
+   * Get captured events of a specific type
+   */
+  static getCapturedEvents(eventType: string): any[] {
+    return this.capturedEvents.get(eventType) || [];
+  }
+
+  /**
+   * Clear captured events
+   */
+  static clearCapturedEvents(): void {
+    this.capturedEvents.clear();
+  }
+
+  /**
+   * Teardown MockMiroClient
+   */
+  static async teardownMockMiroClient(): Promise<void> {
+    if (this.mockClient) {
+      this.mockClient.disconnect();
+      this.mockClient = null;
+    }
+    this.clearCapturedEvents();
   }
 }

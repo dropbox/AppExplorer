@@ -330,4 +330,11 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
       name: this.boardName,
     };
   }
+
+  /**
+   * Get board ID
+   */
+  getBoardId(): string {
+    return this.boardId;
+  }
 }

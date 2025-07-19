@@ -440,6 +440,13 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
   }
 
   /**
+   * Get client-side card storage from context
+   */
+  getCardStorage(): any {
+    return this.context?.cardStorage;
+  }
+
+  /**
    * Get server storage statistics
    */
   getServerStorageStats() {

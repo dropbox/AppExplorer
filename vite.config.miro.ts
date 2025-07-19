@@ -26,6 +26,7 @@ export default defineConfig({
     "process.env.NODE_ENV": JSON.stringify("production"),
   },
   build: {
+    sourcemap: true,
     lib: {
       entry: {
         miro: "index.html",
