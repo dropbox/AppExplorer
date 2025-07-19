@@ -12,10 +12,12 @@
   "typescript.tsc.autoDetect": "off",
 
   // AppExplorer Migration Settings (Development Configuration)
-  // Uncomment the settings below to enable migration features during development
+  // Enable all multi-workspace features for testing
   "appExplorer.migration.enableServerDiscovery": true,
   "appExplorer.migration.enableWorkspaceWebsockets": true,
   "appExplorer.migration.enableDualStorage": true,
   "appExplorer.migration.enableServerFailover": true,
+  "appExplorer.migration.enableQueryProxying": true,
+  "appExplorer.migration.enableBoardAssignment": true,
   "appExplorer.migration.debugMode": true
 }

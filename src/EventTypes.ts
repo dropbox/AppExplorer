@@ -90,7 +90,6 @@ export type ResponseEvents = {
   }) => void;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Handler<T extends (...args: any[]) => void, U = void> = (
   ...args: Parameters<T>
 ) => U;
@@ -129,15 +128,46 @@ export type WorkspaceEvents =
   | { type: "cardDelete"; boardId: string; miroLink: string }
   | { type: "navigateToCard"; card: CardData }
 
-  // Query proxying
+  // Query proxying - workspace to server
   | {
       type: "queryRequest";
       requestId: string;
       boardId: string;
       query: keyof Queries;
-      data: any;
+      data: any[];
+      timeout?: number;
     }
-  | { type: "queryResponse"; requestId: string; result: any; error?: string }
+  | {
+      type: "queryResponse";
+      requestId: string;
+      result?: any;
+      error?: string;
+      duration?: number;
+    }
+
+  // Query status and health
+  | {
+      type: "queryTimeout";
+      requestId: string;
+      query: keyof Queries;
+      boardId: string;
+    }
+  | {
+      type: "queryRetry";
+      requestId: string;
+      attempt: number;
+      maxAttempts: number;
+    }
+
+  // Workspace board assignment
+  | { type: "boardAssignmentRequest"; workspaceId: string; boardIds: string[] }
+  | {
+      type: "boardAssignmentResponse";
+      workspaceId: string;
+      assignedBoards: string[];
+      deniedBoards: string[];
+    }
+  | { type: "boardAccessDenied"; boardId: string; reason: string }
 
   // Error handling
   | { type: "error"; message: string; code?: string };
@@ -162,6 +192,72 @@ export const DEFAULT_RETRY_CONFIG: RetryConfig = {
   backoffMultiplier: 2,
   maxRetries: 10,
   jitter: true,
+};
+
+// Query Proxying Configuration
+
+export interface QueryProxyConfig {
+  timeout: number; // Query timeout in milliseconds
+  maxRetries: number; // Maximum retry attempts for failed queries
+  retryDelay: number; // Delay between retry attempts
+  enableCaching: boolean; // Enable query result caching
+  cacheTimeout: number; // Cache timeout in milliseconds
+}
+
+export const DEFAULT_QUERY_PROXY_CONFIG: QueryProxyConfig = {
+  timeout: 10000, // 10 seconds
+  maxRetries: 3,
+  retryDelay: 1000, // 1 second
+  enableCaching: false, // Simplified - use ServerCardStorage instead
+  cacheTimeout: 30000, // 30 seconds
+};
+
+// Query proxy request tracking
+export interface QueryProxyRequest {
+  requestId: string;
+  boardId: string;
+  query: keyof Queries;
+  data: any[];
+  timestamp: number;
+  timeout: number;
+  workspaceId: string;
+  attempt: number;
+  maxAttempts: number;
+}
+
+// Workspace Board Assignment Configuration
+
+export interface WorkspaceBoardAssignment {
+  workspaceId: string;
+  assignedBoards: Set<string>;
+  lastActivity: Date;
+  permissions: BoardPermissions;
+}
+
+export interface BoardPermissions {
+  canRead: boolean;
+  canWrite: boolean;
+  canManage: boolean;
+}
+
+export const DEFAULT_BOARD_PERMISSIONS: BoardPermissions = {
+  canRead: true,
+  canWrite: true,
+  canManage: false, // Management requires explicit permission
+};
+
+export interface BoardAssignmentConfig {
+  autoAssignNewBoards: boolean; // Auto-assign new boards to all workspaces
+  requireExplicitAssignment: boolean; // Require explicit assignment for board access
+  maxBoardsPerWorkspace: number; // Maximum boards per workspace (0 = unlimited)
+  assignmentTimeout: number; // Timeout for assignment requests
+}
+
+export const DEFAULT_BOARD_ASSIGNMENT_CONFIG: BoardAssignmentConfig = {
+  autoAssignNewBoards: true,
+  requireExplicitAssignment: false,
+  maxBoardsPerWorkspace: 0, // Unlimited by default
+  assignmentTimeout: 5000, // 5 seconds
 };
 
 // Server Health Check Configuration
@@ -196,6 +292,14 @@ export interface ConnectionStatus {
   error?: string;
 }
 
+// Workspace connection status
+export enum WorkspaceConnectionStatus {
+  CONNECTED = "connected",
+  DISCONNECTED = "disconnected",
+  RECONNECTING = "reconnecting",
+  STALE = "stale", // Connected but not responding to health checks
+}
+
 // Workspace Registration and Management
 
 export interface WorkspaceInfo {
@@ -205,6 +309,9 @@ export interface WorkspaceInfo {
   connectedAt: Date; // When workspace connected to server
   lastActivity: Date; // Last activity timestamp
   boardIds: string[]; // Board IDs this workspace is interested in
+  connectionStatus: WorkspaceConnectionStatus;
+  lastHealthCheck: number; // Timestamp of last successful health check
+  reconnectCount: number; // Number of reconnection attempts
 }
 
 export interface WorkspaceRegistrationRequest {

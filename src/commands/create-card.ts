@@ -3,7 +3,6 @@ import { CardData } from "../EventTypes";
 import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
 import { getRelativePath } from "../get-relative-path";
-import { MiroServer } from "../server";
 import { LocationFinder } from "../location-finder";
 
 export class UnreachableError extends Error {
@@ -50,10 +49,7 @@ export async function selectConnectedBoard({ cardStorage }: HandlerContext) {
   }
 }
 
-export const makeNewCardHandler = (
-  context: HandlerContext,
-  miroServer: MiroServer,
-) =>
+export const makeNewCardHandler = (context: HandlerContext) =>
   async function (options: CreateCardOptions = {}) {
     const editor = vscode.window.activeTextEditor;
     if (editor) {
@@ -69,7 +65,8 @@ export const makeNewCardHandler = (
           canPickMany: false,
         });
         if (cardData) {
-          miroServer.query(boardId, "newCards", cardData, {
+          // Use universal query method through WorkspaceCardStorageProxy
+          context.cardStorage.query(boardId, "newCards", cardData, {
             connect: options.connect,
           });
         }

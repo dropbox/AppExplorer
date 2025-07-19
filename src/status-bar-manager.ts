@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { CardStorage } from "./card-storage";
+import { WorkspaceCardStorageProxy } from "./workspace-card-storage-proxy";
 
 export class StatusBarManager {
   public statusBar: vscode.StatusBarItem;
@@ -10,7 +11,7 @@ export class StatusBarManager {
     workspaceBoards: () => void;
   };
 
-  constructor(private cardStorage: CardStorage) {
+  constructor(private cardStorage: CardStorage | WorkspaceCardStorageProxy) {
     this.statusBar = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       100,

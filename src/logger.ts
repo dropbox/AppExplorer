@@ -76,7 +76,7 @@ export class Logger {
   ): void {
     // Check if we should show debug messages
     if (level === "debug" && !this.shouldShowDebug()) {
-      return;
+      // return;
     }
 
     const timestamp = new Date().toISOString();

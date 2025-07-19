@@ -4,6 +4,7 @@ import { CardData } from "./EventTypes";
 import { HandlerContext } from "./extension";
 import { getRelativePath } from "./get-relative-path";
 import { LocationFinder } from "./location-finder";
+import { WorkspaceCardStorageProxy } from "./workspace-card-storage-proxy";
 
 interface CardDecoration extends vscode.DecorationOptions {
   card: CardData;
@@ -14,7 +15,7 @@ export class EditorDecorator {
   #activeEdtior: vscode.TextEditor | undefined;
   timeout: NodeJS.Timeout | undefined;
   #decoratorMap = new WeakMap<vscode.TextEditor, CardDecoration[]>();
-  #cardStorage: CardStorage | undefined;
+  #cardStorage: CardStorage | WorkspaceCardStorageProxy | undefined;
   #eventListeners:
     | {
         boardUpdate: () => void;

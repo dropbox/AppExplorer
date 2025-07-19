@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { createLogger } from "./logger";
 
 export interface MigrationFlags {
   // Phase 1: Infrastructure
@@ -24,13 +25,17 @@ export interface MigrationFlags {
 
 export class FeatureFlagManager {
   private flags: MigrationFlags;
+  private logger = createLogger("feature-flags");
 
   constructor(_context: vscode.ExtensionContext) {
+    this.logger.debug("Initializing FeatureFlagManager");
     this.flags = this.loadConfiguration();
   }
 
   // Load configuration from VSCode settings
   private loadConfiguration(): MigrationFlags {
+    this.logger.debug("Loading feature flag configuration");
+
     const vscodeConfig = vscode.workspace.getConfiguration(
       "appExplorer.migration",
     );
@@ -42,6 +47,17 @@ export class FeatureFlagManager {
 
     // Validate flag dependencies
     this.validateFlagDependencies(flags);
+
+    this.logger.info("Feature flags loaded", {
+      enableServerDiscovery: flags.enableServerDiscovery,
+      enableWorkspaceWebsockets: flags.enableWorkspaceWebsockets,
+      enableDualStorage: flags.enableDualStorage,
+      enableServerFailover: flags.enableServerFailover,
+      enableQueryProxying: flags.enableQueryProxying,
+      enableServerEventRouting: flags.enableServerEventRouting,
+      enableWebsocketStatusBar: flags.enableWebsocketStatusBar,
+      debugMode: flags.debugMode,
+    });
 
     return flags;
   }
@@ -109,8 +125,13 @@ export class FeatureFlagManager {
 
     // Log warnings if any dependency issues found
     if (warnings.length > 0) {
-      console.warn("AppExplorer Migration Flag Warnings:");
-      warnings.forEach((warning) => console.warn(`  - ${warning}`));
+      this.logger.warn("Feature flag dependency issues detected", {
+        warningCount: warnings.length,
+        warnings,
+      });
+      warnings.forEach((warning) =>
+        this.logger.warn(`Dependency issue: ${warning}`),
+      );
     }
   }
 
@@ -139,7 +160,9 @@ export class FeatureFlagManager {
   }
 
   isEnabled(flag: keyof MigrationFlags): boolean {
-    return this.flags[flag];
+    const isEnabled = this.flags[flag];
+
+    return isEnabled;
   }
 
   // Check if a phase is properly enabled with all dependencies
@@ -173,6 +196,22 @@ export class FeatureFlagManager {
 
   // Reload configuration from VSCode settings
   reloadConfiguration(): void {
+    this.logger.info("Reloading feature flag configuration");
+    const oldFlags = { ...this.flags };
     this.flags = this.loadConfiguration();
+
+    // Log any changes
+    const changes: string[] = [];
+    for (const key of Object.keys(this.flags) as (keyof MigrationFlags)[]) {
+      if (oldFlags[key] !== this.flags[key]) {
+        changes.push(`${key}: ${oldFlags[key]} → ${this.flags[key]}`);
+      }
+    }
+
+    if (changes.length > 0) {
+      this.logger.info("Feature flag changes detected", { changes });
+    } else {
+      this.logger.debug("No feature flag changes detected");
+    }
   }
 }

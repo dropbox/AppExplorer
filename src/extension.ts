@@ -1,9 +1,8 @@
 import * as vscode from "vscode";
 import { AppExplorerLens } from "./app-explorer-lens";
-import { CardStorage, createVSCodeCardStorage } from "./card-storage";
 import { makeAttachCardHandler } from "./commands/attach-card";
 import { goToCardCode, makeBrowseHandler } from "./commands/browse";
-import { makeNewCardHandler, UnreachableError } from "./commands/create-card";
+import { makeNewCardHandler } from "./commands/create-card";
 import { makeWorkspaceBoardHandler } from "./commands/manage-workspace-boards";
 import { makeNavigationHandler } from "./commands/navigate";
 import { makeRenameHandler } from "./commands/rename-board";
@@ -20,12 +19,13 @@ import { ServerDiscovery } from "./server-discovery";
 import { ServerHealthMonitor } from "./server-health-monitor";
 import { ServerLauncher } from "./server-launcher";
 import { StatusBarManager } from "./status-bar-manager";
+import { WorkspaceCardStorageProxy } from "./workspace-card-storage-proxy";
 import { WorkspaceWebsocketClient } from "./workspace-websocket-client";
 import path = require("node:path");
 import fs = require("node:fs");
 
 export type HandlerContext = {
-  cardStorage: CardStorage;
+  cardStorage: WorkspaceCardStorageProxy;
   waitForConnections: () => Promise<void>;
 };
 
@@ -50,14 +50,23 @@ export async function activate(context: vscode.ExtensionContext) {
   extensionLogger.debug("Migration flags:", featureFlagManager.getFlags());
 
   const locationFinder = new LocationFinder();
-  const cardStorage = createVSCodeCardStorage(context);
+
+  // Create WorkspaceCardStorageProxy as the single CardStorage implementation
+  // This eliminates the dual storage pattern and circular dependencies
+  const cardStorage = new WorkspaceCardStorageProxy(
+    context,
+    featureFlagManager,
+    // workspaceClient will be set later when available
+  );
+
   const statusBarManager = new StatusBarManager(cardStorage);
   context.subscriptions.push(statusBarManager);
 
+  // Create handler context with the proxy as the only CardStorage
   const handlerContext: HandlerContext = {
-    cardStorage,
+    cardStorage: cardStorage,
     async waitForConnections() {
-      if (cardStorage.getConnectedBoards().length > 0) {
+      if (handlerContext.cardStorage.getConnectedBoards().length > 0) {
         return;
       }
 
@@ -72,7 +81,7 @@ export async function activate(context: vscode.ExtensionContext) {
             console.log("User canceled the long running operation");
           });
 
-          while (cardStorage.getConnectedBoards().length === 0) {
+          while (handlerContext.cardStorage.getConnectedBoards().length === 0) {
             await new Promise((resolve) => setTimeout(resolve, 500));
           }
         },
@@ -118,7 +127,7 @@ export async function activate(context: vscode.ExtensionContext) {
           miroLink: codeLink ?? undefined,
         });
       }
-      miroServer.query(card.boardId, "cardStatus", {
+      await handlerContext.cardStorage.query(card.boardId, "cardStatus", {
         miroLink: card.miroLink,
         status,
         codeLink,
@@ -139,13 +148,13 @@ export async function activate(context: vscode.ExtensionContext) {
   extensionLogger.info("Initializing server...");
   const serverResult = await serverLauncher.initializeServer(handlerContext);
 
-  let miroServer: MiroServer;
   let healthMonitor: ServerHealthMonitor | undefined;
 
   if (serverResult.mode === "server" && serverResult.server) {
-    // This workspace is running the server
-    miroServer = serverResult.server;
-    extensionLogger.info("Running in server mode");
+    // This workspace launched the server - now switch to client mode
+    const miroServer = serverResult.server;
+    context.subscriptions.push(miroServer);
+    extensionLogger.info("Launched MiroServer, now switching to client mode");
 
     // Start health monitoring if enabled
     if (featureFlagManager.isEnabled("enableServerFailover")) {
@@ -158,7 +167,8 @@ export async function activate(context: vscode.ExtensionContext) {
       healthMonitor.startMonitoring();
       context.subscriptions.push({ dispose: () => healthMonitor?.dispose() });
     }
-  } else if (serverResult.mode === "client") {
+  }
+  if (serverResult.mode !== "disabled") {
     // This workspace should connect as a client
     extensionLogger.info("Running in client mode, connecting to server", {
       serverUrl: serverResult.serverUrl,
@@ -199,12 +209,57 @@ export async function activate(context: vscode.ExtensionContext) {
       });
     });
 
+    // Connect navigation events from Miro to actual navigation function
+    workspaceClient.on("navigateToCard", async (event: { card: CardData }) => {
+      extensionLogger.info("🎯 NAVIGATION EVENT: Executing card navigation", {
+        timestamp: new Date().toISOString(),
+        cardTitle: event.card.title,
+        cardPath: event.card.path,
+        cardSymbol:
+          event.card.type === "symbol" ? event.card.symbol : undefined,
+        eventSource: "workspace-websocket-client",
+      });
+
+      try {
+        // Call the actual navigation function
+        const success = await navigateToCard(event.card, false);
+        extensionLogger.info(
+          "🎯 NAVIGATION RESULT: Card navigation completed",
+          {
+            timestamp: new Date().toISOString(),
+            cardTitle: event.card.title,
+            success,
+          },
+        );
+      } catch (error) {
+        extensionLogger.error(
+          "❌ NAVIGATION ERROR: Failed to navigate to card",
+          {
+            timestamp: new Date().toISOString(),
+            cardTitle: event.card.title,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        );
+      }
+    });
+
     // Connect to server
     try {
       await workspaceClient.connect();
       extensionLogger.info(
         "Successfully connected to server as workspace client",
       );
+
+      // Set the workspace client for proxy operations
+      // Since WorkspaceCardStorageProxy was created early, we just need to set the client
+      extensionLogger.info("Setting workspace client for proxy operations");
+
+      handlerContext.cardStorage.setWorkspaceClient(workspaceClient);
+
+      extensionLogger.info("WorkspaceCardStorageProxy client mode enabled", {
+        hasWorkspaceClient: true,
+        proxyStats: handlerContext.cardStorage.getProxyStats(),
+      });
     } catch (error) {
       extensionLogger.error("Failed to connect as workspace client", { error });
       vscode.window.showErrorMessage(
@@ -217,65 +272,32 @@ export async function activate(context: vscode.ExtensionContext) {
     // Add client to subscriptions for cleanup
     context.subscriptions.push(workspaceClient);
 
-    // For now, still create a MiroServer for legacy functionality
-    // This ensures existing commands and Miro board connections still work
-    // TODO: Phase 2 - Replace with pure client mode that proxies all operations through workspace client
-    // TODO: Phase 3 - Remove MiroServer entirely from client mode once query proxying is implemented
-    miroServer = await MiroServer.create(handlerContext, featureFlagManager);
+    // Set miroServer to null since we're operating in client mode
   } else {
-    // Fallback or error case
-    extensionLogger.warn("Server initialization failed, using fallback", {
-      error: serverResult.error,
-    });
-    miroServer = await MiroServer.create(handlerContext, featureFlagManager);
+    // Fallback or error case - launch local server
+    extensionLogger.warn(
+      "Server initialization failed, launching local server as fallback",
+      {
+        error: serverResult.error,
+      },
+    );
+    const miroServer = await MiroServer.create(
+      handlerContext,
+      featureFlagManager,
+    );
+    context.subscriptions.push(miroServer);
   }
 
-  // Add server to subscriptions and set up event handling
-  context.subscriptions.push(
-    miroServer,
-    serverLauncher,
-    miroServer.event(async (event) => {
-      switch (event.type) {
-        case "navigateToCard": {
-          navigateToCard(event.card);
-          break;
-        }
-        case "updateCard": {
-          if (event.miroLink) {
-            const { card, miroLink } = event;
-            if (card) {
-              handlerContext.cardStorage.setCard(miroLink, card);
-            } else {
-              handlerContext.cardStorage.deleteCardByLink(miroLink);
-            }
-            statusBarManager.renderStatusBar();
-          }
-          break;
-        }
-        case "disconnect": {
-          statusBarManager.renderStatusBar();
-          break;
-        }
-        case "connect": {
-          const { boardInfo } = event;
-          const selection = await vscode.window.showInformationMessage(
-            `AppExplorer - Connected to board: ${boardInfo?.name ?? boardInfo.id}`,
-            "Rename Board",
-          );
-          if (selection === "Rename Board") {
-            vscode.commands.executeCommand(
-              "app-explorer.renameBoard",
-              boardInfo.id,
-            );
-          }
-          statusBarManager.renderStatusBar();
-          break;
-        }
-        default:
-          throw new UnreachableError(event);
-      }
-    }),
-  );
+  // Add server launcher to subscriptions
+  context.subscriptions.push(serverLauncher);
+
+  // NOTE: In the corrected architecture, ALL workspace instances operate in CLIENT mode
+  // Events are now handled through WorkspaceCardStorageProxy, not direct miroServer events
+  // The WorkspaceCardStorageProxy receives events from the central server and handles:
+  // - navigateToCard: Navigation events from Miro boards
+  // - updateCard: Card updates and synchronization
+  // - connect/disconnect: Board connection status changes
+  // This ensures consistent behavior across all workspace instances
 
   context.subscriptions.push(
     vscode.commands.registerCommand("app-explorer.connect", () => {
@@ -292,27 +314,27 @@ export async function activate(context: vscode.ExtensionContext) {
     ),
     vscode.commands.registerCommand(
       "app-explorer.navigate",
-      makeNavigationHandler(handlerContext, miroServer),
+      makeNavigationHandler(handlerContext),
     ),
     vscode.commands.registerCommand(
       "app-explorer.browseCards",
-      makeBrowseHandler(handlerContext, navigateToCard, miroServer),
+      makeBrowseHandler(handlerContext, navigateToCard),
     ),
     vscode.commands.registerCommand(
       "app-explorer.createCard",
-      makeNewCardHandler(handlerContext, miroServer),
+      makeNewCardHandler(handlerContext),
     ),
     vscode.commands.registerCommand(
       "app-explorer.attachCard",
-      makeAttachCardHandler(handlerContext, miroServer),
+      makeAttachCardHandler(handlerContext),
     ),
     vscode.commands.registerCommand(
       "app-explorer.tagCard",
-      makeTagCardHandler(handlerContext, miroServer),
+      makeTagCardHandler(handlerContext),
     ),
     vscode.commands.registerCommand(
       "app-explorer.renameBoard",
-      makeRenameHandler(handlerContext, miroServer),
+      makeRenameHandler(handlerContext),
     ),
     vscode.commands.registerCommand(
       "app-explorer.manageWorkspaceBoards",

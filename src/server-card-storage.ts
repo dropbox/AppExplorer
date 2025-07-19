@@ -17,8 +17,17 @@ export interface ServerBoardInfo {
 
 // Events emitted by ServerCardStorage
 export type ServerCardStorageEvents = {
-  boardUpdate: { type: "boardUpdate"; board: ServerBoardInfo | null; boardId: string };
-  cardUpdate: { type: "cardUpdate"; card: CardData | null; miroLink: string; boardId: string };
+  boardUpdate: {
+    type: "boardUpdate";
+    board: ServerBoardInfo | null;
+    boardId: string;
+  };
+  cardUpdate: {
+    type: "cardUpdate";
+    card: CardData | null;
+    miroLink: string;
+    boardId: string;
+  };
   connectedBoards: { type: "connectedBoards"; boards: string[] };
   workspaceBoards: { type: "workspaceBoards"; boardIds: string[] };
 };
@@ -27,7 +36,10 @@ export type ServerCardStorageEvents = {
  * Server-side memory-backed CardStorage for managing board and card data
  * across multiple workspace connections. Only active when enableDualStorage flag is enabled.
  */
-export class ServerCardStorage extends EventEmitter implements vscode.Disposable {
+export class ServerCardStorage
+  extends EventEmitter
+  implements vscode.Disposable
+{
   private boards = new Map<string, ServerBoardInfo>();
   private sockets = new Map<string, Socket>(); // boardId -> Miro board socket
   private connectedBoards = new Set<string>();
@@ -68,15 +80,17 @@ export class ServerCardStorage extends EventEmitter implements vscode.Disposable
    */
   async connectBoard(boardId: string, socket: Socket): Promise<void> {
     if (!this.isDualStorageEnabled()) {
-      this.logger.debug("Dual storage disabled, skipping board connection", { boardId });
+      this.logger.debug("Dual storage disabled, skipping board connection", {
+        boardId,
+      });
       return;
     }
 
     this.logger.info("Connecting board to server storage", { boardId });
-    
+
     this.sockets.set(boardId, socket);
     this.connectedBoards.add(boardId);
-    
+
     // Update board metadata
     const board = this.boards.get(boardId);
     if (board) {
@@ -112,12 +126,20 @@ export class ServerCardStorage extends EventEmitter implements vscode.Disposable
   /**
    * Add a new board to server storage
    */
-  async addBoard(boardId: string, name: string, assignedWorkspaces: string[] = []): Promise<ServerBoardInfo> {
+  async addBoard(
+    boardId: string,
+    name: string,
+    assignedWorkspaces: string[] = [],
+  ): Promise<ServerBoardInfo> {
     if (!this.isDualStorageEnabled()) {
       throw new Error("Dual storage is disabled");
     }
 
-    this.logger.info("Adding board to server storage", { boardId, name, assignedWorkspaces });
+    this.logger.info("Adding board to server storage", {
+      boardId,
+      name,
+      assignedWorkspaces,
+    });
 
     const board: ServerBoardInfo = {
       id: boardId,
@@ -130,7 +152,7 @@ export class ServerCardStorage extends EventEmitter implements vscode.Disposable
 
     this.boards.set(boardId, board);
     this.emit("boardUpdate", { type: "boardUpdate", board, boardId });
-    
+
     return board;
   }
 
@@ -154,7 +176,11 @@ export class ServerCardStorage extends EventEmitter implements vscode.Disposable
 
     const board = this.boards.get(boardId);
     if (board) {
-      this.logger.debug("Updating board name", { boardId, oldName: board.name, newName: name });
+      this.logger.debug("Updating board name", {
+        boardId,
+        oldName: board.name,
+        newName: name,
+      });
       board.name = name;
       board.lastActivity = new Date();
       this.emit("boardUpdate", { type: "boardUpdate", board, boardId });
@@ -171,21 +197,61 @@ export class ServerCardStorage extends EventEmitter implements vscode.Disposable
     }
 
     const board = this.boards.get(boardId);
-    if (board) {
-      this.logger.debug("Setting board cards", { boardId, cardCount: cards.length });
-      
+    if (!board) {
+      this.logger.warn("Cannot set cards - board not found", {
+        boardId,
+        cardCount: cards.length,
+        availableBoards: Array.from(this.boards.keys()),
+      });
+      return;
+    }
+
+    const startTime = Date.now();
+    const previousCardCount = Object.keys(board.cards).length;
+
+    this.logger.debug("Setting board cards", {
+      boardId,
+      newCardCount: cards.length,
+      previousCardCount,
+    });
+
+    try {
+      let validCards = 0;
+      let invalidCards = 0;
+
       board.cards = cards.reduce(
         (acc, card) => {
           if (card.miroLink) {
             acc[card.miroLink] = card;
+            validCards++;
+          } else {
+            invalidCards++;
           }
           return acc;
         },
         {} as Record<string, CardData>,
       );
-      
+
       board.lastActivity = new Date();
+      const duration = Date.now() - startTime;
+
+      this.logger.info("Board cards updated successfully", {
+        boardId,
+        validCards,
+        invalidCards,
+        totalCards: cards.length,
+        duration: `${duration}ms`,
+      });
+
       this.emit("boardUpdate", { type: "boardUpdate", board, boardId });
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.logger.error("Error setting board cards", {
+        boardId,
+        cardCount: cards.length,
+        duration: `${duration}ms`,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -199,11 +265,15 @@ export class ServerCardStorage extends EventEmitter implements vscode.Disposable
 
     const board = this.boards.get(boardId);
     if (board) {
-      this.logger.debug("Setting card", { boardId, miroLink: card.miroLink, title: card.title });
-      
+      this.logger.debug("Setting card", {
+        boardId,
+        miroLink: card.miroLink,
+        title: card.title,
+      });
+
       board.cards[card.miroLink] = card;
       board.lastActivity = new Date();
-      
+
       this.emit("cardUpdate", {
         type: "cardUpdate",
         card,
@@ -221,25 +291,49 @@ export class ServerCardStorage extends EventEmitter implements vscode.Disposable
       return;
     }
 
-    // Extract board ID from miro link
-    const url = new URL(miroLink);
-    const match = url.pathname.match(/\/app\/board\/([^/]+)\//);
-    if (match) {
-      const boardId = match[1];
-      const board = this.boards.get(boardId);
-      if (board) {
-        this.logger.debug("Setting card by miro link", { boardId, miroLink, title: card.title });
-        
-        board.cards[miroLink] = card;
-        board.lastActivity = new Date();
-        
-        this.emit("cardUpdate", {
-          type: "cardUpdate",
-          card,
+    try {
+      // Extract board ID from miro link
+      const url = new URL(miroLink);
+      const match = url.pathname.match(/\/app\/board\/([^/]+)\//);
+
+      if (match) {
+        const boardId = match[1];
+        const board = this.boards.get(boardId);
+
+        if (board) {
+          this.logger.debug("Setting card by miro link", {
+            boardId,
+            miroLink,
+            title: card.title,
+          });
+
+          board.cards[miroLink] = card;
+          board.lastActivity = new Date();
+
+          this.emit("cardUpdate", {
+            type: "cardUpdate",
+            card,
+            miroLink,
+            boardId,
+          });
+        } else {
+          this.logger.warn("Board not found for miro link", {
+            boardId,
+            miroLink,
+            availableBoards: Array.from(this.boards.keys()),
+          });
+        }
+      } else {
+        this.logger.warn("Could not extract board ID from miro link", {
           miroLink,
-          boardId,
+          pathname: url.pathname,
         });
       }
+    } catch (error) {
+      this.logger.error("Error parsing miro link", {
+        miroLink,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -270,7 +364,7 @@ export class ServerCardStorage extends EventEmitter implements vscode.Disposable
       if (board.cards[link]) {
         delete board.cards[link];
         board.lastActivity = new Date();
-        
+
         this.emit("cardUpdate", {
           type: "cardUpdate",
           miroLink: link,
@@ -312,7 +406,9 @@ export class ServerCardStorage extends EventEmitter implements vscode.Disposable
     if (!this.isDualStorageEnabled()) {
       return [];
     }
-    return [...this.boards.values()].flatMap((board) => Object.values(board.cards));
+    return [...this.boards.values()].flatMap((board) =>
+      Object.values(board.cards),
+    );
   }
 
   /**
@@ -325,7 +421,10 @@ export class ServerCardStorage extends EventEmitter implements vscode.Disposable
 
     const board = this.boards.get(boardId);
     if (board) {
-      this.logger.debug("Assigning workspaces to board", { boardId, workspaceIds });
+      this.logger.debug("Assigning workspaces to board", {
+        boardId,
+        workspaceIds,
+      });
       board.assignedWorkspaces = workspaceIds;
       board.lastActivity = new Date();
       this.emit("boardUpdate", { type: "boardUpdate", board, boardId });
@@ -353,7 +452,7 @@ export class ServerCardStorage extends EventEmitter implements vscode.Disposable
     }
 
     this.logger.info("Clearing all server storage data");
-    
+
     this.listBoardIds().forEach((boardId) => {
       this.emit("boardUpdate", {
         type: "boardUpdate",
@@ -361,7 +460,7 @@ export class ServerCardStorage extends EventEmitter implements vscode.Disposable
         boardId,
       });
     });
-    
+
     this.boards.clear();
     this.connectedBoards.clear();
     this.sockets.clear();

@@ -4,7 +4,6 @@ import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
 import { getRelativePath } from "../get-relative-path";
 import { LocationFinder } from "../location-finder";
-import { MiroServer } from "../server";
 import { SymbolAnchor } from "./create-card";
 
 export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
@@ -34,7 +33,6 @@ export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
 export const makeBrowseHandler = (
   context: HandlerContext,
   navigateToCard: (card: CardData, preview?: boolean) => Promise<boolean>,
-  miroServer: MiroServer,
 ) =>
   async function () {
     const { cardStorage } = context;
@@ -100,7 +98,8 @@ export const makeBrowseHandler = (
       onDidSelectItem: async (item: CardQuickPickItem) => {
         const card = cardStorage.getCardByLink(item.miroLink);
         if (card && card.miroLink) {
-          miroServer.query(card.boardId, "hoverCard", card.miroLink);
+          // Use universal query method through WorkspaceCardStorageProxy
+          context.cardStorage.query(card.boardId, "hoverCard", card.miroLink);
           await navigateToCard(card, true);
         }
       },
@@ -113,7 +112,8 @@ export const makeBrowseHandler = (
     } else if (selected) {
       const card = cardStorage.getCardByLink(selected.miroLink);
       if (card) {
-        miroServer.query(card.boardId, "selectCard", card.miroLink!);
+        // Use universal query method through WorkspaceCardStorageProxy
+        context.cardStorage.query(card.boardId, "selectCard", card.miroLink!);
         const dest = await locationFinder.findCardDestination(card);
         const status = (await goToCardCode(card))
           ? "connected"
@@ -143,7 +143,8 @@ export const makeBrowseHandler = (
             }
           }
 
-          miroServer.query(card.boardId, "cardStatus", {
+          // Use universal query method through WorkspaceCardStorageProxy
+          context.cardStorage.query(card.boardId, "cardStatus", {
             miroLink: card.miroLink,
             status,
             codeLink,

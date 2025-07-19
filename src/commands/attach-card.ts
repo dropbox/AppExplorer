@@ -2,14 +2,10 @@ import * as vscode from "vscode";
 import { CardData } from "../EventTypes";
 import { HandlerContext } from "../extension";
 import { getRelativePath } from "../get-relative-path";
-import { MiroServer } from "../server";
 import { makeCardData } from "./create-card";
 import { notEmpty } from "./tag-card";
 
-export const makeAttachCardHandler = (
-  context: HandlerContext,
-  miroServer: MiroServer,
-) => {
+export const makeAttachCardHandler = (context: HandlerContext) => {
   return async function () {
     const editor = vscode.window.activeTextEditor;
     if (editor) {
@@ -23,7 +19,11 @@ export const makeAttachCardHandler = (
         .reduce(
           async (p, boardId) => {
             const selected: CardData[] = await p;
-            const selectedCards = await miroServer.query(boardId, "selected");
+            // Use universal query method through WorkspaceCardStorageProxy
+            const selectedCards = await context.cardStorage.query(
+              boardId,
+              "selected",
+            );
             return selected.concat(selectedCards).filter(notEmpty);
           },
           Promise.resolve([] as CardData[]),
@@ -37,7 +37,8 @@ export const makeAttachCardHandler = (
         });
         const cardData = result?.[0];
         if (cardData) {
-          miroServer.query(boardId, "attachCard", cardData);
+          // Use universal query method through WorkspaceCardStorageProxy
+          context.cardStorage.query(boardId, "attachCard", cardData);
           if (cardData.miroLink) {
             context.cardStorage.setCard(cardData.miroLink, cardData);
           }

@@ -6,11 +6,19 @@ import { DefaultEventsMap } from "socket.io/dist/typed-events";
 import invariant from "tiny-invariant";
 import * as vscode from "vscode";
 import {
+  BoardAssignmentConfig,
   CardData,
+  DEFAULT_BOARD_ASSIGNMENT_CONFIG,
+  DEFAULT_BOARD_PERMISSIONS,
+  DEFAULT_QUERY_PROXY_CONFIG,
   Queries,
+  QueryProxyConfig,
+  QueryProxyRequest,
   RequestEvents,
   ResponseEvents,
   ServerCapabilities,
+  WorkspaceBoardAssignment,
+  WorkspaceConnectionStatus,
   WorkspaceInfo,
   WorkspaceRegistrationRequest,
   WorkspaceRegistrationResponse,
@@ -43,13 +51,126 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
   private workspaceNamespace?: any; // Socket.IO namespace for workspace connections
   private connectedWorkspaces = new Map<string, WorkspaceInfo>();
   private serverCardStorage?: ServerCardStorage; // Server-side memory-backed storage
+  private queryProxyConfig: QueryProxyConfig;
+  private pendingQueries = new Map<string, QueryProxyRequest>(); // requestId -> request
+  private queryTimeouts = new Map<string, NodeJS.Timeout>(); // requestId -> timeout
+  private boardAssignmentConfig: BoardAssignmentConfig;
+  private workspaceBoardAssignments = new Map<
+    string,
+    WorkspaceBoardAssignment
+  >(); // workspaceId -> assignment
+  private boardWorkspaceMap = new Map<string, Set<string>>(); // boardId -> Set<workspaceId>
+  private healthCheckInterval?: NodeJS.Timeout; // Health check timer
+  private readonly HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
+  private readonly STALE_CONNECTION_TIMEOUT = 60000; // 60 seconds
   private logger = createLogger("miro-server");
+
+  /**
+   * Override fire method to add comprehensive logging and workspace broadcasting
+   */
+  fire(event: MiroEvents): void {
+    // Enhanced logging for all MiroServer events
+    this.logger.info("🔥 MIRO SERVER EVENT: Firing event", {
+      timestamp: new Date().toISOString(),
+      eventType: event.type,
+      eventData:
+        event.type === "navigateToCard"
+          ? {
+              cardTitle: event.card.title,
+              cardPath: event.card.path,
+              cardBoardId: event.card.boardId,
+              cardMiroLink: event.card.miroLink,
+            }
+          : event.type === "updateCard"
+            ? {
+                miroLink: event.miroLink,
+                hasCard: !!event.card,
+                cardTitle: event.card?.title,
+              }
+            : event.type === "connect"
+              ? {
+                  boardId: event.boardInfo.id,
+                  boardName: event.boardInfo.name,
+                }
+              : {},
+    });
+
+    // Call the parent fire method to emit the event
+    super.fire(event);
+
+    // Also broadcast to workspace clients based on event type
+    this.broadcastEventToWorkspaces(event);
+  }
+
+  /**
+   * Broadcast MiroServer events to appropriate workspace clients
+   */
+  private broadcastEventToWorkspaces(event: MiroEvents): void {
+    switch (event.type) {
+      case "navigateToCard":
+        this.logger.info("🎯 Broadcasting navigateToCard to workspaces", {
+          timestamp: new Date().toISOString(),
+          cardBoardId: event.card.boardId,
+          cardTitle: event.card.title,
+        });
+        this.broadcastToBoardWorkspaces(event.card.boardId, "navigateToCard", {
+          card: event.card,
+        });
+        break;
+
+      case "updateCard":
+        this.logger.debug("🔄 Broadcasting updateCard to workspaces", {
+          timestamp: new Date().toISOString(),
+          miroLink: event.miroLink,
+          hasCard: !!event.card,
+        });
+        // For updateCard, we need to determine the boardId from the card or miroLink
+        if (event.card?.boardId) {
+          this.broadcastToBoardWorkspaces(event.card.boardId, "updateCard", {
+            miroLink: event.miroLink,
+            card: event.card,
+          });
+        }
+        break;
+
+      case "connect":
+        this.logger.info("🔗 Broadcasting connect to workspaces", {
+          timestamp: new Date().toISOString(),
+          boardId: event.boardInfo.id,
+          boardName: event.boardInfo.name,
+        });
+        this.broadcastToBoardWorkspaces(event.boardInfo.id, "connect", {
+          boardInfo: event.boardInfo,
+        });
+        break;
+
+      case "disconnect":
+        this.logger.info("🔌 Broadcasting disconnect to all workspaces", {
+          timestamp: new Date().toISOString(),
+        });
+        this.broadcastToWorkspaces("disconnect", {});
+        break;
+    }
+  }
 
   private constructor(
     private context: HandlerContext,
     private featureFlagManager?: FeatureFlagManager,
   ) {
     super();
+
+    // Initialize query proxy configuration
+    this.queryProxyConfig = DEFAULT_QUERY_PROXY_CONFIG;
+
+    // Initialize board assignment configuration
+    this.boardAssignmentConfig = DEFAULT_BOARD_ASSIGNMENT_CONFIG;
+
+    this.logger.debug("MiroServer initialized with board assignment", {
+      autoAssignNewBoards: this.boardAssignmentConfig.autoAssignNewBoards,
+      requireExplicitAssignment:
+        this.boardAssignmentConfig.requireExplicitAssignment,
+      maxBoardsPerWorkspace: this.boardAssignmentConfig.maxBoardsPerWorkspace,
+    });
 
     const app = express();
     this.httpServer = createServer(app);
@@ -59,6 +180,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     // Initialize workspace websocket server if enabled
     if (this.featureFlagManager?.isEnabled("enableWorkspaceWebsockets")) {
       this.initializeWorkspaceWebsockets(io);
+      this.startHealthCheckSystem();
     }
 
     // Initialize server-side card storage if dual storage is enabled
@@ -188,8 +310,8 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
         boardName: event.board?.name,
       });
 
-      // Broadcast board update to connected workspaces
-      this.broadcastToWorkspaces("boardUpdate", {
+      // Broadcast board update to workspaces assigned to this board
+      this.broadcastToBoardWorkspaces(event.boardId, "boardUpdate", {
         type: "boardUpdate",
         boardId: event.boardId,
         board: event.board,
@@ -203,8 +325,8 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
         cardTitle: event.card?.title,
       });
 
-      // Broadcast card update to connected workspaces
-      this.broadcastToWorkspaces("cardUpdate", {
+      // Broadcast card update to workspaces assigned to this board
+      this.broadcastToBoardWorkspaces(event.boardId, "cardUpdate", {
         type: "cardUpdate",
         boardId: event.boardId,
         card: event.card,
@@ -217,7 +339,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
         boards: event.boards,
       });
 
-      // Broadcast connection status to connected workspaces
+      // Broadcast connection status to all connected workspaces (not board-specific)
       this.broadcastToWorkspaces("connectionStatus", {
         type: "connectionStatus",
         connectedBoards: event.boards,
@@ -225,6 +347,199 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     });
 
     this.logger.debug("Server-side card storage initialized");
+  }
+
+  /**
+   * Handle query proxy request from workspace client
+   */
+  private async handleQueryProxyRequest(
+    socket: any,
+    request: {
+      type: "queryRequest";
+      requestId: string;
+      boardId: string;
+      query: keyof Queries;
+      data: any[];
+      timeout?: number;
+    },
+  ): Promise<void> {
+    if (!this.featureFlagManager?.isEnabled("enableQueryProxying")) {
+      this.logger.debug("Query proxying disabled, rejecting request", {
+        requestId: request.requestId,
+        query: request.query,
+        boardId: request.boardId,
+      });
+
+      socket.emit("queryResponse", {
+        type: "queryResponse",
+        requestId: request.requestId,
+        error: "Query proxying is disabled",
+      });
+      return;
+    }
+
+    const startTime = Date.now();
+    const timeout = request.timeout || this.queryProxyConfig.timeout;
+
+    // Find workspace info for this socket
+    const workspaceId = this.findWorkspaceIdBySocket(socket);
+    if (!workspaceId) {
+      this.logger.warn("Query proxy request from unregistered workspace", {
+        requestId: request.requestId,
+        socketId: socket.id,
+      });
+
+      socket.emit("queryResponse", {
+        type: "queryResponse",
+        requestId: request.requestId,
+        error: "Workspace not registered",
+      });
+      return;
+    }
+
+    // Check board access
+    if (!this.checkBoardAccess(workspaceId, request.boardId)) {
+      this.logger.warn("Query proxy request denied - no board access", {
+        requestId: request.requestId,
+        workspaceId,
+        boardId: request.boardId,
+        query: request.query,
+      });
+
+      socket.emit("queryResponse", {
+        type: "queryResponse",
+        requestId: request.requestId,
+        error: "Access denied to board",
+      });
+      return;
+    }
+
+    this.logger.info("Processing query proxy request", {
+      requestId: request.requestId,
+      workspaceId,
+      boardId: request.boardId,
+      query: request.query,
+      timeout,
+    });
+
+    // Create query proxy request tracking
+    const proxyRequest: QueryProxyRequest = {
+      requestId: request.requestId,
+      boardId: request.boardId,
+      query: request.query,
+      data: request.data,
+      timestamp: startTime,
+      timeout,
+      workspaceId,
+      attempt: 1,
+      maxAttempts: this.queryProxyConfig.maxRetries,
+    };
+
+    this.pendingQueries.set(request.requestId, proxyRequest);
+
+    try {
+      // Forward query to Miro board
+      const result = await this.forwardQueryToBoard(proxyRequest);
+      const duration = Date.now() - startTime;
+
+      this.logger.info("Query proxy request successful", {
+        requestId: request.requestId,
+        workspaceId,
+        boardId: request.boardId,
+        query: request.query,
+        duration: `${duration}ms`,
+      });
+
+      // Send successful response back to workspace
+      socket.emit("queryResponse", {
+        type: "queryResponse",
+        requestId: request.requestId,
+        result,
+        duration,
+      });
+    } catch (error) {
+      const duration = Date.now() - startTime;
+
+      this.logger.error("Query proxy request failed", {
+        requestId: request.requestId,
+        workspaceId,
+        boardId: request.boardId,
+        query: request.query,
+        duration: `${duration}ms`,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      // Send error response back to workspace
+      socket.emit("queryResponse", {
+        type: "queryResponse",
+        requestId: request.requestId,
+        error: error instanceof Error ? error.message : String(error),
+        duration,
+      });
+    } finally {
+      // Clean up tracking
+      this.pendingQueries.delete(request.requestId);
+      const timeoutHandle = this.queryTimeouts.get(request.requestId);
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+        this.queryTimeouts.delete(request.requestId);
+      }
+    }
+  }
+
+  /**
+   * Forward query to the appropriate Miro board
+   */
+  private async forwardQueryToBoard(request: QueryProxyRequest): Promise<any> {
+    // Get the board socket from server card storage
+    const boardSocket = this.serverCardStorage?.getBoardSocket(request.boardId);
+
+    if (!boardSocket) {
+      // Fallback to workspace card storage
+      const fallbackSocket = this.context.cardStorage.getBoardSocket(
+        request.boardId,
+      );
+      if (!fallbackSocket) {
+        throw new Error(`No connection to board ${request.boardId}`);
+      }
+
+      this.logger.debug("Using fallback board socket for query", {
+        requestId: request.requestId,
+        boardId: request.boardId,
+        query: request.query,
+      });
+
+      return querySocket(
+        fallbackSocket,
+        request.query,
+        ...(request.data as any),
+      );
+    }
+
+    this.logger.debug("Forwarding query to board via server storage", {
+      requestId: request.requestId,
+      boardId: request.boardId,
+      query: request.query,
+    });
+
+    return querySocket(boardSocket, request.query, ...(request.data as any));
+  }
+
+  /**
+   * Find workspace ID by socket connection
+   */
+  private findWorkspaceIdBySocket(_socket: any): string | undefined {
+    for (const [
+      workspaceId,
+      _workspace,
+    ] of this.connectedWorkspaces.entries()) {
+      // Note: In a real implementation, we'd need to track socket IDs per workspace
+      // For now, we'll return the first workspace (single workspace assumption)
+      if (this.connectedWorkspaces.size === 1) {
+        return workspaceId;
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -253,30 +568,418 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     eventType: string,
     data: any,
   ): void {
+    // Enhanced logging for event routing decisions
+    this.logger.info("🎯 EVENT ROUTING: Board-specific broadcast", {
+      timestamp: new Date().toISOString(),
+      boardId,
+      eventType,
+      direction: "server->clients",
+      dataType: typeof data,
+      hasWorkspaceNamespace: !!this.workspaceNamespace,
+    });
+
     if (!this.workspaceNamespace) {
+      this.logger.warn("❌ Cannot broadcast - no workspace namespace", {
+        timestamp: new Date().toISOString(),
+        boardId,
+        eventType,
+      });
       return;
     }
 
-    // Find workspaces assigned to this board
-    const assignedWorkspaces = Array.from(
-      this.connectedWorkspaces.values(),
-    ).filter((workspace) => workspace.boardIds.includes(boardId));
+    // Get workspaces assigned to this board using the board assignment system
+    const assignedWorkspaces = this.boardWorkspaceMap.get(boardId);
+    const assignedWorkspaceIds = assignedWorkspaces
+      ? Array.from(assignedWorkspaces)
+      : [];
 
-    if (assignedWorkspaces.length === 0) {
-      // If no specific assignments, broadcast to all workspaces
+    if (!assignedWorkspaces || assignedWorkspaces.size === 0) {
+      this.logger.info(
+        "📡 No board assignments - broadcasting to ALL workspaces",
+        {
+          timestamp: new Date().toISOString(),
+          boardId,
+          eventType,
+          connectedWorkspaceCount: this.connectedWorkspaces.size,
+          connectedWorkspaceIds: Array.from(this.connectedWorkspaces.keys()),
+        },
+      );
+      // If no specific assignments, broadcast to all connected workspaces
       this.broadcastToWorkspaces(eventType, data);
       return;
     }
 
-    this.logger.debug("Broadcasting to board-specific workspaces", {
+    let broadcastCount = 0;
+    const targetWorkspaces: string[] = [];
+    const skippedWorkspaces: string[] = [];
+
+    for (const workspaceId of assignedWorkspaces) {
+      // Check if workspace is connected
+      if (this.connectedWorkspaces.has(workspaceId)) {
+        // Broadcast to specific workspace room
+        this.workspaceNamespace.to(workspaceId).emit(eventType, data);
+        broadcastCount++;
+        targetWorkspaces.push(workspaceId);
+
+        this.logger.debug("📤 OUTGOING WebSocket: Event to workspace", {
+          timestamp: new Date().toISOString(),
+          targetWorkspaceId: workspaceId,
+          boardId,
+          eventType,
+          direction: "server->client",
+        });
+      } else {
+        skippedWorkspaces.push(workspaceId);
+      }
+    }
+
+    this.logger.info("✅ Event broadcast completed", {
+      timestamp: new Date().toISOString(),
       boardId,
       eventType,
-      workspaceCount: assignedWorkspaces.length,
+      assignedWorkspaceCount: assignedWorkspaces.size,
+      assignedWorkspaceIds,
+      connectedTargetCount: broadcastCount,
+      targetWorkspaces,
+      skippedWorkspaces,
+      totalConnectedWorkspaces: this.connectedWorkspaces.size,
+    });
+  }
+
+  /**
+   * Handle board assignment request from workspace client
+   */
+  private async handleBoardAssignmentRequest(
+    socket: any,
+    request: {
+      type: "boardAssignmentRequest";
+      workspaceId: string;
+      boardIds: string[];
+    },
+  ): Promise<void> {
+    this.logger.info("Processing board assignment request", {
+      workspaceId: request.workspaceId,
+      requestedBoards: request.boardIds,
     });
 
-    // For now, broadcast to all since we don't track individual socket connections
-    // TODO: In future, maintain socket ID mapping for targeted broadcasts
-    this.workspaceNamespace.emit(eventType, data);
+    const assignedBoards: string[] = [];
+    const deniedBoards: string[] = [];
+
+    for (const boardId of request.boardIds) {
+      try {
+        const hasAccess = await this.assignBoardToWorkspace(
+          request.workspaceId,
+          boardId,
+        );
+        if (hasAccess) {
+          assignedBoards.push(boardId);
+        } else {
+          deniedBoards.push(boardId);
+        }
+      } catch (error) {
+        this.logger.error("Error assigning board to workspace", {
+          workspaceId: request.workspaceId,
+          boardId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        deniedBoards.push(boardId);
+      }
+    }
+
+    // Send response back to workspace
+    socket.emit("boardAssignmentResponse", {
+      type: "boardAssignmentResponse",
+      workspaceId: request.workspaceId,
+      assignedBoards,
+      deniedBoards,
+    });
+
+    this.logger.info("Board assignment request completed", {
+      workspaceId: request.workspaceId,
+      assignedCount: assignedBoards.length,
+      deniedCount: deniedBoards.length,
+    });
+  }
+
+  /**
+   * Assign a board to a workspace
+   */
+  private async assignBoardToWorkspace(
+    workspaceId: string,
+    boardId: string,
+  ): Promise<boolean> {
+    // Check if workspace exists
+    if (!this.connectedWorkspaces.has(workspaceId)) {
+      this.logger.warn("Cannot assign board - workspace not connected", {
+        workspaceId,
+        boardId,
+      });
+      return false;
+    }
+
+    // Get or create workspace board assignment
+    let assignment = this.workspaceBoardAssignments.get(workspaceId);
+    if (!assignment) {
+      assignment = {
+        workspaceId,
+        assignedBoards: new Set<string>(),
+        lastActivity: new Date(),
+        permissions: { ...DEFAULT_BOARD_PERMISSIONS },
+      };
+      this.workspaceBoardAssignments.set(workspaceId, assignment);
+    }
+
+    // Check board limits
+    if (
+      this.boardAssignmentConfig.maxBoardsPerWorkspace > 0 &&
+      assignment.assignedBoards.size >=
+        this.boardAssignmentConfig.maxBoardsPerWorkspace
+    ) {
+      this.logger.warn("Cannot assign board - workspace board limit reached", {
+        workspaceId,
+        boardId,
+        currentBoards: assignment.assignedBoards.size,
+        maxBoards: this.boardAssignmentConfig.maxBoardsPerWorkspace,
+      });
+      return false;
+    }
+
+    // Assign board to workspace
+    assignment.assignedBoards.add(boardId);
+    assignment.lastActivity = new Date();
+
+    // Update board-to-workspace mapping
+    let workspaces = this.boardWorkspaceMap.get(boardId);
+    if (!workspaces) {
+      workspaces = new Set<string>();
+      this.boardWorkspaceMap.set(boardId, workspaces);
+    }
+    workspaces.add(workspaceId);
+
+    this.logger.info("Board assigned to workspace", {
+      workspaceId,
+      boardId,
+      totalAssignedBoards: assignment.assignedBoards.size,
+    });
+
+    // Broadcast board assignment event to the specific workspace
+    if (this.workspaceNamespace && this.connectedWorkspaces.has(workspaceId)) {
+      this.workspaceNamespace.to(workspaceId).emit("boardAssigned", {
+        type: "boardAssigned",
+        workspaceId,
+        boardId,
+      });
+    }
+
+    return true;
+  }
+
+  /**
+   * Remove a board from a workspace
+   */
+  private removeBoardFromWorkspace(
+    workspaceId: string,
+    boardId: string,
+  ): boolean {
+    const assignment = this.workspaceBoardAssignments.get(workspaceId);
+    if (!assignment) {
+      return false;
+    }
+
+    // Remove board from workspace assignment
+    const wasRemoved = assignment.assignedBoards.delete(boardId);
+    if (wasRemoved) {
+      assignment.lastActivity = new Date();
+
+      // Update board-to-workspace mapping
+      const workspaces = this.boardWorkspaceMap.get(boardId);
+      if (workspaces) {
+        workspaces.delete(workspaceId);
+        if (workspaces.size === 0) {
+          this.boardWorkspaceMap.delete(boardId);
+        }
+      }
+
+      this.logger.info("Board removed from workspace", {
+        workspaceId,
+        boardId,
+        remainingBoards: assignment.assignedBoards.size,
+      });
+
+      // Broadcast board unassignment event to the specific workspace
+      if (
+        this.workspaceNamespace &&
+        this.connectedWorkspaces.has(workspaceId)
+      ) {
+        this.workspaceNamespace.to(workspaceId).emit("boardUnassigned", {
+          type: "boardUnassigned",
+          workspaceId,
+          boardId,
+        });
+      }
+    }
+
+    return wasRemoved;
+  }
+
+  /**
+   * Start the health check system for workspace connections
+   */
+  private startHealthCheckSystem(): void {
+    this.logger.info("Starting workspace health check system", {
+      interval: this.HEALTH_CHECK_INTERVAL,
+      staleTimeout: this.STALE_CONNECTION_TIMEOUT,
+    });
+
+    this.healthCheckInterval = setInterval(() => {
+      this.performHealthChecks();
+    }, this.HEALTH_CHECK_INTERVAL);
+  }
+
+  /**
+   * Perform health checks on all connected workspaces
+   */
+  private performHealthChecks(): void {
+    const now = Date.now();
+    const staleWorkspaces: string[] = [];
+    const disconnectedWorkspaces: string[] = [];
+
+    for (const [workspaceId, workspace] of this.connectedWorkspaces) {
+      const timeSinceLastHealthCheck = now - workspace.lastHealthCheck;
+
+      if (timeSinceLastHealthCheck > this.STALE_CONNECTION_TIMEOUT) {
+        if (
+          workspace.connectionStatus === WorkspaceConnectionStatus.CONNECTED
+        ) {
+          // Mark as stale
+          workspace.connectionStatus = WorkspaceConnectionStatus.STALE;
+          staleWorkspaces.push(workspaceId);
+
+          this.logger.warn("Workspace connection marked as stale", {
+            workspaceId,
+            timeSinceLastHealthCheck,
+            lastHealthCheck: new Date(workspace.lastHealthCheck).toISOString(),
+          });
+        } else if (
+          workspace.connectionStatus === WorkspaceConnectionStatus.STALE &&
+          timeSinceLastHealthCheck > this.STALE_CONNECTION_TIMEOUT * 2
+        ) {
+          // Remove completely stale connections
+          disconnectedWorkspaces.push(workspaceId);
+        }
+      }
+    }
+
+    // Send health check pings to connected workspaces
+    if (this.workspaceNamespace) {
+      this.workspaceNamespace.emit("healthCheck", {
+        type: "healthCheck",
+        timestamp: now,
+      });
+    }
+
+    // Clean up disconnected workspaces
+    for (const workspaceId of disconnectedWorkspaces) {
+      this.handleWorkspaceDisconnection(workspaceId, "health_check_timeout");
+    }
+
+    if (staleWorkspaces.length > 0 || disconnectedWorkspaces.length > 0) {
+      this.logger.info("Health check completed", {
+        totalWorkspaces: this.connectedWorkspaces.size,
+        staleWorkspaces: staleWorkspaces.length,
+        disconnectedWorkspaces: disconnectedWorkspaces.length,
+      });
+    }
+  }
+
+  /**
+   * Handle workspace disconnection with cleanup
+   */
+  private handleWorkspaceDisconnection(
+    workspaceId: string,
+    reason: string,
+  ): void {
+    const workspace = this.connectedWorkspaces.get(workspaceId);
+    if (!workspace) {
+      return;
+    }
+
+    this.logger.info("Handling workspace disconnection", {
+      workspaceId,
+      reason,
+      connectedDuration: Date.now() - workspace.connectedAt.getTime(),
+    });
+
+    // Update connection status
+    workspace.connectionStatus = WorkspaceConnectionStatus.DISCONNECTED;
+
+    // Clean up board assignments for this workspace
+    const assignment = this.workspaceBoardAssignments.get(workspaceId);
+    if (assignment) {
+      for (const boardId of assignment.assignedBoards) {
+        const boardWorkspaces = this.boardWorkspaceMap.get(boardId);
+        if (boardWorkspaces) {
+          boardWorkspaces.delete(workspaceId);
+          if (boardWorkspaces.size === 0) {
+            this.boardWorkspaceMap.delete(boardId);
+          }
+        }
+      }
+      this.workspaceBoardAssignments.delete(workspaceId);
+    }
+
+    // Remove from connected workspaces
+    this.connectedWorkspaces.delete(workspaceId);
+
+    // Broadcast disconnection event
+    if (this.workspaceNamespace) {
+      this.workspaceNamespace.emit("workspaceDisconnected", {
+        type: "workspaceDisconnected",
+        workspaceId,
+        reason,
+      });
+    }
+
+    this.logger.info("Workspace disconnection cleanup completed", {
+      workspaceId,
+      remainingWorkspaces: this.connectedWorkspaces.size,
+    });
+  }
+
+  /**
+   * Update workspace health check timestamp
+   */
+  private updateWorkspaceHealthCheck(workspaceId: string): void {
+    const workspace = this.connectedWorkspaces.get(workspaceId);
+    if (workspace) {
+      workspace.lastHealthCheck = Date.now();
+      workspace.lastActivity = new Date();
+
+      // Update connection status if it was stale
+      if (workspace.connectionStatus === WorkspaceConnectionStatus.STALE) {
+        workspace.connectionStatus = WorkspaceConnectionStatus.CONNECTED;
+        this.logger.info("Workspace connection restored from stale state", {
+          workspaceId,
+        });
+      }
+    }
+  }
+
+  /**
+   * Check if a workspace has access to a board
+   */
+  private checkBoardAccess(workspaceId: string, boardId: string): boolean {
+    // If explicit assignment is not required, allow access
+    if (!this.boardAssignmentConfig.requireExplicitAssignment) {
+      return true;
+    }
+
+    const assignment = this.workspaceBoardAssignments.get(workspaceId);
+    if (!assignment) {
+      return false;
+    }
+
+    return assignment.assignedBoards.has(boardId);
   }
 
   /**
@@ -298,10 +1001,49 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
       socket.emit("pong", { timestamp: data.timestamp });
     });
 
+    // Handle query proxy requests
+    socket.on(
+      "queryRequest",
+      (request: {
+        type: "queryRequest";
+        requestId: string;
+        boardId: string;
+        query: keyof Queries;
+        data: any[];
+        timeout?: number;
+      }) => {
+        this.handleQueryProxyRequest(socket, request);
+      },
+    );
+
+    // Handle board assignment requests
+    socket.on(
+      "boardAssignmentRequest",
+      (request: {
+        type: "boardAssignmentRequest";
+        workspaceId: string;
+        boardIds: string[];
+      }) => {
+        this.handleBoardAssignmentRequest(socket, request);
+      },
+    );
+
     // Handle workspace disconnection
     socket.on("disconnect", (reason: string) => {
-      this.handleWorkspaceDisconnection(socket, reason);
+      this.handleWorkspaceDisconnectionBySocket(socket, reason);
     });
+
+    // Handle health check responses
+    socket.on(
+      "healthCheckResponse",
+      (data: { workspaceId: string; timestamp: number }) => {
+        this.updateWorkspaceHealthCheck(data.workspaceId);
+        this.logger.debug("Health check response received", {
+          workspaceId: data.workspaceId,
+          responseTime: Date.now() - data.timestamp,
+        });
+      },
+    );
 
     // Send server capabilities to new workspace
     const capabilities: ServerCapabilities = {
@@ -334,6 +1076,9 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
         connectedAt: new Date(),
         lastActivity: new Date(),
         boardIds: request.boardIds,
+        connectionStatus: WorkspaceConnectionStatus.CONNECTED,
+        lastHealthCheck: Date.now(),
+        reconnectCount: 0,
       };
 
       // Store workspace connection
@@ -378,11 +1123,17 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
   }
 
   /**
-   * Handle workspace disconnection
+   * Handle workspace disconnection by socket
    */
-  private handleWorkspaceDisconnection(socket: any, reason: string): void {
+  private handleWorkspaceDisconnectionBySocket(
+    socket: any,
+    reason: string,
+  ): void {
     // Find and remove workspace by socket
-    for (const [workspaceId, workspace] of this.connectedWorkspaces.entries()) {
+    for (const [
+      _workspaceId,
+      _workspace,
+    ] of this.connectedWorkspaces.entries()) {
       // Note: In a real implementation, we'd need to track socket IDs
       // For now, we'll just log the disconnection
       this.logger.info("Workspace disconnected", {
@@ -427,6 +1178,17 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
       features.push("websocketStatusBar");
     }
 
+    if (this.featureFlagManager?.isEnabled("enableQueryProxying")) {
+      features.push("queryProxying");
+    }
+
+    // Board assignment is always available when workspace websockets are enabled
+    if (this.featureFlagManager?.isEnabled("enableWorkspaceWebsockets")) {
+      features.push("boardAssignment");
+      features.push("workspaceEventRouting");
+      features.push("workspaceConnectionMonitoring");
+    }
+
     return features;
   }
 
@@ -459,6 +1221,24 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
       this.serverCardStorage.dispose();
     }
 
+    // Clean up health check system
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = undefined;
+    }
+
+    // Clean up pending queries and timeouts
+    this.queryTimeouts.forEach((timeout) => clearTimeout(timeout));
+    this.queryTimeouts.clear();
+    this.pendingQueries.clear();
+
+    // Clean up board assignments
+    this.workspaceBoardAssignments.clear();
+    this.boardWorkspaceMap.clear();
+
+    // Clean up workspace connections
+    this.connectedWorkspaces.clear();
+
     this.httpServer.closeAllConnections();
   }
 
@@ -485,9 +1265,22 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
         boardId,
       });
     });
-    socket.on("navigateTo", async (card) =>
-      this.fire({ type: "navigateToCard", card }),
-    );
+    socket.on("navigateTo", async (card) => {
+      // Enhanced logging for navigation events from Miro
+      this.logger.info("🎯 MIRO EVENT: Navigate to card", {
+        timestamp: new Date().toISOString(),
+        boardId,
+        cardTitle: card.title,
+        cardPath: card.path,
+        cardSymbol: card.type === "symbol" ? card.symbol : undefined,
+        cardMiroLink: card.miroLink,
+        cardStatus: card.status,
+        eventSource: "miro-board",
+        willBroadcastTo: "assigned-workspaces",
+      });
+
+      this.fire({ type: "navigateToCard", card });
+    });
     socket.on("card", async ({ url, card }) => {
       this.fire({ type: "updateCard", miroLink: url, card });
 

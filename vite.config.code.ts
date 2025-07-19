@@ -27,6 +27,7 @@ export default defineConfig({
   },
   build: {
     outDir: "dist-code",
+    sourcemap: true,
     lib: {
       entry: {
         extension: "src/extension.ts",

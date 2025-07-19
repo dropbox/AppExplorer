@@ -2,23 +2,23 @@ import { TagColor } from "@mirohq/websdk-types";
 import * as vscode from "vscode";
 import { CardData, allColors } from "../EventTypes";
 import { HandlerContext } from "../extension";
-import { MiroServer } from "../server";
 
 export function notEmpty<T>(value: T | null | undefined): value is T {
   return value != null;
 }
 
-export const makeTagCardHandler = (
-  context: HandlerContext,
-  miroServer: MiroServer,
-) => {
+export const makeTagCardHandler = (context: HandlerContext) => {
   return async function () {
     await context.waitForConnections();
 
     const selectedCards = await context.cardStorage.getConnectedBoards().reduce(
       async (p, boardId) => {
         const selected: CardData[] = await p;
-        const selectedCards = await miroServer.query(boardId, "selected");
+        // Use universal query method through WorkspaceCardStorageProxy
+        const selectedCards = await context.cardStorage.query(
+          boardId,
+          "selected",
+        );
         return selected.concat(selectedCards).filter(notEmpty);
       },
       Promise.resolve([] as CardData[]),
@@ -45,9 +45,10 @@ export const makeTagCardHandler = (
         id: "NEW_TAG",
       };
       const quickPicks: TagSelection[] = [newCard];
-      const tags = await miroServer.query(boardId, "tags");
+      // Use universal query method through WorkspaceCardStorageProxy
+      const tags = await context.cardStorage.query(boardId, "tags");
       quickPicks.push(
-        ...tags.map((tag) => ({
+        ...tags.map((tag: any) => ({
           label: tag.title,
           description: tag.color,
           id: tag.id,
@@ -70,7 +71,8 @@ export const makeTagCardHandler = (
             title: "Tag Color",
           });
           if (color) {
-            miroServer.query(boardId, "tagCards", {
+            // Use universal query method through WorkspaceCardStorageProxy
+            context.cardStorage.query(boardId, "tagCards", {
               miroLink: links,
               tag: {
                 title,
@@ -79,7 +81,8 @@ export const makeTagCardHandler = (
             });
           }
         } else {
-          miroServer.query(boardId, "tagCards", {
+          // Use universal query method through WorkspaceCardStorageProxy
+          context.cardStorage.query(boardId, "tagCards", {
             miroLink: links,
             tag: tag.id,
           });

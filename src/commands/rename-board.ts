@@ -1,11 +1,7 @@
 import * as vscode from "vscode";
 import type { HandlerContext } from "../extension";
-import { MiroServer } from "../server";
 
-export function makeRenameHandler(
-  context: HandlerContext,
-  miroServer: MiroServer,
-) {
+export function makeRenameHandler(context: HandlerContext) {
   return async function renameHandler(boardId?: string) {
     await context.waitForConnections();
     const connectedBoardIds = context.cardStorage.getConnectedBoards();
@@ -39,7 +35,8 @@ export function makeRenameHandler(
     if (!newName) {
       return;
     }
-    await miroServer.query(boardId, "setBoardName", newName);
+    // Use universal query method through WorkspaceCardStorageProxy
+    await context.cardStorage.query(boardId, "setBoardName", newName);
     context.cardStorage.setBoardName(boardId, newName);
   };
 }

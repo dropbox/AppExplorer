@@ -161,6 +161,11 @@ export class ServerLauncher {
   private async launchServer(
     handlerContext: HandlerContext,
   ): Promise<ServerLaunchResult> {
+    const startTime = Date.now();
+    const serverUrl = this.serverDiscovery.getServerUrl();
+
+    this.logger.debug("Starting server launch", { serverUrl });
+
     try {
       // Create and start server instance with proper error handling
       const server = await MiroServer.create(
@@ -168,14 +173,31 @@ export class ServerLauncher {
         this.featureFlagManager,
       );
 
+      const duration = Date.now() - startTime;
+      this.logger.info("Server launched successfully", {
+        serverUrl,
+        duration: `${duration}ms`,
+        mode: "server",
+      });
+
       return {
         mode: "server",
         server,
-        serverUrl: this.serverDiscovery.getServerUrl(),
+        serverUrl,
       };
     } catch (error) {
+      const duration = Date.now() - startTime;
+
       // Port binding failed - another process is using the port
-      this.logger.debug("Server launch failed", { error });
+      this.logger.warn("Server launch failed", {
+        serverUrl,
+        duration: `${duration}ms`,
+        error: error instanceof Error ? error.message : String(error),
+        isPortInUse:
+          String(error).includes("EADDRINUSE") ||
+          String(error).includes("already in use"),
+      });
+
       throw error;
     }
   }
@@ -222,6 +244,8 @@ export class ServerLauncher {
    * Dispose of resources
    */
   dispose(): void {
+    this.logger.debug("Disposing ServerLauncher resources");
     this.serverDiscovery.dispose();
+    this.logger.debug("ServerLauncher disposed");
   }
 }
