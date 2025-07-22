@@ -1,11 +1,15 @@
 import * as assert from "assert";
+
+import createDebug from "debug";
 import * as vscode from "vscode";
 import { CardData, SymbolCardData } from "../../EventTypes";
 import { LocationFinder } from "../../location-finder";
+import { PortConfig } from "../../port-config";
 import { TEST_CARDS } from "../fixtures/card-data";
 import { MockMiroClient } from "../mocks/mock-miro-client";
 import { waitFor } from "../suite/test-utils";
-import { TestPortManager } from "./test-port-manager";
+
+const debug = createDebug("app-explorer:test:e2e");
 
 /**
  * Type guard to check if a card is a symbol card
@@ -26,82 +30,106 @@ export class E2ETestUtils {
   private static capturedEvents: Map<string, any[]> = new Map(); // Event capture for testing
 
   /**
-   * Initialize test port allocation for the test suite
-   * This should be called once at the beginning of the test suite
+   * Get the test port from environment variable
+   * This should be called to get the port for server communication
    */
-  static async initializeTestPort(): Promise<number> {
-    const port = await TestPortManager.allocateTestPort();
-    console.log(`[E2ETestUtils] Initialized test port: ${port}`);
-
-    // Check if production port is in use
-    const productionInUse = await TestPortManager.isProductionPortInUse();
-    if (productionInUse) {
-      console.log(
-        "[E2ETestUtils] Production AppExplorer instance detected on port 9042 - using test port to avoid conflicts",
+  static getTestPort(): number {
+    const envPort = process.env.APP_EXPLORER_PORT;
+    if (!envPort) {
+      throw new Error(
+        "APP_EXPLORER_PORT environment variable not set. Test configuration may be incorrect.",
       );
     }
 
+    const port = parseInt(envPort, 10);
+    if (isNaN(port)) {
+      throw new Error(
+        `Invalid APP_EXPLORER_PORT value: ${envPort}. Must be a valid port number.`,
+      );
+    }
+
+    debug(`[E2ETestUtils] Using test port from environment: ${port}`);
     return port;
   }
 
   /**
    * Get diagnostic information about port allocation
    */
-  static async getPortDiagnostics(): Promise<void> {
-    const diagnostics = await TestPortManager.getDiagnostics();
-    console.log("[E2ETestUtils] Port diagnostics:", diagnostics);
+  static getPortDiagnostics(): void {
+    const testPort = this.getTestPort();
+    const portDiagnostics = PortConfig.getDiagnostics();
+
+    const diagnostics = {
+      testPort,
+      environmentPort: process.env.APP_EXPLORER_PORT,
+      portConfigDiagnostics: portDiagnostics,
+    };
+
+    debug(
+      "[E2ETestUtils] Port diagnostics:",
+      JSON.stringify(diagnostics, null, 2),
+    );
   }
 
   /**
-   * Start a test MiroServer instance on the allocated port
-   * This is required for MockMiroClient to connect successfully
+   * Clean up test resources and release allocated port
+   * Should be called in test teardown to ensure proper cleanup
    */
-  static async startTestMiroServer(): Promise<void> {
-    if (this.testMiroServer) {
-      console.log("[E2ETestUtils] Test MiroServer already running");
-      return;
+  static async cleanup(): Promise<void> {
+    debug("[E2ETestUtils] Cleaning up test resources");
+
+    // Additional cleanup can be added here as needed
+    debug("[E2ETestUtils] Cleanup complete");
+  }
+
+  /**
+   * Start a test MiroServer instance on the configured port
+   * This is required for MockMiroClient to connect successfully
+   * Uses environment variable for cross-process port configuration
+   */
+  static async startRealServerOnTestPort(): Promise<void> {
+    const testPort = this.getTestPort();
+    debug(`[E2ETestUtils] Using test port from environment: ${testPort}`);
+
+    // Ensure the extension is activated before trying to use its commands
+    const extension = vscode.extensions.getExtension("dropbox.app-explorer");
+    if (extension && !extension.isActive) {
+      debug("[E2ETestUtils] Activating AppExplorer extension...");
+      await extension.activate();
+      debug("[E2ETestUtils] Extension activated successfully");
     }
 
-    try {
-      const testPort = TestPortManager.getAllocatedPort();
-      console.log(
-        `[E2ETestUtils] Starting test MiroServer on port ${testPort}`,
-      );
+    // The extension should have started the server during activation
+    // Let's give it some time and check if it's running
+    debug(
+      "[E2ETestUtils] Checking if server started during extension activation...",
+    );
 
-      // Import MiroServer dynamically to avoid circular dependencies
-      const { MiroServer } = await import("../../server");
+    // Give the server more time to start (extension activation can be slow)
+    debug("[E2ETestUtils] Waiting for server to start...");
 
-      // Create a minimal context for the test server
-      const testContext = {
-        subscriptions: [],
-        workspaceState: {
-          get: () => undefined,
-          update: () => Promise.resolve(),
-        },
-        globalState: {
-          get: () => undefined,
-          update: () => Promise.resolve(),
-        },
-      } as any;
-
-      // Create and start the test MiroServer
-      this.testMiroServer = await MiroServer.create(
-        testContext,
-        undefined,
-        testPort,
-      );
-
-      // Wait for the server to be ready
-      await TestPortManager.waitForPortToBeInUse(testPort, 5000);
-
-      console.log(
-        `[E2ETestUtils] Test MiroServer started successfully on port ${testPort}`,
-      );
-    } catch (error) {
-      console.error("[E2ETestUtils] Failed to start test MiroServer:", error);
-      throw new Error(
-        `Failed to start test MiroServer: ${error instanceof Error ? error.message : String(error)}`,
-      );
+    // Verify the server is running on the expected port
+    for (let tries = 0; tries < 3; tries++) {
+      try {
+        const response = await fetch(`http://localhost:${testPort}/health`);
+        if (response.ok) {
+          debug(
+            `[E2ETestUtils] Server started successfully on port ${testPort}`,
+          );
+          break;
+        } else {
+          throw new Error(`Server health check failed: ${response.status}`);
+        }
+      } catch (error) {
+        console.error("[E2ETestUtils] Server failed to start:", error);
+        if (tries < 3) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          continue;
+        }
+        throw new Error(
+          `Server failed to start on port ${testPort}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     }
   }
 
@@ -111,7 +139,7 @@ export class E2ETestUtils {
   static async stopTestMiroServer(): Promise<void> {
     if (this.testMiroServer) {
       try {
-        console.log("[E2ETestUtils] Stopping test MiroServer");
+        debug("[E2ETestUtils] Stopping test MiroServer");
 
         // Stop the server
         if (this.testMiroServer.httpServer) {
@@ -132,21 +160,12 @@ export class E2ETestUtils {
         }
 
         this.testMiroServer = null;
-        console.log("[E2ETestUtils] Test MiroServer stopped");
+        debug("[E2ETestUtils] Test MiroServer stopped");
       } catch (error) {
         console.error("[E2ETestUtils] Error stopping test MiroServer:", error);
         this.testMiroServer = null; // Reset even if there was an error
       }
     }
-  }
-
-  /**
-   * Release the allocated test port
-   * This should be called at the end of the test suite
-   */
-  static releaseTestPort(): void {
-    TestPortManager.releasePort();
-    console.log("[E2ETestUtils] Released test port");
   }
 
   /**
@@ -157,14 +176,22 @@ export class E2ETestUtils {
       await this.teardownMockClient();
     }
 
-    // Get the test server URL from the port manager
-    const testServerUrl = TestPortManager.getTestServerUrl();
-    console.log(
+    // Get the test server URL from environment variable
+    const testPort = this.getTestPort();
+    const testServerUrl = `http://localhost:${testPort}`;
+
+    debug(
       `[E2ETestUtils] Setting up MockMiroClient with server URL: ${testServerUrl}`,
     );
 
     this.mockClient = new MockMiroClient(testServerUrl);
-    this.mockClient.loadTestCards(TEST_CARDS);
+    await this.mockClient.loadTestCards(TEST_CARDS);
+
+    assert.equal(
+      this.mockClient.getTestCards().length,
+      TEST_CARDS.length,
+      "Expected test cards to be loaded into mock client",
+    );
 
     // Connect to the server
     await this.mockClient.connect();
@@ -176,7 +203,6 @@ export class E2ETestUtils {
           this.mockClient?.isConnected,
           "MockMiroClient should be connected",
         );
-        return true;
       },
       { timeout: 10000, message: "MockMiroClient failed to connect" },
     );
@@ -193,16 +219,6 @@ export class E2ETestUtils {
       this.mockClient = null;
     }
 
-    // Stop capturing notifications and restore original methods
-    this.stopCapturingNotifications();
-
-    // Clear VSCode context
-    await vscode.commands.executeCommand(
-      "setContext",
-      "mockMiroClient.connected",
-      false,
-    );
-
     // Close all open editors to clean up state
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
   }
@@ -218,8 +234,7 @@ export class E2ETestUtils {
     // Teardown MockMiroClient
     await this.teardownMockClient();
 
-    // Release the test port
-    this.releaseTestPort();
+    debug("[E2ETestUtils] Test infrastructure teardown complete");
   }
 
   /**
@@ -308,163 +323,66 @@ export class E2ETestUtils {
    * Simulate card navigation and wait for VSCode response
    * This directly calls the navigation function instead of going through WebSocket
    */
-  static async simulateCardNavigation(
-    card: CardData,
-    timeout: number = 15000,
-  ): Promise<{ editor: vscode.TextEditor; position: vscode.Position }> {
+  static async navigateToCard(card: CardData): Promise<void> {
     const mockClient = this.getMockClient();
     assert.ok(mockClient, "MockMiroClient not initialized");
+    debug("[E2ETestUtils] Navigating to card: %O", card);
 
     // Store the card in the mock client's storage first
     if (card.miroLink) {
-      mockClient.getTestCards().push(card);
+      mockClient.setCard(card);
     }
+    const storedCard = mockClient
+      .getTestCards()
+      .find((c) => c.miroLink === card.miroLink);
+    assert.ok(storedCard, "Card not found in mock client storage");
 
-    // Directly trigger navigation using VSCode commands
-    // This simulates what happens when the MiroServer receives a navigateToCard event
-    await this.triggerDirectNavigation(card);
-
-    // Wait for file to open
-    const editor = await this.waitForFileToOpen(card.path, timeout);
-
-    // If it's a symbol card, try to wait for cursor positioning
-    let position = editor.selection.active;
-    if (isSymbolCard(card)) {
-      try {
-        position = await this.waitForCursorAtSymbol(
-          card.symbol,
-          editor,
-          timeout,
-        );
-      } catch (error) {
-        console.warn(`Symbol positioning failed for ${card.symbol}:`, error);
-        // Continue with current cursor position - this is acceptable for E2E tests
-        // where the TypeScript language server might not be fully initialized
-      }
-    }
-
-    return { editor, position };
+    await mockClient.sendNavigateToEvent(card);
   }
 
   /**
-   * Directly trigger navigation without going through WebSocket
-   * This simulates the navigation logic from extension.ts
+   * Create a Sinon-based notification capture system
+   * This is the recommended approach for new tests
    */
-  private static async triggerDirectNavigation(card: CardData): Promise<void> {
-    // Import the navigation logic
-    const { goToCardCode } = await import("../../commands/browse");
+  static createSinonNotificationCapture(): {
+    sandbox: any;
+    getCapturedNotifications: () => Array<{ type: string; message: string }>;
+    clearCapturedNotifications: () => void;
+  } {
+    const sinon = require("sinon");
+    const sandbox = sinon.createSandbox();
+    const capturedNotifications: Array<{ type: string; message: string }> = [];
 
-    // Navigate to the card (this opens the file and positions cursor)
-    const success = await goToCardCode(card, false);
+    // Mock notification methods with Sinon
+    sandbox
+      .stub(vscode.window, "showWarningMessage")
+      .callsFake((message: string) => {
+        capturedNotifications.push({ type: "warning", message });
+        debug(`[CAPTURED WARNING]: ${message}`);
+        return Promise.resolve(undefined);
+      });
 
-    if (!success) {
-      console.warn(`Navigation to card ${card.title} was not successful`);
-    }
-  }
+    sandbox
+      .stub(vscode.window, "showErrorMessage")
+      .callsFake((message: string) => {
+        capturedNotifications.push({ type: "error", message });
+        debug(`[CAPTURED ERROR]: ${message}`);
+        return Promise.resolve(undefined);
+      });
 
-  /**
-   * Mock VSCode notification system for testing
-   * This intercepts calls to showWarningMessage, showErrorMessage, etc.
-   */
-  private static capturedNotifications: Array<{
-    type: string;
-    message: string;
-  }> = [];
-  private static originalShowWarningMessage: typeof vscode.window.showWarningMessage;
-  private static originalShowErrorMessage: typeof vscode.window.showErrorMessage;
-  private static originalShowInformationMessage: typeof vscode.window.showInformationMessage;
+    sandbox
+      .stub(vscode.window, "showInformationMessage")
+      .callsFake((message: string) => {
+        capturedNotifications.push({ type: "info", message });
+        debug(`[CAPTURED INFO]: ${message}`);
+        return Promise.resolve(undefined);
+      });
 
-  /**
-   * Start capturing VSCode notifications for testing
-   */
-  static startCapturingNotifications(): void {
-    this.capturedNotifications = [];
-
-    // Store original methods
-    this.originalShowWarningMessage = vscode.window.showWarningMessage;
-    this.originalShowErrorMessage = vscode.window.showErrorMessage;
-    this.originalShowInformationMessage = vscode.window.showInformationMessage;
-
-    // Mock the methods to capture notifications
-    vscode.window.showWarningMessage = ((message: string, ..._items: any[]) => {
-      this.capturedNotifications.push({ type: "warning", message });
-      console.log(`[CAPTURED WARNING]: ${message}`);
-      return Promise.resolve(undefined);
-    }) as any;
-
-    vscode.window.showErrorMessage = ((message: string, ..._items: any[]) => {
-      this.capturedNotifications.push({ type: "error", message });
-      console.log(`[CAPTURED ERROR]: ${message}`);
-      return Promise.resolve(undefined);
-    }) as any;
-
-    vscode.window.showInformationMessage = ((
-      message: string,
-      ..._items: any[]
-    ) => {
-      this.capturedNotifications.push({ type: "info", message });
-      console.log(`[CAPTURED INFO]: ${message}`);
-      return Promise.resolve(undefined);
-    }) as any;
-  }
-
-  /**
-   * Stop capturing notifications and restore original methods
-   */
-  static stopCapturingNotifications(): void {
-    if (this.originalShowWarningMessage) {
-      vscode.window.showWarningMessage = this.originalShowWarningMessage;
-    }
-    if (this.originalShowErrorMessage) {
-      vscode.window.showErrorMessage = this.originalShowErrorMessage;
-    }
-    if (this.originalShowInformationMessage) {
-      vscode.window.showInformationMessage =
-        this.originalShowInformationMessage;
-    }
-  }
-
-  /**
-   * Get captured VSCode notifications
-   */
-  static getCapturedNotifications(): Array<{ type: string; message: string }> {
-    return [...this.capturedNotifications];
-  }
-
-  /**
-   * Clear captured notifications
-   */
-  static clearCapturedNotifications(): void {
-    this.capturedNotifications = [];
-  }
-
-  /**
-   * Wait for a specific notification to appear
-   */
-  static async waitForNotification(
-    expectedType: "warning" | "error" | "info",
-    expectedMessagePattern: string | RegExp,
-    timeout: number = 5000,
-  ): Promise<{ type: string; message: string }> {
-    return waitFor(
-      () => {
-        const notification = this.capturedNotifications.find((n) => {
-          const typeMatches = n.type === expectedType;
-          const messageMatches =
-            typeof expectedMessagePattern === "string"
-              ? n.message.includes(expectedMessagePattern)
-              : expectedMessagePattern.test(n.message);
-          return typeMatches && messageMatches;
-        });
-
-        assert.ok(
-          notification,
-          `Expected ${expectedType} notification matching "${expectedMessagePattern}" not found. Captured: ${JSON.stringify(this.capturedNotifications)}`,
-        );
-        return notification;
-      },
-      { timeout, message: `Notification not found within timeout` },
-    );
+    return {
+      sandbox,
+      getCapturedNotifications: () => [...capturedNotifications],
+      clearCapturedNotifications: () => (capturedNotifications.length = 0),
+    };
   }
 
   /**
@@ -502,6 +420,36 @@ export class E2ETestUtils {
         return true;
       },
       { timeout: 5000, message: "Card not found in storage or data mismatch" },
+    );
+  }
+
+  static async enableAllFeatureFlags(): Promise<void> {
+    const config = vscode.workspace.getConfiguration("appExplorer.migration");
+    for (const flag of Object.keys(config)) {
+      if (flag.includes("enable") || flag.includes("debug")) {
+        if (config.get(flag) === false) {
+          await config.update(flag, true);
+        }
+      }
+    }
+  }
+
+  static async setupWorkspace(): Promise<void> {
+    debug("Setting up E2E Navigation Test Suite...");
+    await this.enableAllFeatureFlags();
+
+    // Get test port from environment variable
+    const testPort = E2ETestUtils.getTestPort();
+    debug(`E2E Test Suite will use port: ${testPort}`);
+
+    // Start the test MiroServer on the allocated port
+    await this.startRealServerOnTestPort();
+
+    // Verify test workspace is properly configured
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    assert.ok(
+      workspaceFolders && workspaceFolders.length === 1,
+      "No workspace folders found",
     );
   }
 
@@ -545,24 +493,6 @@ export class E2ETestUtils {
       default:
         throw new Error(`Unknown invalid card type: ${type}`);
     }
-  }
-
-  /**
-   * Wait for a condition with custom retry logic
-   */
-  static async waitForCondition<T>(
-    condition: () => Promise<T> | T,
-    options: {
-      timeout?: number;
-      interval?: number;
-      message?: string;
-    } = {},
-  ): Promise<T> {
-    return waitFor(condition, {
-      timeout: options.timeout || 10000,
-      interval: options.interval || 500,
-      message: options.message || "Condition not met within timeout",
-    });
   }
 
   /**
@@ -637,41 +567,41 @@ export class E2ETestUtils {
       "example.ts",
     ];
 
-    console.log("=== DEBUG: Symbols found in test workspace files ===");
+    debug("=== DEBUG: Symbols found in test workspace files ===");
 
     for (const filePath of testFiles) {
-      console.log(`\n--- ${filePath} ---`);
+      debug(`\n--- ${filePath} ---`);
       const symbols = await this.listAllSymbolsInDocument(filePath);
 
       if (symbols.length === 0) {
-        console.log("  No symbols found");
+        debug("  No symbols found");
       } else {
         symbols.forEach((symbol, index) => {
-          console.log(
+          debug(
             `  ${index + 1}. "${symbol.label}" (line ${symbol.range.start.line + 1})`,
           );
         });
       }
     }
 
-    console.log("=== END DEBUG ===\n");
+    debug("=== END DEBUG ===\n");
   }
 
   /**
    * Set up MockMiroClient and return it
    */
   static async setupMockMiroClient(): Promise<MockMiroClient> {
-    const testPort = TestPortManager.getAllocatedPort();
+    const testPort = this.getTestPort();
     const serverUrl = `http://localhost:${testPort}`;
 
-    console.log(
+    debug(
       `[E2ETestUtils] Setting up MockMiroClient with server URL: ${serverUrl}`,
     );
 
     this.mockClient = new MockMiroClient(serverUrl);
     await this.mockClient.connect();
 
-    console.log("MockMiroClient setup complete");
+    debug("MockMiroClient setup complete");
     return this.mockClient;
   }
 

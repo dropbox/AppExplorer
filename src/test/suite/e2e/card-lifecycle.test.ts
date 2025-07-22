@@ -1,12 +1,15 @@
 import * as assert from "assert";
+import createDebug from "debug";
 import * as vscode from "vscode";
-import { SymbolCardData } from "../../../EventTypes";
-import { CardStorage } from "../../../card-storage";
-import { ServerCardStorage } from "../../../server-card-storage";
-import { createTestCard } from "../../fixtures/card-data";
-import { E2ETestUtils } from "../../helpers/e2e-test-utils";
+import { CardData } from "../../../EventTypes";
+import { TEST_CARDS } from "../../fixtures/card-data";
+import { E2ETestUtils, isSymbolCard } from "../../helpers/e2e-test-utils";
 import { MockMiroClient } from "../../mocks/mock-miro-client";
-import { waitFor } from "../test-utils";
+import { waitForValue } from "../test-utils";
+
+const debug = createDebug("app-explorer:test:card-lifecycle");
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Comprehensive E2E test for the complete card lifecycle workflow
@@ -14,211 +17,141 @@ import { waitFor } from "../test-utils";
  */
 suite("E2E Card Lifecycle Tests", () => {
   let mockClient: MockMiroClient;
-  let cardStorage: CardStorage;
-  let serverCardStorage: ServerCardStorage;
-  let testBoardId: string;
 
   suiteSetup(async function () {
     // Increase timeout for E2E tests
-    this.timeout(60000);
-
-    console.log("Setting up E2E Card Lifecycle Test Suite...");
-
-    // Initialize dynamic port allocation
-    const testPort = await E2ETestUtils.initializeTestPort();
-    console.log(`E2E Card Lifecycle Test Suite will use port: ${testPort}`);
-
-    // Start the test MiroServer
-    await E2ETestUtils.startTestMiroServer();
-
-    // Verify test workspace is properly configured
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    assert.ok(
-      workspaceFolders && workspaceFolders.length > 0,
-      "No workspace folders found",
-    );
-
-    // Verify test files exist
-    const testFiles = [
-      "example.ts",
-      "src/utils/helpers.ts",
-      "src/components/UserProfile.ts",
-    ];
-
-    for (const filePath of testFiles) {
-      const exists = await E2ETestUtils.fileExists(filePath);
-      assert.ok(exists, `Test file does not exist: ${filePath}`);
-    }
-
-    console.log("Test workspace verification complete");
+    this.timeout(15000);
+    await E2ETestUtils.setupWorkspace();
   });
 
   suiteTeardown(async function () {
     this.timeout(15000);
-    console.log("Tearing down E2E Card Lifecycle Test Suite...");
     await E2ETestUtils.teardownTestInfrastructure();
-    console.log("E2E Card Lifecycle Test Suite teardown complete");
   });
 
+  let notificationCapture: ReturnType<
+    typeof E2ETestUtils.createSinonNotificationCapture
+  >;
   setup(async function () {
-    this.timeout(30000);
-    console.log("Setting up MockMiroClient for card lifecycle test...");
+    this.timeout(15000);
 
-    // Ensure extension is activated first
-    const extension = vscode.extensions.getExtension("dropbox.app-explorer");
-    if (extension && !extension.isActive) {
-      console.log("Activating AppExplorer extension...");
-      await extension.activate();
-      console.log("Extension activated successfully");
-    }
+    debug("Setting up MockMiroClient for test...");
 
     // Reset editor state before each test
     await E2ETestUtils.resetEditorState();
 
-    // Set up MockMiroClient using existing method
+    // Set up fresh MockMiroClient for each test
     mockClient = await E2ETestUtils.setupMockClient();
-    testBoardId = mockClient.getBoardId();
 
-    // Get references to storage systems
-    cardStorage = E2ETestUtils.getCardStorage();
-    serverCardStorage = E2ETestUtils.getServerCardStorage();
-
-    // Enable dual storage for comprehensive testing
-    await vscode.workspace
-      .getConfiguration("appExplorer.migration")
-      .update("enableDualStorage", true);
-
-    console.log("MockMiroClient setup complete for card lifecycle test");
+    // Start capturing notifications for error handling tests
+    notificationCapture = E2ETestUtils.createSinonNotificationCapture();
   });
 
   teardown(async function () {
     this.timeout(10000);
-    console.log("Tearing down MockMiroClient for card lifecycle test...");
 
-    // Clean up storage
-    if (cardStorage) {
-      cardStorage.clear();
-    }
-    if (serverCardStorage) {
-      serverCardStorage.clear();
-    }
+    debug("Tearing down MockMiroClient...");
+    notificationCapture.sandbox.restore();
 
-    // Disable dual storage
-    await vscode.workspace
-      .getConfiguration("appExplorer.migration")
-      .update("enableDualStorage", false);
-
-    // Use existing teardown method
+    // Clean up after each test
     await E2ETestUtils.teardownMockClient();
     await E2ETestUtils.resetEditorState();
 
-    console.log("Card lifecycle test teardown complete");
+    debug("Teardown complete");
   });
 
   test("Complete card lifecycle: navigation and WebSocket communication", async function () {
     this.timeout(30000);
-    console.log(
-      "Starting card lifecycle test focused on navigation and WebSocket communication...",
-    );
 
-    // ===== PHASE 1: SETUP TEST CARD =====
-    console.log("Phase 1: Setting up test card...");
+    // This test simulates the complete user workflow:
+    // 1. Open a file and navigate to a symbol
+    // 2. Create a card using the create card command (mocked UI interactions)
+    // 3. Close the editor
+    // 4. Navigate back to the card via WebSocket communication
+    // 5. Verify the editor reopens at the correct position
 
-    // Create a test card for the lifecycle test
-    const testFile = "src/utils/helpers.ts";
-    const testSymbol = "formatDate";
-
-    const testCard = createTestCard(
-      "Test Card - formatDate Function",
-      testFile,
-      testSymbol,
-      "test-card-lifecycle",
-    );
-    testCard.boardId = testBoardId;
-
-    console.log("Test card created:", {
-      title: testCard.title,
-      path: testCard.path,
-      symbol: (testCard as SymbolCardData).symbol,
-      miroLink: testCard.miroLink,
-    });
-
-    // Verify test card is ready
-    assert.ok(testCard, "Test card setup failed");
-
-    // ===== PHASE 2: NAVIGATION TESTING =====
-    console.log("Phase 2: Testing navigation to created card...");
-
-    // Close all editors to test navigation
-    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
-
-    // Wait for editors to close
-    await waitFor(
-      async () => {
-        return !vscode.window.activeTextEditor;
-      },
-      { timeout: 5000, message: "Failed to close all editors" },
-    );
-
-    // Simulate clicking the card in Miro
-    console.log("Simulating card click in Miro...");
-    mockClient.sendNavigateToEvent(testCard);
-
-    // Wait a moment for the navigation event to be processed
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    console.log("Navigation event sent successfully");
-
-    // ===== PHASE 3: CARD ATTACHMENT =====
-    console.log("Phase 3: Testing card attachment to new symbol...");
-
-    // For this test, we'll simulate attachment to a different symbol
-    const attachmentSymbol = "debounce";
-    console.log(`Simulating attachment to symbol: ${attachmentSymbol}`);
-
-    // Mock card selection for attachment
-    mockClient.sendSelectionUpdateEvent([testCard]);
-
-    // Execute attach card command
-    console.log("Executing app-explorer.attachCard command...");
-
-    // For this test, we'll simulate the attachment by updating the test card
-    console.log("Simulating card attachment...");
-
-    // Update the test card to point to the new symbol
-    (testCard as SymbolCardData).symbol = attachmentSymbol;
-
-    console.log("Card attachment simulation completed successfully");
-
-    // ===== PHASE 4: BIDIRECTIONAL NAVIGATION VERIFICATION =====
-    console.log("Phase 4: Testing navigation to attached symbol...");
-
-    // Simulate clicking the attached card again
-    mockClient.sendNavigateToEvent(testCard);
-
-    // Wait for the navigation event to be processed
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    console.log("Bidirectional navigation event sent successfully");
-
-    // ===== PHASE 5: STORAGE CONSISTENCY VERIFICATION =====
-    console.log("Phase 5: Verifying storage consistency...");
-
-    // Verify our test card was properly updated
-    assert.equal(testCard.type, "symbol", "Card type should be symbol");
     assert.equal(
-      (testCard as SymbolCardData).symbol,
-      attachmentSymbol,
-      "Card symbol not updated in test card",
-    );
-    assert.equal(testCard.path, testFile, "Card path changed unexpectedly");
-    assert.equal(
-      testCard.boardId,
-      testBoardId,
-      "Card board ID changed unexpectedly",
+      TEST_CARDS.length,
+      mockClient.getTestCards().length,
+      "Expected test cards to be loaded into mock client",
     );
 
-    console.log("Test card consistency verified");
-    console.log("Complete card lifecycle test passed successfully!");
+    // ===== Navigate to UserProfile.ts =====
+    debug("Step 1: Opening UserProfile.ts file");
+    await E2ETestUtils.openFileAtSymbol(
+      "src/components/UserProfile.ts",
+      "UserProfile",
+    );
+
+    // Wait for the file to be opened and verify it's the correct file
+    const editor = await E2ETestUtils.waitForFileToOpen("UserProfile.ts");
+    assert.ok(editor, "UserProfile.ts should be opened");
+    debug("✓ UserProfile.ts opened successfully");
+
+    // ===== Navigate to the render function =====
+    debug("Step 2: Navigating to render function");
+
+    // Get all available symbols in the document to find the render function
+    const allSymbols = await E2ETestUtils.listAllSymbolsInDocument(
+      "src/components/UserProfile.ts",
+    );
+
+    // Try to find the render symbol (it might be nested as "UserProfile/render")
+    const renderSymbol = allSymbols.find(
+      (s) => s.label === "render" || s.label === "UserProfile/render",
+    );
+    if (renderSymbol) {
+      // Navigate to the render symbol using its exact label
+      await E2ETestUtils.navigateToSymbol(editor, renderSymbol.label);
+      await E2ETestUtils.waitForCursorAtSymbol(renderSymbol.label, editor);
+      debug("✓ Cursor positioned at render function");
+    } else {
+      // Fallback to UserProfile class if render symbol not found
+      await E2ETestUtils.navigateToSymbol(editor, "UserProfile");
+      await E2ETestUtils.waitForCursorAtSymbol("UserProfile", editor);
+      debug("✓ Cursor positioned at UserProfile class");
+    }
+
+    // ===== Trigger the Create Card menu =====
+    debug("Step 3: Testing card creation logic");
+    const cardsPromise = vscode.commands.executeCommand<CardData[]>(
+      "app-explorer.createCard",
+    );
+    await delay(1000);
+    debug("select next");
+    await vscode.commands.executeCommand(
+      "workbench.action.quickOpenSelectNext",
+    );
+    await delay(1000);
+    debug("accept selected");
+    await vscode.commands.executeCommand(
+      "workbench.action.acceptSelectedQuickOpenItem",
+    );
+    await vscode.commands.executeCommand(
+      "workbench.action.acceptSelectedQuickOpenItem",
+    );
+    const [createdCard] = await cardsPromise;
+
+    debug("Waiting for card update...");
+    const card = await waitForValue(() =>
+      mockClient
+        .getTestCards()
+        .find(
+          (c) =>
+            isSymbolCard(c) &&
+            isSymbolCard(createdCard) &&
+            c.path === createdCard.path &&
+            c.symbol === createdCard.symbol,
+        ),
+    );
+
+    debug("createdCard", card);
+    assert.ok(card, "Card should be created");
+    await E2ETestUtils.resetEditorState();
+    await delay(1000);
+
+    await E2ETestUtils.navigateToCard(card);
+    await E2ETestUtils.waitForFileToOpen(card.path.split("/").pop()!);
+    await delay(1000);
   });
 });

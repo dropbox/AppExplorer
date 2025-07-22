@@ -61,15 +61,20 @@ suite("Extension Activation Tests", () => {
       await extension.activate();
     }
 
-    // Test context variables
-    const appExplorerEnabled = await vscode.commands.executeCommand(
-      "getContext",
-      "appExplorer.enabled",
+    // Test that the extension activated successfully and returned the expected result
+    assert.ok(extension, "Extension should be found");
+    assert.ok(extension?.isActive, "Extension should be active");
+
+    // Check that the activation result contains the expected properties
+    const activationResult = extension?.exports;
+    console.log("Extension activation result:", activationResult);
+
+    // The extension should return an object with appExplorer: true
+    assert.ok(activationResult, "Extension should return activation result");
+    assert.strictEqual(
+      activationResult.appExplorer,
+      true,
+      "AppExplorer should be enabled",
     );
-
-    console.log("AppExplorer enabled context:", appExplorerEnabled);
-
-    // The context should be set during activation
-    assert.ok(appExplorerEnabled, "AppExplorer should be enabled in context");
   });
 });

@@ -132,6 +132,8 @@ export class CardStorage extends EventEmitter implements vscode.Disposable {
         card,
         miroLink: card.miroLink,
       });
+    } else {
+      throw new Error(`Board not found: ${boardId}`);
     }
   }
 

@@ -18,6 +18,7 @@ import {
 import { HandlerContext } from "./extension";
 import { FeatureFlagManager } from "./feature-flag-manager";
 import { createLogger } from "./logger";
+import { PortConfig } from "./port-config";
 import { ServerCardStorage } from "./server-card-storage";
 import compression = require("compression");
 import express = require("express");
@@ -48,7 +49,9 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
   private constructor(
     private context: HandlerContext,
     private featureFlagManager?: FeatureFlagManager,
-    private port: number = 9042,
+    // Port configuration: Uses PortConfig for centralized port management
+    // Defaults to 9042 for production, but can be overridden for E2E testing
+    private port: number = PortConfig.getServerPort(),
   ) {
     super();
 
@@ -110,7 +113,9 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     featureFlagManager?: FeatureFlagManager,
     port?: number,
   ): Promise<MiroServer> {
-    const server = new MiroServer(context, featureFlagManager, port);
+    // Use provided port, or fall back to configured port
+    const serverPort = port ?? PortConfig.getServerPort();
+    const server = new MiroServer(context, featureFlagManager, serverPort);
     await server.startServer();
     return server;
   }

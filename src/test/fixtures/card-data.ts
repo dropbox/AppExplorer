@@ -50,8 +50,9 @@ export const TEST_CARDS: CardData[] = [
     path: "src/utils/helpers.ts",
     symbol: "formatDate",
     miroLink: "https://miro.com/app/board/mock-board-test-123/card5",
+    // This has been intentionally changed to point to the wrong line number
     codeLink:
-      "https://github.com/asa-codelabs/AppExplorer/blob/main/sample-workspace/src/utils/helpers.ts#L7",
+      "https://github.com/asa-codelabs/AppExplorer/blob/main/sample-workspace/src/utils/helpers.ts#L99",
     status: "connected",
   },
   {

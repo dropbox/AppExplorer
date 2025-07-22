@@ -1,3 +1,4 @@
+import invariant from "tiny-invariant";
 import * as vscode from "vscode";
 import { CardData } from "../EventTypes";
 import { HandlerContext } from "../extension";
@@ -36,17 +37,19 @@ export const makeAttachCardHandler = (
           defaultTitle: selectedCards[0].title,
         });
         const cardData = result?.[0];
-        if (cardData) {
-          miroServer.query(boardId, "attachCard", cardData);
-          if (cardData.miroLink) {
-            context.cardStorage.setCard(cardData.miroLink, cardData);
-          }
+        invariant(cardData, "Failed to create card data");
+        cardData.miroLink = selectedCards[0].miroLink;
+        miroServer.query(boardId, "attachCard", cardData);
+        if (cardData.miroLink) {
+          context.cardStorage.setCard(cardData.miroLink, cardData);
         }
+        return [cardData];
       } else {
         vscode.window.showInformationMessage(
           "Please select a single card to attach",
         );
       }
     }
+    return [];
   };
 };

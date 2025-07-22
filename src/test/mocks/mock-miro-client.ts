@@ -1,9 +1,12 @@
+import createDebugger from "debug";
 import { EventEmitter } from "events";
 import { Socket, io as socketIO } from "socket.io-client";
 import * as vscode from "vscode";
 import { CardData, SymbolCardData } from "../../EventTypes";
 import { CardStorage, createMemoryCardStorage } from "../../card-storage";
-import { createLogger } from "../../logger";
+import { waitForValue } from "../suite/test-utils";
+
+const debug = createDebugger("app-explorer:test:mock-miro-client");
 
 /**
  * Type guard to check if a card is a symbol card
@@ -24,16 +27,16 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
   private socket?: Socket;
   private readonly boardId: string;
   private readonly boardName: string;
-  private testCards: CardData[] = [];
   private cardStorage: CardStorage;
-  private logger = createLogger("mock-miro-client");
   private serverUrl: string;
+  private initialized = false;
 
   constructor(serverUrl: string = "http://localhost:9042") {
     super();
     this.boardId = "mock-board-test-123";
     this.boardName = "Mock Test Board";
     this.cardStorage = createMemoryCardStorage();
+    this.cardStorage.addBoard(this.boardId, this.boardName);
     this.serverUrl = serverUrl;
   }
 
@@ -43,7 +46,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
    */
   async connect(): Promise<void> {
     try {
-      this.logger.info("Connecting to AppExplorer server", {
+      debug("Connecting to AppExplorer server", {
         serverUrl: this.serverUrl,
         boardId: this.boardId,
       });
@@ -58,7 +61,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
 
       // Set up connection event handlers
       this.socket.on("connect", () => {
-        this.logger.info("Connected to AppExplorer server", {
+        debug("Connected to AppExplorer server", {
           socketId: this.socket?.id,
           boardId: this.boardId,
         });
@@ -80,7 +83,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
       });
 
       this.socket.on("disconnect", (reason) => {
-        this.logger.info("Disconnected from AppExplorer server", {
+        debug("Disconnected from AppExplorer server", {
           reason,
           boardId: this.boardId,
         });
@@ -96,7 +99,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
       });
 
       this.socket.on("connect_error", (error) => {
-        this.logger.error("Connection error", {
+        console.error("Connection error", {
           error: error.message,
           boardId: this.boardId,
         });
@@ -125,8 +128,10 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
           reject(error);
         });
       });
+
+      await waitForValue(() => (this.initialized ? true : undefined));
     } catch (error) {
-      this.logger.error("Failed to connect to server", {
+      console.error("Failed to connect to server", {
         error: error instanceof Error ? error.message : String(error),
         boardId: this.boardId,
       });
@@ -153,21 +158,20 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
   /**
    * Load predefined test card fixtures
    */
-  loadTestCards(cards: CardData[]): void {
-    this.testCards = cards.map((card) => ({
-      ...card,
-      boardId: this.boardId, // Ensure all cards use the mock board ID
-    }));
+  async loadTestCards(cards: CardData[]): Promise<void> {
+    const cardPromises = cards
+      .map((card) => ({
+        ...card,
+        boardId: this.boardId, // Ensure all cards use the mock board ID
+      }))
+      .map((card) => {
+        return this.setCard(card);
+      });
 
-    // Store cards in the in-memory storage
-    this.testCards.forEach((card) => {
-      if (card.miroLink) {
-        this.cardStorage.setCard(card.miroLink, card);
-      }
-    });
+    await Promise.all(cardPromises);
 
-    this.logger.info("Loaded test cards", {
-      cardCount: this.testCards.length,
+    debug("Loaded test cards", {
+      cardCount: cards.length,
       boardId: this.boardId,
     });
   }
@@ -176,24 +180,32 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
    * Get the loaded test cards
    */
   getTestCards(): CardData[] {
-    return [...this.testCards];
+    return this.cardStorage.listAllCards();
+  }
+
+  setCard(card: CardData): Promise<void> {
+    return this.cardStorage.setCard(this.boardId, card);
   }
 
   /**
    * Send navigateTo event to the server (same as src/miro.ts line 439)
    */
-  sendNavigateToEvent(card: CardData): void {
+  async sendNavigateToEvent(card: CardData): Promise<void> {
     if (!this.socket?.connected) {
       const errorMsg = "MockMiroClient: Not connected to server";
       vscode.window.showErrorMessage(errorMsg);
-      this.logger.error(errorMsg, { boardId: this.boardId });
+      console.error(errorMsg, { boardId: this.boardId });
       return;
+    }
+    const storedCard = this.cardStorage.getCardByLink(card.miroLink!);
+    if (!storedCard) {
+      throw new Error(`Card not found in storage: ${card.miroLink}`);
     }
 
     // Send navigateTo event using the same format as real Miro boards
     this.socket.emit("navigateTo", card);
 
-    this.logger.info("Sent navigateTo event to server", {
+    debug("Sent navigateTo event to server", {
       event: "navigateTo",
       card: {
         title: card.title,
@@ -203,6 +215,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
       },
       boardId: this.boardId,
     });
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
   /**
@@ -212,7 +225,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
     if (!this.socket?.connected) {
       const errorMsg = "MockMiroClient: Not connected to server";
       vscode.window.showErrorMessage(errorMsg);
-      this.logger.error(errorMsg, { boardId: this.boardId });
+      console.error(errorMsg, { boardId: this.boardId });
       return;
     }
 
@@ -226,7 +239,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
       }
     });
 
-    this.logger.info("Sent card selection events to server", {
+    debug("Sent card selection events to server", {
       event: "card",
       cardCount: cards.length,
       boardId: this.boardId,
@@ -242,7 +255,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
     if (!this.socket?.connected) {
       const errorMsg = "MockMiroClient: Not connected to server";
       vscode.window.showErrorMessage(errorMsg);
-      this.logger.error(errorMsg, { boardId: this.boardId });
+      console.error(errorMsg, { boardId: this.boardId });
       return;
     }
 
@@ -252,7 +265,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
         card: card,
       });
 
-      this.logger.info("Sent card update event to server", {
+      debug("Sent card update event to server", {
         event: "card",
         cardTitle: card.title,
         miroLink: card.miroLink,
@@ -272,7 +285,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
 
     // Handle query commands from VSCode
     this.socket.on("query", async ({ name, requestId, data }) => {
-      this.logger.info("Received query command from VSCode", {
+      debug("Received query command from VSCode", {
         queryName: name,
         requestId,
         data,
@@ -283,11 +296,46 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
         // Mock implementation of common queries
         let response: any;
         switch (name) {
+          case "cardStatus":
+            const [dataCard] = data;
+
+            const card = this.cardStorage.getCardByLink(dataCard.miroLink);
+            if (!card) {
+              throw new Error("Card not found");
+            }
+            card.status = dataCard.status;
+            if (isSymbolCard(card) && dataCard.codeLink) {
+              card.codeLink = dataCard.codeLink;
+            }
+            if (!card.miroLink) {
+              throw new Error("Card missing miroLink");
+            }
+            this.cardStorage.setCard(this.boardId, card);
+
+            response = undefined;
+            break;
+          case "newCards":
+            response = (data[0] as CardData[])
+              .map((card) => ({
+                ...card,
+                miroLink: `https://miro.com/app/board/${this.boardId}/?moveToWidget=${Math.random().toString(36)}`,
+              }))
+              .filter((c) => c.type);
+
+            debug("newCards", data[0]);
+            await Promise.all(
+              response.map((card: CardData) =>
+                this.cardStorage.setCard(this.boardId, card),
+              ),
+            );
+
+            break;
           case "getBoardInfo":
             response = { name: this.boardName, boardId: this.boardId };
             break;
           case "cards":
-            response = this.testCards;
+            response = this.cardStorage.listAllCards();
+            this.initialized = true;
             break;
           case "selected":
             response = []; // Mock empty selection
@@ -304,7 +352,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
 
         this.emit("cardStatusUpdate", { name, requestId, response });
       } catch (error) {
-        this.logger.error("Error handling query command", {
+        console.error("Error handling query command", {
           queryName: name,
           requestId,
           error: error instanceof Error ? error.message : String(error),

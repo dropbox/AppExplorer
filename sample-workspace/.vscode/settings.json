@@ -1,3 +1,10 @@
 {
-    "appExplorer.migration.enableDualStorage": false
+    "appExplorer.migration.enableDualStorage": true,
+    "appExplorer.migration.enableServerDiscovery": true,
+    "appExplorer.migration.enableWorkspaceWebsockets": true,
+    "appExplorer.migration.enableServerFailover": true,
+    "appExplorer.migration.enableQueryProxying": true,
+    "appExplorer.migration.enableServerEventRouting": true,
+    "appExplorer.migration.enableWebsocketStatusBar": true,
+    "appExplorer.migration.debugMode": true
 }

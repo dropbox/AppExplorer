@@ -16,6 +16,7 @@ import { FeatureFlagManager } from "./feature-flag-manager";
 import { getGitHubUrl } from "./get-github-url";
 import { LocationFinder } from "./location-finder";
 import { logger } from "./logger";
+import { DEFAULT_PRODUCTION_PORT, PortConfig } from "./port-config";
 import { MiroServer } from "./server";
 import { ServerDiscovery } from "./server-discovery";
 import { ServerHealthMonitor } from "./server-health-monitor";
@@ -135,17 +136,77 @@ export async function activate(context: vscode.ExtensionContext) {
     return status === "connected";
   };
 
-  // Initialize server discovery and launcher
-  const serverDiscovery = new ServerDiscovery();
+  // Initialize server discovery and launcher with configured port
+  let serverPort: number;
+  try {
+    serverPort = PortConfig.getServerPort();
+  } catch (error) {
+    const errorMessage = `Invalid server port configuration: ${error instanceof Error ? error.message : String(error)}`;
+    extensionLogger.error(
+      "Failed to get server port configuration, falling back to production default",
+      {
+        error: errorMessage,
+      },
+    );
+
+    // Don't show error message during tests to avoid disrupting test execution
+    if (!process.env.VSCODE_TEST_MODE) {
+      vscode.window.showErrorMessage(
+        `AppExplorer: ${errorMessage}. Please check your appExplorer.internal.serverPort setting. Using default port 9042.`,
+      );
+    }
+
+    // Fall back to production default instead of throwing
+    serverPort = DEFAULT_PRODUCTION_PORT;
+    extensionLogger.info("Using fallback port for extension activation", {
+      port: serverPort,
+    });
+  }
+
+  const serverDiscovery = new ServerDiscovery({ port: serverPort });
   const serverLauncher = new ServerLauncher(
     context,
     featureFlagManager,
     serverDiscovery,
   );
 
+  // Log port configuration for debugging
+  extensionLogger.info("Server port configuration", {
+    port: serverPort,
+    isTestPort: PortConfig.isUsingTestPort(),
+    diagnostics: PortConfig.getDiagnostics(),
+  });
+
+  // Show warning if using non-production port
+  if (PortConfig.isUsingTestPort()) {
+    extensionLogger.warn(
+      "⚠️ Using non-production server port - this should only be used for E2E testing",
+    );
+  }
+
   // Initialize server based on migration flags
-  extensionLogger.info("Initializing server...");
-  const serverResult = await serverLauncher.initializeServer(handlerContext);
+  extensionLogger.info("Initializing server...", {
+    serverPort,
+    testMode: !!process.env.VSCODE_TEST_MODE,
+  });
+  let serverResult;
+  try {
+    serverResult = await serverLauncher.initializeServer(handlerContext);
+    extensionLogger.info("Server initialization completed", {
+      mode: serverResult.mode,
+      serverUrl: "serverUrl" in serverResult ? serverResult.serverUrl : "N/A",
+    });
+  } catch (error) {
+    extensionLogger.error("Server initialization failed, using fallback mode", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    // Create a fallback server result to ensure extension continues to activate
+    serverResult = {
+      mode: "disabled" as const,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 
   let miroServer: MiroServer;
   let healthMonitor: ServerHealthMonitor | undefined;
@@ -215,11 +276,19 @@ export async function activate(context: vscode.ExtensionContext) {
       );
     } catch (error) {
       extensionLogger.error("Failed to connect as workspace client", { error });
-      vscode.window.showErrorMessage(
-        `AppExplorer: Failed to connect to server at ${serverResult.serverUrl}. ` +
-          `Error: ${error}`,
+
+      // Don't show error message during tests to avoid disrupting test execution
+      if (!process.env.VSCODE_TEST_MODE) {
+        vscode.window.showErrorMessage(
+          `AppExplorer: Failed to connect to server at ${serverResult.serverUrl}. ` +
+            `Error: ${error}`,
+        );
+      }
+
+      // Don't throw error - continue with extension activation to ensure commands are registered
+      extensionLogger.warn(
+        "Continuing extension activation despite client connection failure",
       );
-      throw error;
     }
 
     // Add client to subscriptions for cleanup
@@ -229,13 +298,69 @@ export async function activate(context: vscode.ExtensionContext) {
     // This ensures existing commands and Miro board connections still work
     // TODO: Phase 2 - Replace with pure client mode that proxies all operations through workspace client
     // TODO: Phase 3 - Remove MiroServer entirely from client mode once query proxying is implemented
-    miroServer = await MiroServer.create(handlerContext, featureFlagManager);
+    try {
+      extensionLogger.info("Creating MiroServer for client mode", {
+        serverPort,
+      });
+      miroServer = await MiroServer.create(
+        handlerContext,
+        featureFlagManager,
+        serverPort,
+      );
+      extensionLogger.info("MiroServer created successfully for client mode", {
+        serverPort,
+      });
+    } catch (error) {
+      extensionLogger.error(
+        "Client mode MiroServer creation failed, using fallback",
+        {
+          error: error instanceof Error ? error.message : String(error),
+          originalPort: serverPort,
+          fallbackPort: DEFAULT_PRODUCTION_PORT,
+        },
+      );
+      miroServer = await MiroServer.create(
+        handlerContext,
+        featureFlagManager,
+        DEFAULT_PRODUCTION_PORT,
+      );
+      extensionLogger.info("Fallback MiroServer created", {
+        port: DEFAULT_PRODUCTION_PORT,
+      });
+    }
   } else {
-    // Fallback or error case
     extensionLogger.warn("Server initialization failed, using fallback", {
       error: serverResult.error,
     });
-    miroServer = await MiroServer.create(handlerContext, featureFlagManager);
+    try {
+      extensionLogger.info("Creating fallback MiroServer", { serverPort });
+      miroServer = await MiroServer.create(
+        handlerContext,
+        featureFlagManager,
+        serverPort,
+      );
+      extensionLogger.info("Fallback MiroServer created successfully", {
+        serverPort,
+      });
+    } catch (error) {
+      extensionLogger.error(
+        "Fallback MiroServer creation failed, creating minimal server",
+        {
+          error: error instanceof Error ? error.message : String(error),
+          originalPort: serverPort,
+          fallbackPort: DEFAULT_PRODUCTION_PORT,
+        },
+      );
+      // Create a minimal server instance that won't interfere with command registration
+      miroServer = await MiroServer.create(
+        handlerContext,
+        featureFlagManager,
+        DEFAULT_PRODUCTION_PORT, // Use safe default port
+      );
+      extensionLogger.info("Minimal MiroServer created", {
+        port: DEFAULT_PRODUCTION_PORT,
+      });
+    }
   }
 
   // Add server to subscriptions and set up event handling
