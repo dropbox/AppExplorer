@@ -2,8 +2,10 @@ import * as vscode from "vscode";
 import { HandlerContext } from "./extension";
 import { FeatureFlagManager } from "./feature-flag-manager";
 import { createLogger } from "./logger";
+import { PortConfig } from "./port-config";
 import { MiroServer } from "./server";
 import { ServerDiscovery } from "./server-discovery";
+import { delay, waitForValue } from "./test/suite/test-utils";
 
 export type ServerMode = "server" | "client" | "disabled";
 
@@ -25,8 +27,15 @@ export class ServerLauncher {
     serverDiscovery?: ServerDiscovery,
   ) {
     this.featureFlagManager = featureFlagManager;
-    this.serverDiscovery = serverDiscovery || new ServerDiscovery();
-    this.logger.debug("ServerLauncher initialized");
+    // If no ServerDiscovery provided, create one with configured port
+    this.serverDiscovery =
+      serverDiscovery ||
+      new ServerDiscovery({
+        port: PortConfig.getServerPort(),
+      });
+    this.logger.debug("ServerLauncher initialized", {
+      serverPort: this.serverDiscovery.getServerUrl(),
+    });
   }
 
   /**
@@ -123,35 +132,28 @@ export class ServerLauncher {
 
       // Wait a moment for the other server to fully start
       this.logger.debug("Waiting for other server to fully start...");
-      await this.delay(1000);
+      await delay(1000);
 
       // Try to connect as client to the server that won the race
       this.logger.debug("Checking if other server is now available...");
-      const serverExists = await this.serverDiscovery.checkServerHealth();
+      const serverExists = await waitForValue(async () => {
+        return (await this.serverDiscovery.checkServerHealth())
+          ? true
+          : undefined;
+      });
       this.logger.debug("Post-race server health check result", {
         serverExists,
       });
 
-      if (serverExists) {
-        const serverUrl = this.serverDiscovery.getServerUrl();
-        this.logger.info(
-          "Successfully connecting as client after race condition",
-          { serverUrl },
-        );
-        return {
-          mode: "client",
-          serverUrl,
-        };
-      } else {
-        // Still no server - something went wrong
-        this.logger.error("No server available after race condition handling", {
-          launchError,
-        });
-        return {
-          mode: "disabled",
-          error: `Failed to launch server and no existing server found: ${launchError}`,
-        };
-      }
+      const serverUrl = this.serverDiscovery.getServerUrl();
+      this.logger.info(
+        "Successfully connecting as client after race condition",
+        { serverUrl },
+      );
+      return {
+        mode: "client",
+        serverUrl,
+      };
     }
   }
 
@@ -168,9 +170,12 @@ export class ServerLauncher {
 
     try {
       // Create and start server instance with proper error handling
+      // Use the same port as ServerDiscovery for consistency
+      const serverPort = PortConfig.getServerPort();
       const server = await MiroServer.create(
         handlerContext,
         this.featureFlagManager,
+        serverPort,
       );
 
       const duration = Date.now() - startTime;
@@ -231,13 +236,6 @@ export class ServerLauncher {
    */
   getServerDiscovery(): ServerDiscovery {
     return this.serverDiscovery;
-  }
-
-  /**
-   * Utility method for delays
-   */
-  private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**

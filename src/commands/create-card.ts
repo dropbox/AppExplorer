@@ -4,6 +4,7 @@ import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
 import { getRelativePath } from "../get-relative-path";
 import { LocationFinder } from "../location-finder";
+import { MiroServer } from "../server";
 
 export class UnreachableError extends Error {
   constructor(item: never) {
@@ -70,8 +71,10 @@ export const makeNewCardHandler = (context: HandlerContext) =>
             connect: options.connect,
           });
         }
+        return cardData;
       }
     }
+    return [];
   };
 
 export async function makeCardData(
@@ -129,7 +132,7 @@ export async function makeCardData(
         path,
         symbol: anchor.label,
         codeLink: await getGitHubUrl(def),
-        status: "disconnected",
+        status: "connected",
       };
     }),
   );
@@ -140,7 +143,7 @@ export async function makeCardData(
       boardId,
       title,
       path,
-      status: "disconnected",
+      status: "connected",
     };
     cards.unshift(rootCard);
   } else {

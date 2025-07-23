@@ -42,6 +42,7 @@ export const makeAttachCardHandler = (context: HandlerContext) => {
           if (cardData.miroLink) {
             context.cardStorage.setCard(cardData.miroLink, cardData);
           }
+          return [cardData];
         }
       } else {
         vscode.window.showInformationMessage(
@@ -49,5 +50,6 @@ export const makeAttachCardHandler = (context: HandlerContext) => {
         );
       }
     }
+    return [];
   };
 };

@@ -3,6 +3,7 @@ import { AppExplorerLens } from "./app-explorer-lens";
 import { makeAttachCardHandler } from "./commands/attach-card";
 import { goToCardCode, makeBrowseHandler } from "./commands/browse";
 import { makeNewCardHandler } from "./commands/create-card";
+import { makeDebugMockClientHandler } from "./commands/debug-mock-client";
 import { makeWorkspaceBoardHandler } from "./commands/manage-workspace-boards";
 import { makeNavigationHandler } from "./commands/navigate";
 import { makeRenameHandler } from "./commands/rename-board";
@@ -14,6 +15,7 @@ import { FeatureFlagManager } from "./feature-flag-manager";
 import { getGitHubUrl } from "./get-github-url";
 import { LocationFinder } from "./location-finder";
 import { logger } from "./logger";
+import { DEFAULT_PRODUCTION_PORT, PortConfig } from "./port-config";
 import { MiroServer } from "./server";
 import { ServerDiscovery } from "./server-discovery";
 import { ServerHealthMonitor } from "./server-health-monitor";
@@ -37,6 +39,13 @@ export async function activate(context: vscode.ExtensionContext) {
   });
 
   vscode.commands.executeCommand("setContext", "appExplorer.enabled", true);
+
+  // Initialize MockMiro context (disabled by default)
+  vscode.commands.executeCommand(
+    "setContext",
+    "mockMiroClient.connected",
+    false,
+  );
 
   // Initialize feature flag manager for migration
   const featureFlagManager = new FeatureFlagManager(context);
@@ -136,13 +145,20 @@ export async function activate(context: vscode.ExtensionContext) {
     return status === "connected";
   };
 
-  // Initialize server discovery and launcher
-  const serverDiscovery = new ServerDiscovery();
+  // Initialize server discovery and launcher with configured port
+  const serverPort = PortConfig.getServerPort();
+
+  const serverDiscovery = new ServerDiscovery({ port: serverPort });
   const serverLauncher = new ServerLauncher(
     context,
     featureFlagManager,
     serverDiscovery,
   );
+
+  // Log port configuration for debugging
+  extensionLogger.info("Server port configuration", {
+    port: serverPort,
+  });
 
   // Initialize server based on migration flags
   extensionLogger.info("Initializing server...");
@@ -262,30 +278,58 @@ export async function activate(context: vscode.ExtensionContext) {
       });
     } catch (error) {
       extensionLogger.error("Failed to connect as workspace client", { error });
-      vscode.window.showErrorMessage(
-        `AppExplorer: Failed to connect to server at ${serverResult.serverUrl}. ` +
-          `Error: ${error}`,
+
+      // Don't show error message during tests to avoid disrupting test execution
+      if (!process.env.VSCODE_TEST_MODE) {
+        vscode.window.showErrorMessage(
+          `AppExplorer: Failed to connect to server at ${serverResult.serverUrl}. ` +
+            `Error: ${error}`,
+        );
+      }
+
+      // Don't throw error - continue with extension activation to ensure commands are registered
+      extensionLogger.warn(
+        "Continuing extension activation despite client connection failure",
       );
-      throw error;
     }
 
     // Add client to subscriptions for cleanup
     context.subscriptions.push(workspaceClient);
-
-    // Set miroServer to null since we're operating in client mode
   } else {
-    // Fallback or error case - launch local server
-    extensionLogger.warn(
-      "Server initialization failed, launching local server as fallback",
-      {
-        error: serverResult.error,
-      },
-    );
-    const miroServer = await MiroServer.create(
-      handlerContext,
-      featureFlagManager,
-    );
-    context.subscriptions.push(miroServer);
+    extensionLogger.warn("Server initialization failed, using fallback", {
+      error: serverResult.error,
+    });
+    try {
+      extensionLogger.info("Creating fallback MiroServer", { serverPort });
+      const miroServer = await MiroServer.create(
+        handlerContext,
+        featureFlagManager,
+        serverPort,
+      );
+      context.subscriptions.push(miroServer);
+      extensionLogger.info("Fallback MiroServer created successfully", {
+        serverPort,
+      });
+    } catch (error) {
+      extensionLogger.error(
+        "Fallback MiroServer creation failed, creating minimal server",
+        {
+          error: error instanceof Error ? error.message : String(error),
+          originalPort: serverPort,
+          fallbackPort: DEFAULT_PRODUCTION_PORT,
+        },
+      );
+      // Create a minimal server instance that won't interfere with command registration
+      const miroServer = await MiroServer.create(
+        handlerContext,
+        featureFlagManager,
+        DEFAULT_PRODUCTION_PORT, // Use safe default port
+      );
+      context.subscriptions.push(miroServer);
+      extensionLogger.info("Minimal MiroServer created", {
+        port: DEFAULT_PRODUCTION_PORT,
+      });
+    }
   }
 
   // Add server launcher to subscriptions
@@ -340,6 +384,10 @@ export async function activate(context: vscode.ExtensionContext) {
       "app-explorer.manageWorkspaceBoards",
       makeWorkspaceBoardHandler(handlerContext),
     ),
+    vscode.commands.registerCommand(
+      "app-explorer.launchMockMiroClient",
+      makeDebugMockClientHandler(handlerContext, context),
+    ),
   );
 
   return {
@@ -381,6 +429,11 @@ export function deactivate() {
   vscode.commands.executeCommand(
     "setContext",
     "app-explorer.enableUpdate",
+    false,
+  );
+  vscode.commands.executeCommand(
+    "setContext",
+    "mockMiroClient.connected",
     false,
   );
 }

@@ -2,13 +2,42 @@ import * as assert from "assert";
 import * as path from "path";
 import * as vscode from "vscode";
 
+export const delay = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+export type Options = {
+  name?: string;
+  timeout?: number;
+  interval?: number;
+  message?: string;
+};
+
+export async function waitForValue<T>(
+  getValue: () => T | undefined,
+  {
+    name = "Value",
+    timeout = 25000,
+    interval = 500,
+    message = `${name} not found within timeout period`,
+  }: Options = {},
+) {
+  return waitFor(
+    async () => {
+      const value = await getValue();
+      assert.ok(value !== undefined, message);
+      return value;
+    },
+    { timeout, interval, message },
+  );
+}
+
 export async function waitFor<T>(
   assertion: () => Promise<T> | T,
   {
     timeout = 25000,
     interval = 500,
     message = "Condition not met within timeout period",
-  } = {},
+  }: Options = {},
 ): Promise<T> {
   const start = Date.now();
 
@@ -22,7 +51,7 @@ export async function waitFor<T>(
           message: `${message}\nLast error: ${e instanceof Error ? e.message : String(e)}`,
         });
       }
-      await new Promise((resolve) => setTimeout(resolve, interval));
+      await delay(interval);
     }
   }
 }

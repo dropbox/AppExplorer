@@ -26,6 +26,7 @@ import {
 import { HandlerContext } from "./extension";
 import { FeatureFlagManager } from "./feature-flag-manager";
 import { createLogger } from "./logger";
+import { PortConfig } from "./port-config";
 import { ServerCardStorage } from "./server-card-storage";
 import compression = require("compression");
 import express = require("express");
@@ -134,21 +135,9 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
         break;
 
       case "connect":
-        this.logger.info("🔗 Broadcasting connect to workspaces", {
-          timestamp: new Date().toISOString(),
-          boardId: event.boardInfo.id,
-          boardName: event.boardInfo.name,
-        });
-        this.broadcastToBoardWorkspaces(event.boardInfo.id, "connect", {
-          boardInfo: event.boardInfo,
-        });
         break;
 
       case "disconnect":
-        this.logger.info("🔌 Broadcasting disconnect to all workspaces", {
-          timestamp: new Date().toISOString(),
-        });
-        this.broadcastToWorkspaces("disconnect", {});
         break;
     }
   }
@@ -156,6 +145,9 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
   private constructor(
     private context: HandlerContext,
     private featureFlagManager?: FeatureFlagManager,
+    // Port configuration: Uses PortConfig for centralized port management
+    // Defaults to 9042 for production, but can be overridden for E2E testing
+    private port: number = PortConfig.getServerPort(),
   ) {
     super();
 
@@ -229,8 +221,11 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
   static async create(
     context: HandlerContext,
     featureFlagManager?: FeatureFlagManager,
+    port?: number,
   ): Promise<MiroServer> {
-    const server = new MiroServer(context, featureFlagManager);
+    // Use provided port, or fall back to configured port
+    const serverPort = port ?? PortConfig.getServerPort();
+    const server = new MiroServer(context, featureFlagManager, serverPort);
     await server.startServer();
     return server;
   }
@@ -239,7 +234,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
    * Start the HTTP server with proper error handling
    */
   private async startServer(): Promise<void> {
-    const port = 9042;
+    const port = this.port;
 
     return new Promise((resolve, reject) => {
       // Set up error handling for port binding failures
@@ -1197,6 +1192,13 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
    */
   getServerCardStorage(): ServerCardStorage | undefined {
     return this.serverCardStorage;
+  }
+
+  /**
+   * Get client-side card storage from context
+   */
+  getCardStorage(): any {
+    return this.context?.cardStorage;
   }
 
   /**

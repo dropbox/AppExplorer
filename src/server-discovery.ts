@@ -1,5 +1,6 @@
 import { DEFAULT_HEALTH_CHECK_CONFIG, ServerHealthCheck } from "./EventTypes";
 import { createLogger } from "./logger";
+import { PortConfig } from "./port-config";
 
 export interface ServerDiscoveryOptions {
   port: number;
@@ -7,11 +8,20 @@ export interface ServerDiscoveryOptions {
   healthCheck: ServerHealthCheck;
 }
 
-export const DEFAULT_SERVER_OPTIONS: ServerDiscoveryOptions = {
-  port: 9042,
-  host: "localhost",
-  healthCheck: DEFAULT_HEALTH_CHECK_CONFIG,
-};
+/**
+ * Get default server options with configured port
+ * Uses PortConfig to determine the appropriate port (production default or test override)
+ *
+ * ⚠️ IMPORTANT: Production Miro integration MUST use port 9042.
+ * Port configuration is only intended for E2E testing purposes.
+ */
+function getDefaultServerOptions(): ServerDiscoveryOptions {
+  return {
+    port: PortConfig.getServerPort(),
+    host: "localhost",
+    healthCheck: DEFAULT_HEALTH_CHECK_CONFIG,
+  };
+}
 
 export class ServerDiscovery {
   private options: ServerDiscoveryOptions;
@@ -21,7 +31,7 @@ export class ServerDiscovery {
   private logger = createLogger("server-discovery");
 
   constructor(options: Partial<ServerDiscoveryOptions> = {}) {
-    this.options = { ...DEFAULT_SERVER_OPTIONS, ...options };
+    this.options = { ...getDefaultServerOptions(), ...options };
     this.logger.debug("ServerDiscovery initialized", { options: this.options });
   }
 

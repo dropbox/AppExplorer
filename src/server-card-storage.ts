@@ -197,35 +197,16 @@ export class ServerCardStorage
     }
 
     const board = this.boards.get(boardId);
-    if (!board) {
-      this.logger.warn("Cannot set cards - board not found", {
+    if (board) {
+      this.logger.debug("Setting board cards", {
         boardId,
         cardCount: cards.length,
-        availableBoards: Array.from(this.boards.keys()),
       });
-      return;
-    }
-
-    const startTime = Date.now();
-    const previousCardCount = Object.keys(board.cards).length;
-
-    this.logger.debug("Setting board cards", {
-      boardId,
-      newCardCount: cards.length,
-      previousCardCount,
-    });
-
-    try {
-      let validCards = 0;
-      let invalidCards = 0;
 
       board.cards = cards.reduce(
         (acc, card) => {
           if (card.miroLink) {
             acc[card.miroLink] = card;
-            validCards++;
-          } else {
-            invalidCards++;
           }
           return acc;
         },
@@ -233,25 +214,13 @@ export class ServerCardStorage
       );
 
       board.lastActivity = new Date();
-      const duration = Date.now() - startTime;
 
       this.logger.info("Board cards updated successfully", {
         boardId,
-        validCards,
-        invalidCards,
         totalCards: cards.length,
-        duration: `${duration}ms`,
       });
 
       this.emit("boardUpdate", { type: "boardUpdate", board, boardId });
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      this.logger.error("Error setting board cards", {
-        boardId,
-        cardCount: cards.length,
-        duration: `${duration}ms`,
-        error: error instanceof Error ? error.message : String(error),
-      });
     }
   }
 
@@ -291,49 +260,29 @@ export class ServerCardStorage
       return;
     }
 
-    try {
-      // Extract board ID from miro link
-      const url = new URL(miroLink);
-      const match = url.pathname.match(/\/app\/board\/([^/]+)\//);
-
-      if (match) {
-        const boardId = match[1];
-        const board = this.boards.get(boardId);
-
-        if (board) {
-          this.logger.debug("Setting card by miro link", {
-            boardId,
-            miroLink,
-            title: card.title,
-          });
-
-          board.cards[miroLink] = card;
-          board.lastActivity = new Date();
-
-          this.emit("cardUpdate", {
-            type: "cardUpdate",
-            card,
-            miroLink,
-            boardId,
-          });
-        } else {
-          this.logger.warn("Board not found for miro link", {
-            boardId,
-            miroLink,
-            availableBoards: Array.from(this.boards.keys()),
-          });
-        }
-      } else {
-        this.logger.warn("Could not extract board ID from miro link", {
+    // Extract board ID from miro link
+    const url = new URL(miroLink);
+    const match = url.pathname.match(/\/app\/board\/([^/]+)\//);
+    if (match) {
+      const boardId = match[1];
+      const board = this.boards.get(boardId);
+      if (board) {
+        this.logger.debug("Setting card by miro link", {
+          boardId,
           miroLink,
-          pathname: url.pathname,
+          title: card.title,
+        });
+
+        board.cards[miroLink] = card;
+        board.lastActivity = new Date();
+
+        this.emit("cardUpdate", {
+          type: "cardUpdate",
+          card,
+          miroLink,
+          boardId,
         });
       }
-    } catch (error) {
-      this.logger.error("Error parsing miro link", {
-        miroLink,
-        error: error instanceof Error ? error.message : String(error),
-      });
     }
   }
 
