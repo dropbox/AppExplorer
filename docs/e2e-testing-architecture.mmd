@@ -3,37 +3,43 @@ graph TB
     subgraph TestInfra["🧪 Test Infrastructure"]
         direction TB
         TestSuite["Test Suite<br/>(Mocha)"]
+        E2EUtils["E2ETestUtils<br/>🛠️ Test Orchestrator"]
         MockClient["MockMiroClient<br/>🎭 Mock Component"]
         TestCards["TEST_CARDS<br/>📋 Test Fixtures"]
         MemStorage["In-Memory CardStorage<br/>🗄️ Test Double"]
         PortMgr["TestPortManager<br/>🔌 Port Allocation"]
-        
-        TestSuite --> MockClient
+        DebugLogger["Debug Logger<br/>📝 Structured Logging"]
+        NotificationCapture["Sinon Notification Capture<br/>🔔 Error Testing"]
+
+        TestSuite --> E2EUtils
+        E2EUtils --> MockClient
+        E2EUtils --> PortMgr
+        E2EUtils --> DebugLogger
+        E2EUtils --> NotificationCapture
         TestCards --> MockClient
         MockClient --> MemStorage
-        PortMgr --> TestSuite
     end
 
     %% Production Components Under Test
     subgraph ProdComponents["⚙️ Production Components Under Test"]
         direction TB
-        
+
         subgraph VSCodeExt["VSCode Extension Process"]
             Extension["VSCode Extension<br/>📦 Production Code"]
-            Commands["Command Handlers<br/>• create-card<br/>• attach-card<br/>• navigate-to-card"]
+            Commands["Command Handlers<br/>• app-explorer.createCard<br/>• app-explorer.attachCard<br/>• app-explorer.navigate"]
             CardStorage["CardStorage<br/>🗄️ VSCode-backed"]
-            EditorMgr["Editor Manager<br/>📝 File Navigation"]
+            LocationFinder["LocationFinder<br/>🔍 Symbol Resolution"]
         end
-        
+
         subgraph ServerProcess["MiroServer Process"]
-            MiroServer["MiroServer<br/>🖥️ Port 9042"]
+            MiroServer["MiroServer<br/>🖥️ Dynamic Port (9043-9999)"]
             WSHandler["WebSocket Handler<br/>🔌 Socket.IO"]
             QueryEngine["Query Engine<br/>🔍 Symbol Resolution"]
         end
-        
+
         Extension --> Commands
         Commands --> CardStorage
-        Commands --> EditorMgr
+        Commands --> LocationFinder
         MiroServer --> WSHandler
         MiroServer --> QueryEngine
     end
@@ -43,59 +49,75 @@ graph TB
         ActiveEditor["Active Text Editor<br/>🎯 Navigation Target"]
         CursorPos["Cursor Position<br/>📍 Symbol Location"]
         OpenTabs["Open Tabs<br/>📑 File Management"]
-        
+        Notifications["VSCode Notifications<br/>⚠️ Error Messages"]
+
         ActiveEditor --> CursorPos
         ActiveEditor --> OpenTabs
     end
 
+    %% E2E Test Setup Flow
+    TestSuite -->|"1- setupWorkspace()"| E2EUtils
+    E2EUtils -->|"2- allocate test port"| PortMgr
+    E2EUtils -->|"3- activate extension"| Extension
+    Extension -->|"4- start server on test port"| MiroServer
+    E2EUtils -->|"5- setupMockClient()"| MockClient
+    MockClient -->|"6- load TEST_CARDS"| TestCards
+    E2EUtils -->|"7- createSinonNotificationCapture()"| NotificationCapture
+
     %% WebSocket Communication Flow
-    MockClient -.->|"1- connect()<br/>WebSocket"| WSHandler
+    MockClient -.->|"1- connect()<br/>WebSocket to test port"| WSHandler
     WSHandler -.->|"2- boardConnect event<br/>{id, name}"| Extension
-    
-    %% Navigation Event Flow
-    MockClient ==>|"3- navigateTo event<br/>{path, symbol, miroLink}"| WSHandler
-    WSHandler ==>|"4- forward event"| Extension
-    Extension ==>|"5- execute command"| Commands
-    Commands ==>|"6- open file + navigate"| EditorMgr
-    EditorMgr ==>|"7- position cursor"| ActiveEditor
 
-    %% Card Selection Flow
-    MockClient -.->|"card selection events<br/>{url, card}"| WSHandler
-    WSHandler -.->|"forward selection"| Extension
-    Extension -.->|"update storage"| CardStorage
+    %% Navigation Event Flow (E2E Testing)
+    E2EUtils ==>|"navigateToCard(card)"| MockClient
+    MockClient ==>|"navigateTo event<br/>{path, symbol, miroLink}"| WSHandler
+    WSHandler ==>|"forward event"| Extension
+    Extension ==>|"execute VSCode command"| Commands
+    Commands ==>|"open file + navigate"| LocationFinder
+    LocationFinder ==>|"position cursor at symbol"| ActiveEditor
 
-    %% Query Flow (Symbol Resolution)
-    Extension -.->|"query request<br/>{name, data}"| WSHandler
-    WSHandler -.->|"forward query"| QueryEngine
-    QueryEngine -.->|"queryResult<br/>{response}"| WSHandler
-    WSHandler -.->|"return result"| Extension
+    %% Card Creation Flow (Real Commands)
+    E2EUtils ==>|"vscode.commands.executeCommand<br/>('app-explorer.createCard')"| Commands
+    Commands ==>|"show QuickPick UI"| VSCodeEditor
+    E2EUtils ==>|"workbench.action.quickOpenSelectNext<br/>workbench.action.acceptSelectedQuickOpenItem"| VSCodeEditor
+    Commands ==>|"create card + store"| CardStorage
+    Commands ==>|"send to MockMiroClient"| MockClient
 
-    %% Test Control Flow
-    TestSuite -->|"1- allocate port"| PortMgr
-    TestSuite -->|"2- start server"| MiroServer
-    TestSuite -->|"3- create mock client"| MockClient
-    TestSuite -->|"4- load test data"| TestCards
-    TestSuite -->|"5- simulate events"| MockClient
+    %% Error Handling Flow
+    Commands -.->|"showWarningMessage()<br/>showErrorMessage()"| Notifications
+    NotificationCapture -.->|"capture notifications"| Notifications
+    E2EUtils -.->|"getCapturedNotifications()"| NotificationCapture
+
+    %% Symbol Resolution Flow
+    E2EUtils -->|"findSymbolRange()<br/>openFileAtSymbol()"| LocationFinder
+    LocationFinder -->|"findSymbolsInDocument()"| VSCodeEditor
+    E2EUtils -->|"waitForCursorAtSymbol()"| ActiveEditor
+
+    %% Debug Logging Flow
+    E2EUtils -->|"createDebug('app-explorer:test:*')"| DebugLogger
+    MockClient -->|"debug messages"| DebugLogger
+    Commands -->|"debug messages"| DebugLogger
 
     %% Styling
     classDef mockComponent fill:#FFE6CC,stroke:#D79B00,stroke-width:2px,color:#000
     classDef prodComponent fill:#E6F3FF,stroke:#0066CC,stroke-width:2px,color:#000
     classDef testInfra fill:#F0F0F0,stroke:#666,stroke-width:2px,color:#000
     classDef editor fill:#E6FFE6,stroke:#00AA00,stroke-width:2px,color:#000
+    classDef utility fill:#F5F5DC,stroke:#8B4513,stroke-width:2px,color:#000
 
-    class MockClient,TestCards,MemStorage,PortMgr mockComponent
-    class Extension,Commands,CardStorage,EditorMgr,MiroServer,WSHandler,QueryEngine prodComponent
-    class TestSuite,TestInfra testInfra
-    class ActiveEditor,CursorPos,OpenTabs,VSCodeEditor editor
+    class MockClient,TestCards,MemStorage mockComponent
+    class Extension,Commands,CardStorage,LocationFinder,MiroServer,WSHandler,QueryEngine prodComponent
+    class TestSuite,TestInfra,E2EUtils,PortMgr,DebugLogger,NotificationCapture testInfra
+    class ActiveEditor,CursorPos,OpenTabs,VSCodeEditor,Notifications editor
 
     %% Legend
     subgraph Legend["🔍 Legend"]
         L1["🎭 Mock Components (Test Doubles)"]
         L2["⚙️ Production Code Under Test"]
-        L3["🧪 Test Infrastructure"]
-        L4["📝 VSCode Editor (Navigation Target)"]
+        L3["🧪 Test Infrastructure & Utilities"]
+        L4["📝 VSCode Editor & UI"]
     end
-    
+
     class L1 mockComponent
     class L2 prodComponent
     class L3 testInfra

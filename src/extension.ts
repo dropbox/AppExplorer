@@ -141,21 +141,6 @@ export async function activate(context: vscode.ExtensionContext) {
   try {
     serverPort = PortConfig.getServerPort();
   } catch (error) {
-    const errorMessage = `Invalid server port configuration: ${error instanceof Error ? error.message : String(error)}`;
-    extensionLogger.error(
-      "Failed to get server port configuration, falling back to production default",
-      {
-        error: errorMessage,
-      },
-    );
-
-    // Don't show error message during tests to avoid disrupting test execution
-    if (!process.env.VSCODE_TEST_MODE) {
-      vscode.window.showErrorMessage(
-        `AppExplorer: ${errorMessage}. Please check your appExplorer.internal.serverPort setting. Using default port 9042.`,
-      );
-    }
-
     // Fall back to production default instead of throwing
     serverPort = DEFAULT_PRODUCTION_PORT;
     extensionLogger.info("Using fallback port for extension activation", {
@@ -173,16 +158,7 @@ export async function activate(context: vscode.ExtensionContext) {
   // Log port configuration for debugging
   extensionLogger.info("Server port configuration", {
     port: serverPort,
-    isTestPort: PortConfig.isUsingTestPort(),
-    diagnostics: PortConfig.getDiagnostics(),
   });
-
-  // Show warning if using non-production port
-  if (PortConfig.isUsingTestPort()) {
-    extensionLogger.warn(
-      "⚠️ Using non-production server port - this should only be used for E2E testing",
-    );
-  }
 
   // Initialize server based on migration flags
   extensionLogger.info("Initializing server...", {
@@ -298,36 +274,17 @@ export async function activate(context: vscode.ExtensionContext) {
     // This ensures existing commands and Miro board connections still work
     // TODO: Phase 2 - Replace with pure client mode that proxies all operations through workspace client
     // TODO: Phase 3 - Remove MiroServer entirely from client mode once query proxying is implemented
-    try {
-      extensionLogger.info("Creating MiroServer for client mode", {
-        serverPort,
-      });
-      miroServer = await MiroServer.create(
-        handlerContext,
-        featureFlagManager,
-        serverPort,
-      );
-      extensionLogger.info("MiroServer created successfully for client mode", {
-        serverPort,
-      });
-    } catch (error) {
-      extensionLogger.error(
-        "Client mode MiroServer creation failed, using fallback",
-        {
-          error: error instanceof Error ? error.message : String(error),
-          originalPort: serverPort,
-          fallbackPort: DEFAULT_PRODUCTION_PORT,
-        },
-      );
-      miroServer = await MiroServer.create(
-        handlerContext,
-        featureFlagManager,
-        DEFAULT_PRODUCTION_PORT,
-      );
-      extensionLogger.info("Fallback MiroServer created", {
-        port: DEFAULT_PRODUCTION_PORT,
-      });
-    }
+    extensionLogger.info("Creating MiroServer for client mode", {
+      serverPort,
+    });
+    miroServer = await MiroServer.create(
+      handlerContext,
+      featureFlagManager,
+      serverPort,
+    );
+    extensionLogger.info("MiroServer created successfully for client mode", {
+      serverPort,
+    });
   } else {
     extensionLogger.warn("Server initialization failed, using fallback", {
       error: serverResult.error,

@@ -4,7 +4,7 @@ import createDebug from "debug";
 import * as vscode from "vscode";
 import { CardData, SymbolCardData } from "../../EventTypes";
 import { LocationFinder } from "../../location-finder";
-import { PortConfig } from "../../port-config";
+import { MiroServer } from "../../server";
 import { TEST_CARDS } from "../fixtures/card-data";
 import { MockMiroClient } from "../mocks/mock-miro-client";
 import { waitFor } from "../suite/test-utils";
@@ -24,9 +24,7 @@ export function isSymbolCard(card: CardData): card is SymbolCardData {
 export class E2ETestUtils {
   private static mockClient: MockMiroClient | null = null;
   private static locationFinder: LocationFinder = new LocationFinder();
-  private static testMiroServer: any = null; // MiroServer instance for testing
-  private static cardStorage: any = null; // CardStorage instance
-  private static serverCardStorage: any = null; // ServerCardStorage instance
+  private static testMiroServer: MiroServer | null = null; // MiroServer instance for testing
   private static capturedEvents: Map<string, any[]> = new Map(); // Event capture for testing
 
   /**
@@ -57,18 +55,8 @@ export class E2ETestUtils {
    */
   static getPortDiagnostics(): void {
     const testPort = this.getTestPort();
-    const portDiagnostics = PortConfig.getDiagnostics();
 
-    const diagnostics = {
-      testPort,
-      environmentPort: process.env.APP_EXPLORER_PORT,
-      portConfigDiagnostics: portDiagnostics,
-    };
-
-    debug(
-      "[E2ETestUtils] Port diagnostics:",
-      JSON.stringify(diagnostics, null, 2),
-    );
+    debug("[E2ETestUtils] Using test port from environment:", testPort);
   }
 
   /**
@@ -142,9 +130,9 @@ export class E2ETestUtils {
         debug("[E2ETestUtils] Stopping test MiroServer");
 
         // Stop the server
-        if (this.testMiroServer.httpServer) {
+        if (this.testMiroServer?.httpServer) {
           await new Promise<void>((resolve) => {
-            this.testMiroServer.httpServer.close(() => {
+            this.testMiroServer?.httpServer.close(() => {
               resolve();
             });
           });
@@ -603,26 +591,6 @@ export class E2ETestUtils {
 
     debug("MockMiroClient setup complete");
     return this.mockClient;
-  }
-
-  /**
-   * Get the current CardStorage instance
-   */
-  static getCardStorage(): any {
-    if (!this.cardStorage && this.testMiroServer) {
-      this.cardStorage = this.testMiroServer.getCardStorage?.();
-    }
-    return this.cardStorage;
-  }
-
-  /**
-   * Get the current ServerCardStorage instance
-   */
-  static getServerCardStorage(): any {
-    if (!this.serverCardStorage && this.testMiroServer) {
-      this.serverCardStorage = this.testMiroServer.getServerCardStorage?.();
-    }
-    return this.serverCardStorage;
   }
 
   /**

@@ -2,7 +2,7 @@ import createDebugger from "debug";
 import { EventEmitter } from "events";
 import { Socket, io as socketIO } from "socket.io-client";
 import * as vscode from "vscode";
-import { CardData, SymbolCardData } from "../../EventTypes";
+import { CardData, ResponseEvents, SymbolCardData } from "../../EventTypes";
 import { CardStorage, createMemoryCardStorage } from "../../card-storage";
 import { waitForValue } from "../suite/test-utils";
 
@@ -203,19 +203,15 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
     }
 
     // Send navigateTo event using the same format as real Miro boards
-    this.socket.emit("navigateTo", card);
-
-    debug("Sent navigateTo event to server", {
-      event: "navigateTo",
-      card: {
-        title: card.title,
-        path: card.path,
-        symbol: isSymbolCard(card) ? card.symbol : undefined,
-        miroLink: card.miroLink,
-      },
-      boardId: this.boardId,
-    });
+    this.socketEmit("navigateTo", card);
     await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  socketEmit(event: keyof ResponseEvents, data: any) {
+    this.socket?.emit(event, data);
+    debug("Sent %s event to server %O", event, {
+      data,
+    });
   }
 
   /**
@@ -232,20 +228,14 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
     // Send card events for each selected card (same format as real Miro)
     cards.forEach((card) => {
       if (card.miroLink) {
-        this.socket?.emit("card", {
+        this.socketEmit("card", {
           url: card.miroLink,
           card: card,
         });
       }
     });
 
-    debug("Sent card selection events to server", {
-      event: "card",
-      cardCount: cards.length,
-      boardId: this.boardId,
-    });
-
-    this.emit("cardSelection", cards);
+    this.socketEmit("selectedCards", cards);
   }
 
   /**
@@ -260,16 +250,9 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
     }
 
     if (card.miroLink) {
-      this.socket.emit("card", {
+      this.socketEmit("card", {
         url: card.miroLink,
         card: card,
-      });
-
-      debug("Sent card update event to server", {
-        event: "card",
-        cardTitle: card.title,
-        miroLink: card.miroLink,
-        boardId: this.boardId,
       });
     }
   }

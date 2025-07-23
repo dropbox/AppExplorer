@@ -21,7 +21,6 @@ await vscode.commands.executeCommand("workbench.action.quickOpenSelectNext");
 await vscode.commands.executeCommand(
   "workbench.action.acceptSelectedQuickOpenItem",
 );
-await vscode.commands.executeCommand("type", { text: "UserProfile Component" });
 ```
 
 ### ❌ DON'T: Mock UI Interactions or Call Functions Directly
@@ -65,8 +64,6 @@ test("Create card through command palette", async () => {
     "workbench.action.acceptSelectedQuickOpenItem",
   );
 
-  // Type in input box
-  await vscode.commands.executeCommand("type", { text: "My Card Title" });
   await vscode.commands.executeCommand(
     "workbench.action.acceptSelectedQuickOpenItem",
   );
@@ -86,9 +83,6 @@ Use these VSCode built-in commands for UI interaction:
 "workbench.action.quickOpenSelectNext"; // Move down in QuickPick
 "workbench.action.quickOpenSelectPrevious"; // Move up in QuickPick
 "workbench.action.acceptSelectedQuickOpenItem"; // Accept selection
-
-// Input box interaction
-"type"; // Type text: await vscode.commands.executeCommand("type", { text: "content" })
 
 // General navigation
 "workbench.action.closeActiveEditor";
@@ -126,8 +120,6 @@ test("Create card command", async () => {
     "workbench.action.acceptSelectedQuickOpenItem",
   );
 
-  // Enter card title
-  await vscode.commands.executeCommand("type", { text: "My Card Title" });
   await vscode.commands.executeCommand(
     "workbench.action.acceptSelectedQuickOpenItem",
   );
@@ -369,9 +361,6 @@ test("Complete card lifecycle workflow", async () => {
 
   // Step 4: Enter card title
   debug("Step 4: Entering title");
-  await vscode.commands.executeCommand("type", {
-    text: "UserProfile Component",
-  });
   await vscode.commands.executeCommand(
     "workbench.action.acceptSelectedQuickOpenItem",
   );

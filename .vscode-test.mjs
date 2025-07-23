@@ -2,7 +2,8 @@ import { defineConfig } from "@vscode/test-cli";
 
 // Avoid port 9042
 const APP_EXPLORER_PORT = 9043 + Math.floor(Math.random() * (9099 - 9043));
-console.log({ APP_EXPLORER_PORT });
+// I haven't been able to get the environment variable to work. I have had to
+// use createDebug.enable() instead
 const DEBUG = "app-explorer:test:*";
 
 export default defineConfig({
@@ -14,7 +15,7 @@ export default defineConfig({
   },
   coverage: {
     enabled: true,
-    reporter: ["html", "lcov"],
+    reporter: "html",
   },
   mocha: {
     timeout: 30000, // 30 seconds timeout for all tests
