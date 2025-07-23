@@ -4,7 +4,6 @@ import createDebug from "debug";
 import * as vscode from "vscode";
 import { CardData, SymbolCardData } from "../../EventTypes";
 import { LocationFinder } from "../../location-finder";
-import { MiroServer } from "../../server";
 import { TEST_CARDS } from "../fixtures/card-data";
 import { MockMiroClient } from "../mocks/mock-miro-client";
 import { waitFor } from "../suite/test-utils";
@@ -24,8 +23,6 @@ export function isSymbolCard(card: CardData): card is SymbolCardData {
 export class E2ETestUtils {
   private static mockClient: MockMiroClient | null = null;
   private static locationFinder: LocationFinder = new LocationFinder();
-  private static testMiroServer: MiroServer | null = null; // MiroServer instance for testing
-  private static capturedEvents: Map<string, any[]> = new Map(); // Event capture for testing
 
   /**
    * Get the test port from environment variable
@@ -48,26 +45,6 @@ export class E2ETestUtils {
 
     debug(`[E2ETestUtils] Using test port from environment: ${port}`);
     return port;
-  }
-
-  /**
-   * Get diagnostic information about port allocation
-   */
-  static getPortDiagnostics(): void {
-    const testPort = this.getTestPort();
-
-    debug("[E2ETestUtils] Using test port from environment:", testPort);
-  }
-
-  /**
-   * Clean up test resources and release allocated port
-   * Should be called in test teardown to ensure proper cleanup
-   */
-  static async cleanup(): Promise<void> {
-    debug("[E2ETestUtils] Cleaning up test resources");
-
-    // Additional cleanup can be added here as needed
-    debug("[E2ETestUtils] Cleanup complete");
   }
 
   /**
@@ -117,41 +94,6 @@ export class E2ETestUtils {
         throw new Error(
           `Server failed to start on port ${testPort}: ${error instanceof Error ? error.message : String(error)}`,
         );
-      }
-    }
-  }
-
-  /**
-   * Stop the test MiroServer instance
-   */
-  static async stopTestMiroServer(): Promise<void> {
-    if (this.testMiroServer) {
-      try {
-        debug("[E2ETestUtils] Stopping test MiroServer");
-
-        // Stop the server
-        if (this.testMiroServer?.httpServer) {
-          await new Promise<void>((resolve) => {
-            this.testMiroServer?.httpServer.close(() => {
-              resolve();
-            });
-          });
-        }
-
-        // Dispose of subscriptions
-        if (this.testMiroServer.subscriptions) {
-          this.testMiroServer.subscriptions.forEach((sub: any) => {
-            if (sub && typeof sub.dispose === "function") {
-              sub.dispose();
-            }
-          });
-        }
-
-        this.testMiroServer = null;
-        debug("[E2ETestUtils] Test MiroServer stopped");
-      } catch (error) {
-        console.error("[E2ETestUtils] Error stopping test MiroServer:", error);
-        this.testMiroServer = null; // Reset even if there was an error
       }
     }
   }
@@ -216,9 +158,6 @@ export class E2ETestUtils {
    * This should be called at the end of the test suite
    */
   static async teardownTestInfrastructure(): Promise<void> {
-    // Stop the test MiroServer
-    await this.stopTestMiroServer();
-
     // Teardown MockMiroClient
     await this.teardownMockClient();
 
@@ -373,44 +312,6 @@ export class E2ETestUtils {
     };
   }
 
-  /**
-   * Verify card storage contains expected card data
-   */
-  static async verifyCardInStorage(
-    card: CardData,
-    mockClient: MockMiroClient,
-  ): Promise<void> {
-    await waitFor(
-      () => {
-        const testCards = mockClient.getTestCards();
-        const storedCard = testCards.find((c) => c.miroLink === card.miroLink);
-        assert.ok(
-          storedCard,
-          `Card with miroLink "${card.miroLink}" not found in storage`,
-        );
-        assert.deepStrictEqual(
-          storedCard.title,
-          card.title,
-          "Card title mismatch",
-        );
-        assert.deepStrictEqual(
-          storedCard.path,
-          card.path,
-          "Card path mismatch",
-        );
-        if (isSymbolCard(card) && isSymbolCard(storedCard)) {
-          assert.deepStrictEqual(
-            storedCard.symbol,
-            card.symbol,
-            "Card symbol mismatch",
-          );
-        }
-        return true;
-      },
-      { timeout: 5000, message: "Card not found in storage or data mismatch" },
-    );
-  }
-
   static async enableAllFeatureFlags(): Promise<void> {
     const config = vscode.workspace.getConfiguration("appExplorer.migration");
     for (const flag of Object.keys(config)) {
@@ -484,41 +385,6 @@ export class E2ETestUtils {
   }
 
   /**
-   * Get workspace-relative path for a file
-   */
-  static getWorkspaceRelativePath(filePath: string): string {
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders || workspaceFolders.length === 0) {
-      return filePath;
-    }
-
-    const workspaceRoot = workspaceFolders[0].uri.fsPath;
-    if (filePath.startsWith(workspaceRoot)) {
-      return filePath.substring(workspaceRoot.length + 1);
-    }
-
-    return filePath;
-  }
-
-  /**
-   * Check if a file exists in the workspace
-   */
-  static async fileExists(relativePath: string): Promise<boolean> {
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders || workspaceFolders.length === 0) {
-      return false;
-    }
-
-    const uri = vscode.Uri.joinPath(workspaceFolders[0].uri, relativePath);
-    try {
-      await vscode.workspace.fs.stat(uri);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
    * Debug helper: List all symbols found in a document
    * This helps identify what symbols are actually discoverable by LocationFinder
    */
@@ -542,55 +408,6 @@ export class E2ETestUtils {
       console.error(`Error finding symbols in ${relativePath}:`, error);
       return [];
     }
-  }
-
-  /**
-   * Debug helper: Print all symbols in test workspace files
-   */
-  static async debugPrintAllTestSymbols(): Promise<void> {
-    const testFiles = [
-      "src/components/UserProfile.ts",
-      "src/services/ApiService.ts",
-      "src/utils/helpers.ts",
-      "example.ts",
-    ];
-
-    debug("=== DEBUG: Symbols found in test workspace files ===");
-
-    for (const filePath of testFiles) {
-      debug(`\n--- ${filePath} ---`);
-      const symbols = await this.listAllSymbolsInDocument(filePath);
-
-      if (symbols.length === 0) {
-        debug("  No symbols found");
-      } else {
-        symbols.forEach((symbol, index) => {
-          debug(
-            `  ${index + 1}. "${symbol.label}" (line ${symbol.range.start.line + 1})`,
-          );
-        });
-      }
-    }
-
-    debug("=== END DEBUG ===\n");
-  }
-
-  /**
-   * Set up MockMiroClient and return it
-   */
-  static async setupMockMiroClient(): Promise<MockMiroClient> {
-    const testPort = this.getTestPort();
-    const serverUrl = `http://localhost:${testPort}`;
-
-    debug(
-      `[E2ETestUtils] Setting up MockMiroClient with server URL: ${serverUrl}`,
-    );
-
-    this.mockClient = new MockMiroClient(serverUrl);
-    await this.mockClient.connect();
-
-    debug("MockMiroClient setup complete");
-    return this.mockClient;
   }
 
   /**
@@ -658,30 +475,6 @@ export class E2ETestUtils {
   }
 
   /**
-   * Capture events for testing
-   */
-  static captureEvent(eventType: string, eventData: any): void {
-    if (!this.capturedEvents.has(eventType)) {
-      this.capturedEvents.set(eventType, []);
-    }
-    this.capturedEvents.get(eventType)!.push(eventData);
-  }
-
-  /**
-   * Get captured events of a specific type
-   */
-  static getCapturedEvents(eventType: string): any[] {
-    return this.capturedEvents.get(eventType) || [];
-  }
-
-  /**
-   * Clear captured events
-   */
-  static clearCapturedEvents(): void {
-    this.capturedEvents.clear();
-  }
-
-  /**
    * Teardown MockMiroClient
    */
   static async teardownMockMiroClient(): Promise<void> {
@@ -689,6 +482,5 @@ export class E2ETestUtils {
       this.mockClient.disconnect();
       this.mockClient = null;
     }
-    this.clearCapturedEvents();
   }
 }

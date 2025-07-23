@@ -207,20 +207,7 @@ suite("E2E Attach Card Tests", () => {
     // This simulates the user selecting the card in Miro before running attach command
     debug("Simulating card selection in MockMiroClient");
 
-    // We need to modify the MockMiroClient to return selected cards
-    // Since MockMiroClient doesn't expose a public query method, we'll use a different approach
-    // We'll temporarily modify the socket event handler to return our selected card
-    const mockSocket = (mockClient as any).socket;
-    if (mockSocket) {
-      const originalEmit = mockSocket.emit;
-      mockSocket.emit = function (event: string, data: any) {
-        if (event === "queryResult" && data.name === "selected") {
-          debug("Intercepting selected query result to return formatDate card");
-          data.response = [formatDateCard];
-        }
-        return originalEmit.call(this, event, data);
-      };
-    }
+    mockClient.sendSelectionUpdateEvent([formatDateCard]);
 
     // ===== Step 3: Command Execution - Execute attach card command =====
     debug("Step 3: Executing app-explorer.attachCard command");
@@ -356,17 +343,7 @@ suite("E2E Attach Card Tests", () => {
 
     // Mock multiple card selection
     const multipleCards = TEST_CARDS.slice(0, 2);
-    const mockSocket = (mockClient as any).socket;
-    if (mockSocket) {
-      const originalEmit = mockSocket.emit;
-      mockSocket.emit = function (event: string, data: any) {
-        if (event === "queryResult" && data.name === "selected") {
-          debug("Intercepting selected query result to return multiple cards");
-          data.response = multipleCards;
-        }
-        return originalEmit.call(this, event, data);
-      };
-    }
+    mockClient.sendSelectionUpdateEvent(multipleCards);
 
     debug("Executing attach card command with multiple selected cards");
 

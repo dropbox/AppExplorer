@@ -8,7 +8,7 @@ export const TEST_WORKSPACE_CONFIG = {
    */
   expectedFiles: [
     "src/components/UserProfile.ts",
-    "src/services/ApiService.ts", 
+    "src/services/ApiService.ts",
     "src/utils/helpers.ts",
     "example.ts",
   ],
@@ -20,7 +20,7 @@ export const TEST_WORKSPACE_CONFIG = {
     "src/components/UserProfile.ts": [
       "UserProfile",
       "render",
-      "updateProfile", 
+      "updateProfile",
       "getUserId",
     ],
     "src/services/ApiService.ts": [
@@ -36,29 +36,25 @@ export const TEST_WORKSPACE_CONFIG = {
       "deepClone",
       "isValidEmail",
     ],
-    "example.ts": [
-      "TestClass",
-      "testMethod",
-      "testFunction",
-    ],
+    "example.ts": ["TestClass", "testMethod", "testFunction"],
   },
 
   /**
    * Test timeouts for different operations
    */
   timeouts: {
-    connection: 10000,      // MockMiroClient connection
-    navigation: 15000,      // Card navigation
-    fileOpen: 10000,        // File opening
-    symbolPosition: 5000,   // Cursor positioning at symbol
-    cleanup: 10000,         // Test cleanup
+    connection: 10000, // MockMiroClient connection
+    navigation: 15000, // Card navigation
+    fileOpen: 10000, // File opening
+    symbolPosition: 5000, // Cursor positioning at symbol
+    cleanup: 10000, // Test cleanup
   },
 
   /**
    * Performance benchmarks
    */
   performance: {
-    maxNavigationTime: 10000,  // Maximum acceptable navigation time
+    maxNavigationTime: 10000, // Maximum acceptable navigation time
     maxMemoryUsage: 100 * 1024 * 1024, // 100MB max memory usage
   },
 } as const;
@@ -76,7 +72,7 @@ export async function validateTestWorkspace(): Promise<{
 
   try {
     const vscode = await import("vscode");
-    
+
     // Check workspace folders
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
@@ -97,9 +93,10 @@ export async function validateTestWorkspace(): Promise<{
     if (missingFiles.length > 0) {
       errors.push(`Missing test files: ${missingFiles.join(", ")}`);
     }
-
   } catch (error) {
-    errors.push(`Workspace validation error: ${error instanceof Error ? error.message : String(error)}`);
+    errors.push(
+      `Workspace validation error: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   return {

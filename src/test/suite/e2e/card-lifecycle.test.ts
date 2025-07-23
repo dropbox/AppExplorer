@@ -5,11 +5,9 @@ import { CardData } from "../../../EventTypes";
 import { TEST_CARDS } from "../../fixtures/card-data";
 import { E2ETestUtils, isSymbolCard } from "../../helpers/e2e-test-utils";
 import { MockMiroClient } from "../../mocks/mock-miro-client";
-import { waitForValue } from "../test-utils";
+import { delay, waitForValue } from "../test-utils";
 
 const debug = createDebug("app-explorer:test:card-lifecycle");
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Comprehensive E2E test for the complete card lifecycle workflow

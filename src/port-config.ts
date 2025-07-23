@@ -4,6 +4,9 @@
  */
 export const DEFAULT_PRODUCTION_PORT = 9042;
 
+const MIN_PORT = 9042;
+const MAX_PORT = 9999;
+
 /**
  * Simplified port configuration utility for AppExplorer server
  *
@@ -19,7 +22,11 @@ export class PortConfig {
     const envPort = process.env.APP_EXPLORER_PORT;
     if (envPort) {
       const portNumber = parseInt(envPort, 10);
-      if (!isNaN(portNumber) && portNumber >= 9042 && portNumber <= 9999) {
+      if (
+        !isNaN(portNumber) &&
+        portNumber >= MIN_PORT &&
+        portNumber <= MAX_PORT
+      ) {
         return portNumber;
       }
     }

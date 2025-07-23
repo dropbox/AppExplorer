@@ -6,11 +6,11 @@
  * Format a date string for display
  */
 export function formatDate(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 }
 
@@ -19,7 +19,7 @@ export function formatDate(date: Date | string): string {
  */
 export function debounce<T extends (...args: any[]) => any>(
   func: T,
-  wait: number
+  wait: number,
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout;
   return (...args: Parameters<T>) => {
@@ -32,8 +32,9 @@ export function debounce<T extends (...args: any[]) => any>(
  * Generate a random ID
  */
 export function generateId(length: number = 8): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
   for (let i = 0; i < length; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
@@ -44,7 +45,7 @@ export function generateId(length: number = 8): string {
  * Deep clone an object
  */
 export function deepClone<T>(obj: T): T {
-  if (obj === null || typeof obj !== 'object') {
+  if (obj === null || typeof obj !== "object") {
     return obj;
   }
 
@@ -53,10 +54,10 @@ export function deepClone<T>(obj: T): T {
   }
 
   if (obj instanceof Array) {
-    return obj.map(item => deepClone(item)) as unknown as T;
+    return obj.map((item) => deepClone(item)) as unknown as T;
   }
 
-  if (typeof obj === 'object') {
+  if (typeof obj === "object") {
     const cloned = {} as T;
     for (const key in obj) {
       if (obj.hasOwnProperty(key)) {

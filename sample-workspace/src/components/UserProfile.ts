@@ -18,7 +18,7 @@ export class UserProfile {
   render(): string {
     return `
       <div class="user-profile">
-        <img src="${this.props.avatar || '/default-avatar.png'}" alt="Avatar" />
+        <img src="${this.props.avatar || "/default-avatar.png"}" alt="Avatar" />
         <h2>${this.props.displayName}</h2>
         <p>${this.props.email}</p>
       </div>

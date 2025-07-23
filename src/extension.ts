@@ -137,16 +137,7 @@ export async function activate(context: vscode.ExtensionContext) {
   };
 
   // Initialize server discovery and launcher with configured port
-  let serverPort: number;
-  try {
-    serverPort = PortConfig.getServerPort();
-  } catch (error) {
-    // Fall back to production default instead of throwing
-    serverPort = DEFAULT_PRODUCTION_PORT;
-    extensionLogger.info("Using fallback port for extension activation", {
-      port: serverPort,
-    });
-  }
+  const serverPort = PortConfig.getServerPort();
 
   const serverDiscovery = new ServerDiscovery({ port: serverPort });
   const serverLauncher = new ServerLauncher(

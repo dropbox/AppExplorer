@@ -1,5 +1,8 @@
 import * as assert from "assert";
+import createDebug from "debug";
 import * as vscode from "vscode";
+
+const debug = createDebug("app-explorer:test:extension-activation");
 
 /**
  * Test to verify VSCode extension activation and coverage measurement
@@ -8,18 +11,18 @@ suite("Extension Activation Tests", () => {
   test("Extension can be activated", async function () {
     this.timeout(30000);
 
-    console.log("Testing extension activation...");
+    debug("Testing extension activation...");
 
     // Get the extension
     const extension = vscode.extensions.getExtension("dropbox.app-explorer");
-    console.log("Extension found:", !!extension);
-    console.log("Extension active:", extension?.isActive);
+    debug("Extension found:", !!extension);
+    debug("Extension active:", extension?.isActive);
 
     if (extension && !extension.isActive) {
-      console.log("Activating extension...");
+      debug("Activating extension...");
       const result = await extension.activate();
-      console.log("Extension activation result:", result);
-      console.log("Extension now active:", extension.isActive);
+      debug("Extension activation result:", result);
+      debug("Extension now active:", extension.isActive);
     }
 
     // Verify extension is active
@@ -31,8 +34,8 @@ suite("Extension Activation Tests", () => {
     const appExplorerCommands = commands.filter((cmd) =>
       cmd.startsWith("app-explorer."),
     );
-    console.log("AppExplorer commands found:", appExplorerCommands.length);
-    console.log("Commands:", appExplorerCommands);
+    debug("AppExplorer commands found:", appExplorerCommands.length);
+    debug("Commands:", appExplorerCommands);
 
     // Verify key commands are registered
     const expectedCommands = [
@@ -49,7 +52,7 @@ suite("Extension Activation Tests", () => {
       );
     }
 
-    console.log("Extension activation test completed successfully");
+    debug("Extension activation test completed successfully");
   });
 
   test("Extension context is available", async function () {
@@ -67,7 +70,7 @@ suite("Extension Activation Tests", () => {
 
     // Check that the activation result contains the expected properties
     const activationResult = extension?.exports;
-    console.log("Extension activation result:", activationResult);
+    debug("Extension activation result:", activationResult);
 
     // The extension should return an object with appExplorer: true
     assert.ok(activationResult, "Extension should return activation result");

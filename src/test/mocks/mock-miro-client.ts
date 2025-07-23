@@ -30,6 +30,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
   private cardStorage: CardStorage;
   private serverUrl: string;
   private initialized = false;
+  private selectedCards: CardData[] = [];
 
   constructor(serverUrl: string = "http://localhost:9042") {
     super();
@@ -236,6 +237,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
     });
 
     this.socketEmit("selectedCards", cards);
+    this.selectedCards = cards;
   }
 
   /**
@@ -321,7 +323,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
             this.initialized = true;
             break;
           case "selected":
-            response = []; // Mock empty selection
+            response = this.selectedCards;
             break;
           default:
             response = null;

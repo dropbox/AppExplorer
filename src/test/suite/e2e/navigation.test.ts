@@ -74,7 +74,7 @@ suite("E2E Navigation Tests", () => {
     await E2ETestUtils.navigateToCard(testCard);
     await E2ETestUtils.waitForFileToOpen("example.ts");
 
-    waitFor(() => {
+    await waitFor(() => {
       const storedCards = mockClient.getTestCards();
       const storedCard = storedCards.find(
         (c) => c.miroLink === testCard.miroLink,

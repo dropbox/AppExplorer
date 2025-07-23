@@ -90,7 +90,6 @@ export type ResponseEvents = {
   }) => void;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Handler<T extends (...args: any[]) => void, U = void> = (
   ...args: Parameters<T>
 ) => U;
