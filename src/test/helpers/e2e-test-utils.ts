@@ -1,6 +1,7 @@
 import * as assert from "assert";
-
 import createDebug from "debug";
+import * as fs from "fs";
+import * as readline from "readline";
 import * as vscode from "vscode";
 import { CardData, SymbolCardData } from "../../EventTypes";
 import { LocationFinder } from "../../location-finder";
@@ -9,6 +10,22 @@ import { MockMiroClient } from "../mocks/mock-miro-client";
 import { waitFor } from "../suite/test-utils";
 
 const debug = createDebug("app-explorer:test:e2e");
+// IDK why createDebug isn't reading the environment variable. Setting it
+// manually seems to be working.
+const DEBUG = "app-explorer:*";
+process.env.DEBUG = DEBUG;
+createDebug.enable(DEBUG || "app-explorer:test:*");
+
+const tail = (file: string, callback: (data: string) => void) => {
+  const readStream = fs.createReadStream(file);
+  const rl = readline.createInterface({
+    input: readStream,
+    crlfDelay: Infinity,
+  });
+  rl.on("line", (line: string) => {
+    callback(line);
+  });
+};
 
 /**
  * Type guard to check if a card is a symbol card
@@ -330,6 +347,15 @@ export class E2ETestUtils {
     // Get test port from environment variable
     const testPort = E2ETestUtils.getTestPort();
     debug(`E2E Test Suite will use port: ${testPort}`);
+
+    const logFile = await vscode.commands.executeCommand<string>(
+      "app-explorer.internal.logFile",
+    );
+    const logDebugger = createDebug("app-explorer:logs");
+
+    tail(logFile, (line) => {
+      logDebugger(line);
+    });
 
     // Start the test MiroServer on the allocated port
     await this.startRealServerOnTestPort();

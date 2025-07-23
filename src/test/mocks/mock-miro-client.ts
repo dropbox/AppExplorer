@@ -2,11 +2,22 @@ import createDebugger from "debug";
 import { EventEmitter } from "events";
 import { Socket, io as socketIO } from "socket.io-client";
 import * as vscode from "vscode";
-import { CardData, ResponseEvents, SymbolCardData } from "../../EventTypes";
+import {
+  AppExplorerTag,
+  CardData,
+  Queries,
+  QueryImplementations,
+  ResponseEvents,
+  SymbolCardData,
+} from "../../EventTypes";
 import { CardStorage, createMemoryCardStorage } from "../../card-storage";
-import { waitForValue } from "../suite/test-utils";
+import { UnreachableError } from "../../commands/create-card";
 
 const debug = createDebugger("app-explorer:test:mock-miro-client");
+
+type PrettyPrint<T> = {
+  [K in keyof T]: T[K];
+} & {};
 
 /**
  * Type guard to check if a card is a symbol card
@@ -26,10 +37,9 @@ export interface MockMiroClientEvents {
 export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
   private socket?: Socket;
   private readonly boardId: string;
-  private readonly boardName: string;
+  private boardName: string;
   private cardStorage: CardStorage;
   private serverUrl: string;
-  private initialized = false;
   private selectedCards: CardData[] = [];
 
   constructor(serverUrl: string = "http://localhost:9042") {
@@ -70,7 +80,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
         // Emit board connection event (similar to real Miro boards)
         this.socket?.emit("boardConnect", {
           id: this.boardId,
-          name: this.boardName,
+          name: this.cardStorage.getBoard(this.boardId)?.name,
         });
 
         // Set VSCode context to enable MockMiro commands
@@ -129,8 +139,6 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
           reject(error);
         });
       });
-
-      await waitForValue(() => (this.initialized ? true : undefined));
     } catch (error) {
       console.error("Failed to connect to server", {
         error: error instanceof Error ? error.message : String(error),
@@ -268,83 +276,129 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
       return;
     }
 
+    const queryHandlers: QueryImplementations = {
+      cardStatus: async (dataCard) => {
+        const card = this.cardStorage.getCardByLink(dataCard.miroLink);
+        if (!card) {
+          throw new Error("Card not found");
+        }
+        card.status = dataCard.status;
+        if (isSymbolCard(card) && dataCard.codeLink) {
+          card.codeLink = dataCard.codeLink;
+        }
+        if (!card.miroLink) {
+          throw new Error("Card missing miroLink");
+        }
+        this.cardStorage.setCard(this.boardId, card);
+      },
+      newCards: async (data) => {
+        const cards = data.map((card) => ({
+          ...card,
+          miroLink: `https://miro.com/app/board/${this.boardId}/?moveToWidget=${Math.random().toString(36)}`,
+        }));
+
+        debug("newCards", cards);
+        await Promise.all(
+          cards.map((card: CardData) =>
+            this.cardStorage.setCard(this.boardId, card),
+          ),
+        );
+      },
+      getBoardInfo: async () => {
+        const boardInfo = this.cardStorage.getBoard(this.boardId)!;
+        return { boardId: boardInfo.id, name: boardInfo.name };
+      },
+      cards: async () => {
+        return this.cardStorage.listAllCards();
+      },
+      selected: async () => {
+        return this.selectedCards;
+      },
+      selectCard: async (miroLink: string): Promise<boolean> => {
+        const cards = this.cardStorage.listAllCards().filter((card) => {
+          return card.miroLink === miroLink;
+        });
+        this.sendSelectionUpdateEvent(cards);
+        return true;
+      },
+      getIdToken: async (): Promise<string> => {
+        return "mock-token";
+      },
+      setBoardName: async (name: string): Promise<void> => {
+        this.boardName = name;
+        this.cardStorage.setBoardName(this.boardId, name);
+      },
+      tags: async (): Promise<AppExplorerTag[]> => {
+        // Tags only exist in Miro, nothing needs to be done where
+        return [];
+      },
+      attachCard: async (data: CardData): Promise<void> => {
+        this.cardStorage.setCard(this.boardId, data);
+      },
+      tagCards: async (_data): Promise<void> => {
+        // Right now tags only exist within Miro, they aren't part of the card
+        // data.
+      },
+      hoverCard: async (_miroLink: string): Promise<void> => {
+        // This visually positions the cards in the middle of the screen. There
+        // is nothing to do in the mock.
+      },
+    };
+
     // Handle query commands from VSCode
-    this.socket.on("query", async ({ name, requestId, data }) => {
-      debug("Received query command from VSCode", {
-        queryName: name,
+    this.socket.on(
+      "query",
+      async <Key extends keyof Queries>({
+        name,
         requestId,
         data,
-        boardId: this.boardId,
-      });
+      }: {
+        name: Key;
+        requestId: string;
+        data: Parameters<Queries[Key]>;
+      }) => {
+        debug("[%s].%s(%j)", requestId, name, data);
 
-      try {
-        // Mock implementation of common queries
-        let response: any;
-        switch (name) {
-          case "cardStatus":
-            const [dataCard] = data;
-
-            const card = this.cardStorage.getCardByLink(dataCard.miroLink);
-            if (!card) {
-              throw new Error("Card not found");
+        try {
+          let response;
+          switch (name) {
+            case "getBoardInfo":
+            case "attachCard":
+            case "tagCards":
+            case "selectCard":
+            case "hoverCard":
+            case "getIdToken":
+            case "tags":
+            case "cards":
+            case "selected":
+            case "setBoardName":
+            case "newCards":
+            case "cardStatus": {
+              response = await queryHandlers[name](...data);
+              break;
             }
-            card.status = dataCard.status;
-            if (isSymbolCard(card) && dataCard.codeLink) {
-              card.codeLink = dataCard.codeLink;
-            }
-            if (!card.miroLink) {
-              throw new Error("Card missing miroLink");
-            }
-            this.cardStorage.setCard(this.boardId, card);
+            default:
+              throw new UnreachableError(name);
+          }
 
-            response = undefined;
-            break;
-          case "newCards":
-            response = (data[0] as CardData[])
-              .map((card) => ({
-                ...card,
-                miroLink: `https://miro.com/app/board/${this.boardId}/?moveToWidget=${Math.random().toString(36)}`,
-              }))
-              .filter((c) => c.type);
+          debug("[%s].%s = %j", requestId, name, response);
+          this.socket?.emit("queryResult", {
+            name,
+            requestId,
+            response,
+          });
 
-            debug("newCards", data[0]);
-            await Promise.all(
-              response.map((card: CardData) =>
-                this.cardStorage.setCard(this.boardId, card),
-              ),
-            );
-
-            break;
-          case "getBoardInfo":
-            response = { name: this.boardName, boardId: this.boardId };
-            break;
-          case "cards":
-            response = this.cardStorage.listAllCards();
-            this.initialized = true;
-            break;
-          case "selected":
-            response = this.selectedCards;
-            break;
-          default:
-            response = null;
+          this.emit("cardStatusUpdate", { name, requestId, response });
+        } catch (error) {
+          console.error("Error handling query command", {
+            queryName: name,
+            requestId,
+            error: error instanceof Error ? error.message : String(error),
+            boardId: this.boardId,
+          });
         }
-
-        this.socket?.emit("queryResult", {
-          name,
-          requestId,
-          response,
-        });
-
-        this.emit("cardStatusUpdate", { name, requestId, response });
-      } catch (error) {
-        console.error("Error handling query command", {
-          queryName: name,
-          requestId,
-          error: error instanceof Error ? error.message : String(error),
-          boardId: this.boardId,
-        });
-      }
-    });
+      },
+    );
   }
 
   /**

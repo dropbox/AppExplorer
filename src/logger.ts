@@ -1,5 +1,7 @@
+import { createWriteStream } from "fs";
 import * as vscode from "vscode";
 import { FeatureFlagManager } from "./feature-flag-manager";
+import { PortConfig } from "./port-config";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -11,15 +13,15 @@ export interface PrefixedLogger {
 }
 
 export class Logger {
-  private outputChannel: vscode.OutputChannel;
-  private featureFlagManager?: FeatureFlagManager;
+  private logFile?: string;
+  private logStream?: import("fs").WriteStream;
+  private outputChannel: vscode.LogOutputChannel;
   private static instance?: Logger;
 
   private constructor() {
-    this.outputChannel = vscode.window.createOutputChannel(
-      "AppExplorer",
-      "log",
-    );
+    this.outputChannel = vscode.window.createOutputChannel("AppExplorer", {
+      log: true,
+    });
   }
 
   /**
@@ -36,15 +38,11 @@ export class Logger {
    * Initialize the logger with feature flag manager
    */
   initialize(featureFlagManager: FeatureFlagManager): void {
-    this.featureFlagManager = featureFlagManager;
-
     // Show the output channel if debug mode is enabled
     if (featureFlagManager.isEnabled("debugMode")) {
       this.outputChannel.show(true); // true = preserve focus
-      this.log(
-        "logger",
-        "debug",
-        "Debug mode enabled - AppExplorer output channel shown",
+      this.outputChannel.debug(
+        "[logger] Debug mode enabled - AppExplorer output channel shown",
       );
     }
   }
@@ -52,85 +50,56 @@ export class Logger {
   /**
    * Create a prefixed logger instance
    */
-  withPrefix(prefix: string): PrefixedLogger {
+  withPrefix = (prefix: string): PrefixedLogger => {
     return {
-      debug: (message: string, ...args: any[]) =>
-        this.log(prefix, "debug", message, ...args),
-      info: (message: string, ...args: any[]) =>
-        this.log(prefix, "info", message, ...args),
-      warn: (message: string, ...args: any[]) =>
-        this.log(prefix, "warn", message, ...args),
-      error: (message: string, ...args: any[]) =>
-        this.log(prefix, "error", message, ...args),
+      debug: (message: string, ...args: any[]) => {
+        this.logStream?.write(
+          `[${prefix}] [DEBUG] ${message} ${JSON.stringify(args)}\n`,
+        );
+        this.outputChannel.debug(`[${prefix}] ${message}`, ...args);
+      },
+      info: (message: string, ...args: any[]) => {
+        this.logStream?.write(
+          `[${prefix}] [INFO ] ${message} ${JSON.stringify(args)}\n`,
+        );
+        this.outputChannel.info(`[${prefix}] ${message}`, ...args);
+      },
+      warn: (message: string, ...args: any[]) => {
+        this.logStream?.write(
+          `[${prefix}] [WARN ] ${message} ${JSON.stringify(args)}\n`,
+        );
+        this.outputChannel.warn(`[${prefix}] ${message}`, ...args);
+      },
+      error: (message: string, ...args: any[]) => {
+        this.logStream?.write(
+          `[${prefix}] [ERROR] ${message} ${JSON.stringify(args)}\n`,
+        );
+        this.outputChannel.error(`[${prefix}] ${message}`, ...args);
+      },
     };
+  };
+
+  getLogFile() {
+    return this.logFile;
   }
 
-  /**
-   * Internal logging method
-   */
-  private log(
-    prefix: string,
-    level: LogLevel,
-    message: string,
-    ...args: any[]
-  ): void {
-    // Check if we should show debug messages
-    if (level === "debug" && !this.shouldShowDebug()) {
-      // return;
-    }
-
-    const timestamp = new Date().toISOString();
-    const levelUpper = level.toUpperCase().padEnd(5); // Pad for alignment
-
-    let formattedMessage = `[${timestamp}] [${levelUpper}] [${prefix}] ${message}`;
-
-    // Add additional arguments if provided
-    if (args.length > 0) {
-      const argsString = args
-        .map((arg) =>
-          typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg),
-        )
-        .join(" ");
-      formattedMessage += ` ${argsString}`;
-    }
-
-    // Write to output channel
-    this.outputChannel.appendLine(formattedMessage);
-  }
-
-  /**
-   * Check if debug messages should be shown
-   */
-  private shouldShowDebug(): boolean {
-    return this.featureFlagManager?.isEnabled("debugMode") ?? false;
-  }
-
-  /**
-   * Show the output channel
-   */
-  show(preserveFocus?: boolean): void {
-    this.outputChannel.show(preserveFocus);
-  }
-
-  /**
-   * Hide the output channel
-   */
-  hide(): void {
-    this.outputChannel.hide();
-  }
-
-  /**
-   * Clear the output channel
-   */
-  clear(): void {
-    this.outputChannel.clear();
-  }
+  storeLogs = (logUri: vscode.Uri) => {
+    const port = PortConfig.getServerPort();
+    this.logFile = vscode.Uri.joinPath(
+      logUri,
+      `app-explorer-${port}.log`,
+    ).fsPath;
+    this.logStream = createWriteStream(this.logFile);
+    const tmpLogger = this.withPrefix("logs");
+    tmpLogger.info("Logging to " + this.logFile);
+  };
 
   /**
    * Dispose of the output channel
    */
   dispose(): void {
     this.outputChannel.dispose();
+    this.logStream?.close();
   }
 }
 

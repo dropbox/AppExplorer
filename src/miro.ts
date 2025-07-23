@@ -11,6 +11,7 @@ import type {
 import { type Socket } from "socket.io-client";
 import invariant from "tiny-invariant";
 import {
+  QueryImplementations,
   type AppExplorerTag,
   type CardData,
   type Handler,
@@ -241,7 +242,6 @@ async function zoomIntoCards(cards: AppCard[]) {
 
 export async function attachToSocket() {
   const { io } = await import(
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore I need to use a dynamic import to avoid importing from
     // index-{hash}.js
     "https://cdn.socket.io/4.3.2/socket.io.esm.min.js"
@@ -249,12 +249,6 @@ export async function attachToSocket() {
 
   const socket = io() as Socket<RequestEvents, ResponseEvents>;
 
-  type QueryImplementations = {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    [K in keyof Queries]: Queries[K] extends (...args: any[]) => unknown
-      ? (...args: Parameters<Queries[K]>) => ReturnType<Queries[K]>
-      : never;
-  };
   const queryImplementations: QueryImplementations = {
     setBoardName: async (name: string) => {
       await miro.board.setAppData("name", name);

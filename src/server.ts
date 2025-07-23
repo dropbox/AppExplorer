@@ -1259,7 +1259,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
       await this.serverCardStorage.connectBoard(boardId, socket);
     }
     socket.once("disconnect", () => {
-      this.fire({ type: "disconnect" });
+      // this.fire({ type: "disconnect" });
 
       // Broadcast board disconnection to workspace clients
       this.broadcastToWorkspaces("boardDisconnected", {
@@ -1321,7 +1321,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
       this.serverCardStorage.setBoardCards(boardId, cards);
     }
 
-    this.fire({ type: "connect", boardInfo });
+    // this.fire({ type: "connect", boardInfo });
 
     // Broadcast board connection to workspace clients
     this.broadcastToWorkspaces("boardConnected", {

@@ -41,6 +41,12 @@ export type AppExplorerTag = {
   color: TagColor;
 };
 
+export type QueryImplementations = {
+  [K in keyof Queries]: Queries[K] extends (...args: any[]) => unknown
+    ? (...args: Parameters<Queries[K]>) => ReturnType<Queries[K]>
+    : never;
+};
+
 export type Queries = {
   getIdToken: () => Promise<string>;
   setBoardName: (name: string) => Promise<void>;

@@ -1,10 +1,14 @@
+import createDebug from "debug";
 import * as vscode from "vscode";
 import type { HandlerContext } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
 
+const debug = createDebug("app-explorer:navigate");
+
 export const makeNavigationHandler = (context: HandlerContext) => {
   return async (miroLink: string, locationLink: vscode.LocationLink) => {
     const card = context.cardStorage.getCardByLink(miroLink);
+    debug("navigateTo", miroLink, locationLink);
     if (card && context.cardStorage.getConnectedBoards().length > 0) {
       const codeLink = await getGitHubUrl(locationLink);
 
@@ -20,6 +24,7 @@ export const makeNavigationHandler = (context: HandlerContext) => {
         "selectCard",
         miroLink,
       );
+      debug("selectCard result", success);
 
       if (success) {
         await vscode.window.showInformationMessage(

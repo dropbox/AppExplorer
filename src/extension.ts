@@ -32,6 +32,7 @@ export type HandlerContext = {
 };
 
 export async function activate(context: vscode.ExtensionContext) {
+  logger.storeLogs(context.logUri);
   registerUpdateCommand(context);
   setUpdateCommandContext(context);
   vscode.workspace.onDidChangeWorkspaceFolders(() => {
@@ -350,6 +351,9 @@ export async function activate(context: vscode.ExtensionContext) {
       //
       // This is useful for connecting the board for navigation purposes
       // instead of creating new cards.
+    }),
+    vscode.commands.registerCommand("app-explorer.internal.logFile", () => {
+      return logger.getLogFile();
     }),
     new EditorDecorator(handlerContext),
     vscode.languages.registerCodeLensProvider(

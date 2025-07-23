@@ -1,5 +1,6 @@
 import { EventEmitter } from "events";
 import type { Socket } from "socket.io";
+import invariant from "tiny-invariant";
 import * as vscode from "vscode";
 import {
   BoardInfo,
@@ -106,6 +107,7 @@ export class WorkspaceCardStorageProxy
    * Connect a Miro board socket (delegate to underlying storage)
    */
   async connectBoard(boardId: string, socket: Socket): Promise<void> {
+    invariant(boardId, "Board ID is required");
     this.logger.info("Connecting board to workspace proxy", { boardId });
 
     // Delegate to underlying storage

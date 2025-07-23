@@ -8,7 +8,6 @@ import { MockMiroClient } from "../../mocks/mock-miro-client";
 import { delay, waitFor, waitForValue } from "../test-utils";
 
 const debug = createDebug("app-explorer:test:navigation");
-createDebug.enable("app-explorer:*");
 
 suite("E2E Navigation Tests", () => {
   let mockClient: MockMiroClient;
