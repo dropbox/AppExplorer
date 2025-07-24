@@ -83,9 +83,16 @@ export class Logger {
   }
 
   storeLogs = (logUri: vscode.Uri) => {
-    this.logFile = vscode.Uri.joinPath(logUri, `app-explorer.log`).fsPath;
-    this.logStream = createWriteStream(this.logFile);
-    this.withPrefix("logs").info("Logging to " + this.logFile);
+    try {
+      this.logFile = vscode.Uri.joinPath(logUri, `app-explorer.log`).fsPath;
+      this.logStream = createWriteStream(this.logFile);
+      this.logStream.on("error", (err) => {
+        this.outputChannel.error(`[logger] Failed to write to log file: ${err.message}`);
+      });
+      this.withPrefix("logs").info("Logging to " + this.logFile);
+    } catch (err) {
+      this.outputChannel.error(`[logger] Failed to initialize log file: ${err.message}`);
+    }
   };
 
   /**
