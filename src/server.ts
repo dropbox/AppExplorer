@@ -1079,6 +1079,13 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
       // Store workspace connection
       this.connectedWorkspaces.set(request.workspaceId, workspaceInfo);
 
+      // Join the workspace room so the client can receive events sent to this workspace
+      socket.join(request.workspaceId);
+      this.logger.debug("Workspace client joined room", {
+        workspaceId: request.workspaceId,
+        socketId: socket.id,
+      });
+
       // Send successful registration response
       const response: WorkspaceRegistrationResponse = {
         success: true,

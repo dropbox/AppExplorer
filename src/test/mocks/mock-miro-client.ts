@@ -211,6 +211,10 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
       throw new Error(`Card not found in storage: ${card.miroLink}`);
     }
 
+    // Wait a bit longer to ensure the server has finished setting up event handlers
+    // for this socket after the board connection is established
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     // Send navigateTo event using the same format as real Miro boards
     this.socketEmit("navigateTo", card);
     await new Promise((resolve) => setTimeout(resolve, 100));

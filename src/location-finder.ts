@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { SymbolAnchor, GroupAnchor } from "./commands/create-card";
+import { SymbolAnchor } from "./commands/create-card";
 import { CardData } from "./EventTypes";
 
 export class LocationFinder {
@@ -57,10 +57,31 @@ export class LocationFinder {
           }
 
           if ("symbol" in card) {
-            const symbols = await this.findSymbolsInDocument(uri);
-            const symbol = symbols.find(
-              (symbol) => symbol.label === card.symbol,
-            );
+            // Retry symbol finding with delays to handle Language Server timing
+            let symbols: SymbolAnchor[] = [];
+            let attempts = 0;
+            const maxAttempts = 1;
+
+            while (symbols.length === 0 && attempts < maxAttempts) {
+              attempts++;
+              symbols = await this.findSymbolsInDocument(uri);
+
+              if (symbols.length === 0 && attempts < maxAttempts) {
+                // Wait a bit for the Language Server to process the file
+                await new Promise((resolve) => setTimeout(resolve, 500));
+              }
+            }
+
+            // Try to find symbol by exact match first, then by suffix match for nested symbols
+            let symbol = symbols.find((symbol) => symbol.label === card.symbol);
+
+            // If not found, try to find by suffix (e.g., "testMethod" matches "TestClass/testMethod")
+            if (!symbol) {
+              symbol = symbols.find((symbol) =>
+                symbol.label.endsWith(`/${card.symbol}`),
+              );
+            }
+
             return symbol ?? uri;
           }
           return uri;
