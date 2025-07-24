@@ -104,52 +104,6 @@ export class ServerDiscovery {
   }
 
   /**
-   * Start periodic health monitoring
-   */
-  startHealthMonitoring(onHealthChange?: (isHealthy: boolean) => void): void {
-    if (this.healthCheckInterval) {
-      this.logger.debug(
-        "Stopping existing health monitoring before starting new one",
-      );
-      this.stopHealthMonitoring();
-    }
-
-    this.logger.info("Starting server health monitoring", {
-      interval: `${this.options.healthCheck.retryInterval}ms`,
-      maxRetries: this.options.healthCheck.maxRetries,
-      endpoint: this.options.healthCheck.endpoint,
-    });
-
-    this.healthCheckInterval = setInterval(async () => {
-      try {
-        const isHealthy = await this.checkServerHealth();
-
-        if (onHealthChange) {
-          onHealthChange(isHealthy);
-        }
-
-        // If we've had too many consecutive failures, consider server down
-        if (this.consecutiveFailures >= this.options.healthCheck.maxRetries) {
-          this.logger.error(
-            "Server appears to be down - max consecutive failures reached",
-            {
-              consecutiveFailures: this.consecutiveFailures,
-              maxRetries: this.options.healthCheck.maxRetries,
-            },
-          );
-          if (onHealthChange) {
-            onHealthChange(false);
-          }
-        }
-      } catch (error) {
-        this.logger.error("Error during health monitoring interval", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }, this.options.healthCheck.retryInterval);
-  }
-
-  /**
    * Stop health monitoring
    */
   stopHealthMonitoring(): void {
@@ -173,15 +127,6 @@ export class ServerDiscovery {
       lastCheck: this.lastHealthCheck,
       consecutiveFailures: this.consecutiveFailures,
     };
-  }
-
-  /**
-   * Determine if this workspace should launch a server
-   * Returns true if no server is detected
-   */
-  async shouldLaunchServer(): Promise<boolean> {
-    const serverExists = await this.checkServerHealth();
-    return !serverExists;
   }
 
   /**

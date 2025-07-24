@@ -38,9 +38,9 @@ export const makeAttachCardHandler = (context: HandlerContext) => {
         const cardData = result?.[0];
         if (cardData) {
           // Use universal query method through WorkspaceCardStorageProxy
-          context.cardStorage.query(boardId, "attachCard", cardData);
+          await context.cardStorage.query(boardId, "attachCard", cardData);
           if (cardData.miroLink) {
-            context.cardStorage.setCard(cardData.miroLink, cardData);
+            await context.cardStorage.setCard(cardData.miroLink, cardData);
           }
           return [cardData];
         }

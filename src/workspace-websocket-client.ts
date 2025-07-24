@@ -774,7 +774,7 @@ export class WorkspaceWebsocketClient
    * Generate unique request ID
    */
   private generateRequestId(): string {
-    return `${this.options.workspaceId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `${this.options.workspaceId}-${Date.now()}-${Math.random().toString(36).substring(2)}`;
   }
 
   /**

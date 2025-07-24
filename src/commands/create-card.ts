@@ -4,7 +4,6 @@ import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
 import { getRelativePath } from "../get-relative-path";
 import { LocationFinder } from "../location-finder";
-import { MiroServer } from "../server";
 
 export class UnreachableError extends Error {
   constructor(item: never) {
@@ -67,7 +66,7 @@ export const makeNewCardHandler = (context: HandlerContext) =>
         });
         if (cardData) {
           // Use universal query method through WorkspaceCardStorageProxy
-          context.cardStorage.query(boardId, "newCards", cardData, {
+          await context.cardStorage.query(boardId, "newCards", cardData, {
             connect: options.connect,
           });
         }

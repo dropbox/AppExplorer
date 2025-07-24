@@ -66,13 +66,15 @@ export const makeTagCardHandler = (context: HandlerContext) => {
           const title = await vscode.window.showInputBox({
             title: "New Tag Name",
           });
-          if (!title) return;
+          if (!title) {
+            return;
+          }
           const color = await vscode.window.showQuickPick(allColors, {
             title: "Tag Color",
           });
           if (color) {
             // Use universal query method through WorkspaceCardStorageProxy
-            context.cardStorage.query(boardId, "tagCards", {
+            await context.cardStorage.query(boardId, "tagCards", {
               miroLink: links,
               tag: {
                 title,
@@ -82,7 +84,7 @@ export const makeTagCardHandler = (context: HandlerContext) => {
           }
         } else {
           // Use universal query method through WorkspaceCardStorageProxy
-          context.cardStorage.query(boardId, "tagCards", {
+          await context.cardStorage.query(boardId, "tagCards", {
             miroLink: links,
             tag: tag.id,
           });

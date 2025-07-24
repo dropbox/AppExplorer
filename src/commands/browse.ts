@@ -99,7 +99,11 @@ export const makeBrowseHandler = (
         const card = cardStorage.getCardByLink(item.miroLink);
         if (card && card.miroLink) {
           // Use universal query method through WorkspaceCardStorageProxy
-          context.cardStorage.query(card.boardId, "hoverCard", card.miroLink);
+          await context.cardStorage.query(
+            card.boardId,
+            "hoverCard",
+            card.miroLink,
+          );
           await navigateToCard(card, true);
         }
       },
@@ -113,7 +117,11 @@ export const makeBrowseHandler = (
       const card = cardStorage.getCardByLink(selected.miroLink);
       if (card) {
         // Use universal query method through WorkspaceCardStorageProxy
-        context.cardStorage.query(card.boardId, "selectCard", card.miroLink!);
+        await context.cardStorage.query(
+          card.boardId,
+          "selectCard",
+          card.miroLink!,
+        );
         const dest = await locationFinder.findCardDestination(card);
         const status = (await goToCardCode(card))
           ? "connected"
@@ -144,7 +152,7 @@ export const makeBrowseHandler = (
           }
 
           // Use universal query method through WorkspaceCardStorageProxy
-          context.cardStorage.query(card.boardId, "cardStatus", {
+          await context.cardStorage.query(card.boardId, "cardStatus", {
             miroLink: card.miroLink,
             status,
             codeLink,

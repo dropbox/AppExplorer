@@ -74,26 +74,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     this.logger.info("🔥 MIRO SERVER EVENT: Firing event", {
       timestamp: new Date().toISOString(),
       eventType: event.type,
-      eventData:
-        event.type === "navigateToCard"
-          ? {
-              cardTitle: event.card.title,
-              cardPath: event.card.path,
-              cardBoardId: event.card.boardId,
-              cardMiroLink: event.card.miroLink,
-            }
-          : event.type === "updateCard"
-            ? {
-                miroLink: event.miroLink,
-                hasCard: !!event.card,
-                cardTitle: event.card?.title,
-              }
-            : event.type === "connect"
-              ? {
-                  boardId: event.boardInfo.id,
-                  boardName: event.boardInfo.name,
-                }
-              : {},
+      event: event,
     });
 
     // Call the parent fire method to emit the event
@@ -522,6 +503,9 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
 
   /**
    * Find workspace ID by socket connection
+   *
+   * TODO: Replace this implementation. It looks like this should cause problems
+   * if you're trying to connect multiple Miro boards at once.
    */
   private findWorkspaceIdBySocket(_socket: any): string | undefined {
     for (const [
@@ -582,6 +566,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
       return;
     }
 
+    // TODO: The whole workspace assignment system needs to be reviewed and updated.
     // Get workspaces assigned to this board using the board assignment system
     const assignedWorkspaces = this.boardWorkspaceMap.get(boardId);
     const assignedWorkspaceIds = assignedWorkspaces
@@ -1266,8 +1251,6 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
       await this.serverCardStorage.connectBoard(boardId, socket);
     }
     socket.once("disconnect", () => {
-      // this.fire({ type: "disconnect" });
-
       // Broadcast board disconnection to workspace clients
       this.broadcastToWorkspaces("boardDisconnected", {
         type: "boardDisconnected",
@@ -1327,8 +1310,6 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     if (this.serverCardStorage) {
       this.serverCardStorage.setBoardCards(boardId, cards);
     }
-
-    // this.fire({ type: "connect", boardInfo });
 
     // Broadcast board connection to workspace clients
     this.broadcastToWorkspaces("boardConnected", {

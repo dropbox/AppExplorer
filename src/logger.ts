@@ -1,7 +1,6 @@
 import { createWriteStream } from "fs";
 import * as vscode from "vscode";
 import { FeatureFlagManager } from "./feature-flag-manager";
-import { PortConfig } from "./port-config";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -84,14 +83,9 @@ export class Logger {
   }
 
   storeLogs = (logUri: vscode.Uri) => {
-    const port = PortConfig.getServerPort();
-    this.logFile = vscode.Uri.joinPath(
-      logUri,
-      `app-explorer-${port}.log`,
-    ).fsPath;
+    this.logFile = vscode.Uri.joinPath(logUri, `app-explorer.log`).fsPath;
     this.logStream = createWriteStream(this.logFile);
-    const tmpLogger = this.withPrefix("logs");
-    tmpLogger.info("Logging to " + this.logFile);
+    this.withPrefix("logs").info("Logging to " + this.logFile);
   };
 
   /**

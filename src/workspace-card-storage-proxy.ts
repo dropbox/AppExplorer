@@ -27,7 +27,6 @@ export class WorkspaceCardStorageProxy
   private underlyingStorage: CardStorage;
   private logger = createLogger("workspace-card-proxy");
   private isInitializing = false; // Flag to prevent event emission during initialization
-  private callStack = new Set<string>(); // Track method calls to detect recursion
 
   // CardStorage interface compatibility properties
   get storage(): any {
@@ -56,10 +55,8 @@ export class WorkspaceCardStorageProxy
     private featureFlagManager: FeatureFlagManager,
     private workspaceClient?: WorkspaceWebsocketClient,
   ) {
-    // Call EventEmitter constructor
     super();
 
-    // Create VSCode-backed storage internally - this eliminates the need for dual storage pattern
     this.underlyingStorage = createVSCodeCardStorage(context);
 
     this.logger.debug("WorkspaceCardStorageProxy initialized", {
@@ -161,7 +158,7 @@ export class WorkspaceCardStorageProxy
           name,
         });
 
-        const requestId = Math.random().toString(36);
+        const requestId = `proxy-${Date.now()}-${Math.random().toString(36).substring(2)}`;
         socket.emit("query", {
           name: "setBoardName",
           requestId,
@@ -207,9 +204,10 @@ export class WorkspaceCardStorageProxy
         );
 
         // Update local cache
-        const board = this.boards.get(boardId);
-        if (board) {
-          board.name = result.name;
+        let board = this.underlyingStorage.getBoard(boardId);
+        if (board && board.name !== result.name) {
+          this.underlyingStorage.setBoardName(boardId, result.name);
+          board = this.underlyingStorage.getBoard(boardId);
         }
 
         this.logger.debug("Board info retrieved successfully via proxy", {
@@ -234,7 +232,7 @@ export class WorkspaceCardStorageProxy
       this.logger.debug("Getting board info via direct socket", { boardId });
 
       // Use direct socket query (existing implementation)
-      const requestId = Math.random().toString(36);
+      const requestId = `proxy-${Date.now()}-${Math.random().toString(36).substring(2)}`;
       return new Promise<{ name: string; boardId: string }>(
         (resolve, reject) => {
           socket.emit("query", {
@@ -289,7 +287,7 @@ export class WorkspaceCardStorageProxy
       this.logger.debug("Getting board cards via direct socket", { boardId });
 
       // Use direct socket query (existing implementation)
-      const requestId = Math.random().toString(36);
+      const requestId = `proxy-${Date.now()}-${Math.random().toString(36).substring(2)}`;
       return new Promise<CardData[]>((resolve, reject) => {
         socket.emit("query", {
           name: "cards",
@@ -311,8 +309,6 @@ export class WorkspaceCardStorageProxy
    * Set all cards for a board (local cache operation)
    */
   setBoardCards(boardId: string, cards: CardData[]): void {
-    const startTime = Date.now();
-
     this.logger.debug("Setting board cards in local cache", {
       boardId,
       cardCount: cards.length,
@@ -325,22 +321,11 @@ export class WorkspaceCardStorageProxy
       this.boards.set(boardId, board);
     }
 
-    // Convert array to map for efficient lookups
-    board.cards = cards.reduce(
-      (acc, card) => {
-        if (card.miroLink) {
-          acc[card.miroLink] = card;
-        }
-        return acc;
-      },
-      {} as Record<string, CardData>,
-    );
+    this.underlyingStorage.setBoardCards(boardId, cards);
 
-    const duration = Date.now() - startTime;
     this.logger.debug("Board cards set in local cache", {
       boardId,
       cardCount: cards.length,
-      duration: `${duration}ms`,
     });
 
     // Only emit events if not initializing to prevent circular references
@@ -368,43 +353,15 @@ export class WorkspaceCardStorageProxy
   /**
    * Get card by miro link (local cache operation)
    */
-  get(miroLink: string): CardData | undefined {
-    const methodKey = `get:${miroLink}`;
-
-    // Detect recursion
-    if (this.callStack.has(methodKey)) {
-      this.logger.error("Recursion detected in get method", {
-        miroLink,
-        callStack: Array.from(this.callStack),
-      });
-      return undefined;
-    }
-
-    this.callStack.add(methodKey);
-    try {
-      // Extract board ID from miro link
-      try {
-        const url = new URL(miroLink);
-        const match = url.pathname.match(/\/app\/board\/([^/]+)\//);
-        if (match) {
-          const boardId = match[1];
-          const board = this.boards.get(boardId);
-          return board?.cards[miroLink];
-        }
-      } catch (error) {
-        this.logger.warn("Failed to parse miro link", { miroLink, error });
-      }
-      return undefined;
-    } finally {
-      this.callStack.delete(methodKey);
-    }
+  getCardByLink(miroLink: string): CardData | undefined {
+    return this.underlyingStorage.getCardByLink(miroLink);
   }
 
   /**
    * List all board IDs
    */
   listBoardIds(): string[] {
-    return Array.from(this.boards.keys());
+    return this.underlyingStorage.listBoardIds();
   }
 
   /**
@@ -431,27 +388,11 @@ export class WorkspaceCardStorageProxy
    * Delete card by miro link (compatibility method)
    */
   deleteCardByLink(miroLink: string): void {
-    try {
-      const url = new URL(miroLink);
-      const match = url.pathname.match(/\/app\/board\/([^/]+)\//);
-      if (match) {
-        const boardId = match[1];
-        const board = this.boards.get(boardId);
-        if (board && board.cards[miroLink]) {
-          delete board.cards[miroLink];
+    this.underlyingStorage.deleteCardByLink(miroLink);
 
-          this.logger.debug("Card deleted from local cache", {
-            boardId,
-            miroLink,
-          });
-        }
-      }
-    } catch (error) {
-      this.logger.error("Failed to delete card - invalid miro link", {
-        miroLink,
-        error,
-      });
-    }
+    this.logger.debug("Card deleted from local cache", {
+      miroLink,
+    });
   }
 
   /**
@@ -467,15 +408,7 @@ export class WorkspaceCardStorageProxy
   getBoard(
     boardId: string,
   ): { id: string; name: string; cards: Record<string, CardData> } | undefined {
-    const board = this.boards.get(boardId);
-    if (board) {
-      return {
-        id: boardId,
-        name: board.name,
-        cards: board.cards,
-      };
-    }
-    return undefined;
+    return this.underlyingStorage.getBoard(boardId);
   }
 
   /**
@@ -487,21 +420,13 @@ export class WorkspaceCardStorageProxy
   ): Promise<{ id: string; name: string; cards: Record<string, CardData> }> {
     this.logger.info("Adding board to workspace proxy", { boardId, name });
 
-    const board = { name, cards: {} };
-    this.boards.set(boardId, board);
+    await this.underlyingStorage.addBoard(boardId, name);
 
     return {
       id: boardId,
       name,
       cards: {},
     };
-  }
-
-  /**
-   * Get card by miro link (compatibility method)
-   */
-  getCardByLink(miroLink: string): CardData | undefined {
-    return this.get(miroLink);
   }
 
   /**
@@ -542,7 +467,7 @@ export class WorkspaceCardStorageProxy
    */
   clear(): void {
     this.logger.info("Clearing all workspace proxy data");
-    this.boards.clear();
+    this.underlyingStorage.clear();
     // Note: We don't clear sockets as they represent active connections
   }
 
@@ -668,7 +593,7 @@ export class WorkspaceCardStorageProxy
       });
 
       // Use direct socket query (existing implementation)
-      const requestId = Math.random().toString(36);
+      const requestId = `proxy-${Date.now()}-${Math.random().toString(36).substring(2)}`;
       const startTime = Date.now();
 
       return new Promise<any>((resolve, reject) => {
@@ -730,13 +655,10 @@ export class WorkspaceCardStorageProxy
     isProxyEnabled: boolean;
     workspaceClientStats?: any;
   } {
-    const totalCards = Array.from(this.boards.values()).reduce(
-      (sum: number, board: any) => sum + Object.keys(board.cards).length,
-      0,
-    );
+    const totalCards = this.underlyingStorage.totalCards();
 
     return {
-      boardCount: this.boards.size,
+      boardCount: this.underlyingStorage.listBoardIds().length,
       totalCards,
       isProxyEnabled: this.isProxyEnabled(),
       workspaceClientStats: this.workspaceClient?.getQueryProxyStats(),
