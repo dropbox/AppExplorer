@@ -109,7 +109,6 @@ export type BoardInfo = {
 
 export type ServerCapabilities = {
   supportedFeatures: string[];
-  migrationPhase: 1 | 2 | 3 | 4 | 5;
   serverVersion: string;
 };
 

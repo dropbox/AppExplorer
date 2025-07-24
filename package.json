@@ -180,41 +180,6 @@
     "configuration": {
       "title": "AppExplorer",
       "properties": {
-        "appExplorer.migration.enableServerDiscovery": {
-          "type": "boolean",
-          "default": false,
-          "description": "Enable server discovery for multi-workspace support (Phase 1)"
-        },
-        "appExplorer.migration.enableWorkspaceWebsockets": {
-          "type": "boolean",
-          "default": false,
-          "description": "Enable workspace websocket communication (Phase 1)"
-        },
-        "appExplorer.migration.enableDualStorage": {
-          "type": "boolean",
-          "default": false,
-          "description": "Enable dual storage synchronization between server and workspace (Phase 2)"
-        },
-        "appExplorer.migration.enableServerFailover": {
-          "type": "boolean",
-          "default": false,
-          "description": "Enable server health monitoring and failover (Phase 2)"
-        },
-        "appExplorer.migration.enableQueryProxying": {
-          "type": "boolean",
-          "default": false,
-          "description": "Enable query proxying through workspace websockets (Phase 3)"
-        },
-        "appExplorer.migration.enableServerEventRouting": {
-          "type": "boolean",
-          "default": false,
-          "description": "Enable server-side event routing to workspaces (Phase 4)"
-        },
-        "appExplorer.migration.enableWebsocketStatusBar": {
-          "type": "boolean",
-          "default": false,
-          "description": "Enable websocket-based status bar updates (Phase 5)"
-        },
         "appExplorer.migration.debugMode": {
           "type": "boolean",
           "default": false,

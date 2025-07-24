@@ -61,9 +61,6 @@ export class WorkspaceCardStorageProxy
 
     this.logger.debug("WorkspaceCardStorageProxy initialized", {
       hasWorkspaceClient: !!workspaceClient,
-      queryProxyEnabled: this.featureFlagManager.isEnabled(
-        "enableQueryProxying",
-      ),
       storageType: "vscode-backed",
     });
   }
@@ -76,9 +73,6 @@ export class WorkspaceCardStorageProxy
     this.workspaceClient = workspaceClient;
     this.logger.debug("WorkspaceClient set for proxy operations", {
       hasWorkspaceClient: !!workspaceClient,
-      queryProxyEnabled: this.featureFlagManager.isEnabled(
-        "enableQueryProxying",
-      ),
     });
   }
 
@@ -94,10 +88,7 @@ export class WorkspaceCardStorageProxy
    * Check if workspace proxy is enabled and available
    */
   private isProxyEnabled(): boolean {
-    return (
-      this.featureFlagManager.isEnabled("enableQueryProxying") &&
-      this.workspaceClient?.isQueryProxyingAvailable() === true
-    );
+    return this.workspaceClient?.isQueryProxyingAvailable() === true;
   }
 
   /**

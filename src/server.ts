@@ -150,16 +150,9 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     const io = new Server<ResponseEvents, RequestEvents>(this.httpServer);
     io.on("connection", this.onConnection.bind(this));
 
-    // Initialize workspace websocket server if enabled
-    if (this.featureFlagManager?.isEnabled("enableWorkspaceWebsockets")) {
-      this.initializeWorkspaceWebsockets(io);
-      this.startHealthCheckSystem();
-    }
-
-    // Initialize server-side card storage if dual storage is enabled
-    if (this.featureFlagManager?.isEnabled("enableDualStorage")) {
-      this.initializeServerCardStorage();
-    }
+    this.initializeWorkspaceWebsockets(io);
+    this.startHealthCheckSystem();
+    this.initializeServerCardStorage();
 
     app.use(compression());
     app.use(
@@ -180,7 +173,6 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     app.get("/capabilities", (_req, res) => {
       const capabilities: ServerCapabilities = {
         supportedFeatures: this.getSupportedFeatures(),
-        migrationPhase: 1,
         serverVersion: packageJson.version,
       };
       res.json(capabilities);
@@ -277,7 +269,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     }
 
     this.logger.info("Initializing server-side card storage");
-    this.serverCardStorage = new ServerCardStorage(this.featureFlagManager);
+    this.serverCardStorage = new ServerCardStorage();
 
     // Set up event listeners for server card storage events
     this.serverCardStorage.on("boardUpdate", (event) => {
@@ -339,21 +331,6 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
       timeout?: number;
     },
   ): Promise<void> {
-    if (!this.featureFlagManager?.isEnabled("enableQueryProxying")) {
-      this.logger.debug("Query proxying disabled, rejecting request", {
-        requestId: request.requestId,
-        query: request.query,
-        boardId: request.boardId,
-      });
-
-      socket.emit("queryResponse", {
-        type: "queryResponse",
-        requestId: request.requestId,
-        error: "Query proxying is disabled",
-      });
-      return;
-    }
-
     const startTime = Date.now();
     const timeout = request.timeout || this.queryProxyConfig.timeout;
 
@@ -1028,7 +1005,6 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     // Send server capabilities to new workspace
     const capabilities: ServerCapabilities = {
       supportedFeatures: this.getSupportedFeatures(),
-      migrationPhase: 1, // Currently in Phase 1
       serverVersion: packageJson.version,
     };
 
@@ -1077,7 +1053,6 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
         workspaceId: request.workspaceId,
         serverCapabilities: {
           supportedFeatures: this.getSupportedFeatures(),
-          migrationPhase: 1,
           serverVersion: packageJson.version,
         },
         assignedBoards: request.boardIds, // For now, assign all requested boards
@@ -1098,7 +1073,6 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
         workspaceId: request.workspaceId,
         serverCapabilities: {
           supportedFeatures: [],
-          migrationPhase: 1,
           serverVersion: packageJson.version,
         },
         assignedBoards: [],
@@ -1137,50 +1111,11 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
   private getSupportedFeatures(): string[] {
     const features: string[] = [];
 
-    if (this.featureFlagManager?.isEnabled("enableServerDiscovery")) {
-      features.push("serverDiscovery");
-    }
-
-    if (this.featureFlagManager?.isEnabled("enableWorkspaceWebsockets")) {
-      features.push("workspaceWebsockets");
-    }
-
-    if (this.featureFlagManager?.isEnabled("enableDualStorage")) {
-      features.push("dualStorage");
-    }
-
-    if (this.featureFlagManager?.isEnabled("enableServerFailover")) {
-      features.push("serverFailover");
-    }
-
-    if (this.featureFlagManager?.isEnabled("enableQueryProxying")) {
-      features.push("queryProxying");
-    }
-
-    if (this.featureFlagManager?.isEnabled("enableServerEventRouting")) {
-      features.push("serverEventRouting");
-    }
-
-    if (this.featureFlagManager?.isEnabled("enableWebsocketStatusBar")) {
-      features.push("websocketStatusBar");
-    }
-
-    if (this.featureFlagManager?.isEnabled("enableQueryProxying")) {
-      features.push("queryProxying");
-    }
-
-    // Board assignment is always available when workspace websockets are enabled
-    if (this.featureFlagManager?.isEnabled("enableWorkspaceWebsockets")) {
-      features.push("boardAssignment");
-      features.push("workspaceEventRouting");
-      features.push("workspaceConnectionMonitoring");
-    }
-
     return features;
   }
 
   /**
-   * Get server-side card storage (if enabled)
+   * Get server-side card storage
    */
   getServerCardStorage(): ServerCardStorage | undefined {
     return this.serverCardStorage;
@@ -1202,7 +1137,6 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
         boardCount: 0,
         cardCount: 0,
         connectedBoardCount: 0,
-        isEnabled: false,
       }
     );
   }
@@ -1246,7 +1180,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     // Connect to workspace card storage (always)
     context.cardStorage.connectBoard(boardId, socket);
 
-    // Also connect to server card storage if dual storage is enabled
+    // Also connect to server card storage
     if (this.serverCardStorage) {
       await this.serverCardStorage.connectBoard(boardId, socket);
     }
@@ -1276,7 +1210,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     socket.on("card", async ({ url, card }) => {
       this.fire({ type: "updateCard", miroLink: url, card });
 
-      // Also update server card storage if dual storage is enabled
+      // Also update server card storage
       if (this.serverCardStorage && card) {
         await this.serverCardStorage.setCard(boardId, card);
       } else if (this.serverCardStorage && !card) {
@@ -1289,7 +1223,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     if (!boardInfo) {
       boardInfo = await context.cardStorage.addBoard(boardId, info.name);
 
-      // Also add to server storage if dual storage is enabled
+      // Also add to server storage
       if (this.serverCardStorage) {
         await this.serverCardStorage.addBoard(boardId, info.name);
       }
@@ -1297,7 +1231,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
       context.cardStorage.setBoardName(boardId, info.name);
       boardInfo = { ...boardInfo, name: info.name };
 
-      // Also update server storage if dual storage is enabled
+      // Also update server storage
       if (this.serverCardStorage) {
         this.serverCardStorage.setBoardName(boardId, info.name);
       }
@@ -1306,7 +1240,7 @@ export class MiroServer extends vscode.EventEmitter<MiroEvents> {
     const cards = await querySocket(socket, "cards");
     context.cardStorage.setBoardCards(boardId, cards);
 
-    // Also set cards in server storage if dual storage is enabled
+    // Also set cards in server storage
     if (this.serverCardStorage) {
       this.serverCardStorage.setBoardCards(boardId, cards);
     }

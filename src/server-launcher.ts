@@ -44,22 +44,7 @@ export class ServerLauncher {
   async initializeServer(
     handlerContext: HandlerContext,
   ): Promise<ServerLaunchResult> {
-    this.logger.info("Initializing server", {
-      enableServerDiscovery: this.featureFlagManager.isEnabled(
-        "enableServerDiscovery",
-      ),
-      enableWorkspaceWebsockets: this.featureFlagManager.isEnabled(
-        "enableWorkspaceWebsockets",
-      ),
-    });
-
-    // Check if server discovery is enabled
-    if (!this.featureFlagManager.isEnabled("enableServerDiscovery")) {
-      this.logger.info(
-        "Server discovery disabled, launching server in legacy mode",
-      );
-      return this.launchServer(handlerContext);
-    }
+    this.logger.info("Initializing server");
 
     try {
       // Step 1: Check if server already exists
@@ -219,16 +204,6 @@ export class ServerLauncher {
 
     // Try to launch a new server to replace the failed one
     return this.attemptServerLaunch(handlerContext);
-  }
-
-  /**
-   * Check if we should attempt server failover
-   */
-  shouldAttemptFailover(): boolean {
-    return (
-      this.featureFlagManager.isEnabled("enableServerDiscovery") &&
-      this.featureFlagManager.isEnabled("enableServerFailover")
-    );
   }
 
   /**

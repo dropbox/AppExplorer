@@ -64,11 +64,6 @@ export class ServerHealthMonitor {
       return;
     }
 
-    if (!this.featureFlagManager.isEnabled("enableServerFailover")) {
-      this.logger.debug("Server health monitoring disabled by feature flag");
-      return;
-    }
-
     this.isMonitoring = true;
     this.logger.info("Starting server health monitoring", {
       interval: this.options.checkInterval,
@@ -158,10 +153,7 @@ export class ServerHealthMonitor {
       details: `Server health check failed ${this.consecutiveFailures} times`,
     });
 
-    // Attempt failover if this workspace should handle it
-    if (this.serverLauncher.shouldAttemptFailover()) {
-      await this.attemptFailover();
-    }
+    await this.attemptFailover();
   }
 
   /**

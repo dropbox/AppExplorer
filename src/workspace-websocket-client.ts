@@ -97,9 +97,6 @@ export class WorkspaceWebsocketClient
       serverUrl: options.serverUrl,
       workspaceId: options.workspaceId,
       retryConfig: this.retryConfig,
-      queryProxyEnabled: this.featureFlagManager.isEnabled(
-        "enableQueryProxying",
-      ),
     });
   }
 
@@ -107,10 +104,6 @@ export class WorkspaceWebsocketClient
    * Connect to the server's workspace websocket
    */
   async connect(): Promise<void> {
-    if (!this.featureFlagManager.isEnabled("enableWorkspaceWebsockets")) {
-      throw new Error("Workspace websockets are disabled");
-    }
-
     if (
       this.state === "connecting" ||
       this.state === "connected" ||
@@ -406,10 +399,6 @@ export class WorkspaceWebsocketClient
   private getWorkspaceCapabilities(): string[] {
     const capabilities: string[] = ["cardStorage", "navigation"];
 
-    if (this.featureFlagManager.isEnabled("enableDualStorage")) {
-      capabilities.push("dualStorage");
-    }
-
     return capabilities;
   }
 
@@ -473,7 +462,7 @@ export class WorkspaceWebsocketClient
       this.retryConfig.maxDelay,
     );
 
-    // Add jitter if enabled to prevent thundering herd
+    // Add jitter to prevent thundering herd issues
     const delay = this.retryConfig.jitter
       ? baseDelay + Math.random() * baseDelay * 0.1 // Add up to 10% jitter
       : baseDelay;
@@ -622,10 +611,6 @@ export class WorkspaceWebsocketClient
     query: T,
     ...data: Parameters<Queries[T]>
   ): Promise<Awaited<ReturnType<Queries[T]>>> {
-    if (!this.featureFlagManager.isEnabled("enableQueryProxying")) {
-      throw new Error("Query proxying is disabled");
-    }
-
     if (this.state !== "registered") {
       throw new Error("Workspace not registered with server");
     }
@@ -782,7 +767,6 @@ export class WorkspaceWebsocketClient
    */
   isQueryProxyingAvailable(): boolean {
     return (
-      this.featureFlagManager.isEnabled("enableQueryProxying") &&
       this.state === "registered" &&
       this.serverCapabilities?.supportedFeatures.includes("queryProxying") ===
         true

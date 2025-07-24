@@ -173,17 +173,15 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(miroServer);
     extensionLogger.info("Launched MiroServer, now switching to client mode");
 
-    // Start health monitoring if enabled
-    if (featureFlagManager.isEnabled("enableServerFailover")) {
-      healthMonitor = new ServerHealthMonitor(
-        serverDiscovery,
-        featureFlagManager,
-        serverLauncher,
-        handlerContext,
-      );
-      healthMonitor.startMonitoring();
-      context.subscriptions.push({ dispose: () => healthMonitor?.dispose() });
-    }
+    // Start health monitoring (always enabled)
+    healthMonitor = new ServerHealthMonitor(
+      serverDiscovery,
+      featureFlagManager,
+      serverLauncher,
+      handlerContext,
+    );
+    healthMonitor.startMonitoring();
+    context.subscriptions.push({ dispose: () => healthMonitor?.dispose() });
   }
   if (serverResult.mode !== "disabled") {
     // This workspace should connect as a client

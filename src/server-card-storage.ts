@@ -1,8 +1,8 @@
 import { EventEmitter } from "events";
 import type { Socket } from "socket.io";
+import invariant from "tiny-invariant";
 import * as vscode from "vscode";
 import { CardData } from "./EventTypes";
-import { FeatureFlagManager } from "./feature-flag-manager";
 import { createLogger } from "./logger";
 
 // Server-side board info with additional server-specific metadata
@@ -34,7 +34,7 @@ export type ServerCardStorageEvents = {
 
 /**
  * Server-side memory-backed CardStorage for managing board and card data
- * across multiple workspace connections. Only active when enableDualStorage flag is enabled.
+ * across multiple workspace connections.
  */
 export class ServerCardStorage
   extends EventEmitter
@@ -45,7 +45,7 @@ export class ServerCardStorage
   private connectedBoards = new Set<string>();
   private logger = createLogger("server-card-storage");
 
-  constructor(private featureFlagManager: FeatureFlagManager) {
+  constructor() {
     super();
     this.logger.debug("ServerCardStorage initialized");
   }
@@ -59,19 +59,9 @@ export class ServerCardStorage
   }
 
   /**
-   * Check if dual storage is enabled
-   */
-  private isDualStorageEnabled(): boolean {
-    return this.featureFlagManager.isEnabled("enableDualStorage");
-  }
-
-  /**
    * Get list of connected board IDs
    */
   getConnectedBoards(): string[] {
-    if (!this.isDualStorageEnabled()) {
-      return [];
-    }
     return Array.from(this.connectedBoards);
   }
 
@@ -79,13 +69,6 @@ export class ServerCardStorage
    * Connect a Miro board socket to the server storage
    */
   async connectBoard(boardId: string, socket: Socket): Promise<void> {
-    if (!this.isDualStorageEnabled()) {
-      this.logger.debug("Dual storage disabled, skipping board connection", {
-        boardId,
-      });
-      return;
-    }
-
     this.logger.info("Connecting board to server storage", { boardId });
 
     this.sockets.set(boardId, socket);
@@ -117,9 +100,6 @@ export class ServerCardStorage
    * Get Miro board socket for a specific board
    */
   getBoardSocket(boardId: string): Socket | undefined {
-    if (!this.isDualStorageEnabled()) {
-      return undefined;
-    }
     return this.sockets.get(boardId);
   }
 
@@ -131,10 +111,6 @@ export class ServerCardStorage
     name: string,
     assignedWorkspaces: string[] = [],
   ): Promise<ServerBoardInfo> {
-    if (!this.isDualStorageEnabled()) {
-      throw new Error("Dual storage is disabled");
-    }
-
     this.logger.info("Adding board to server storage", {
       boardId,
       name,
@@ -160,9 +136,6 @@ export class ServerCardStorage
    * Get board information
    */
   getBoard(boardId: string): ServerBoardInfo | undefined {
-    if (!this.isDualStorageEnabled()) {
-      return undefined;
-    }
     return this.boards.get(boardId);
   }
 
@@ -170,10 +143,6 @@ export class ServerCardStorage
    * Set board name
    */
   setBoardName(boardId: string, name: string): ServerBoardInfo | undefined {
-    if (!this.isDualStorageEnabled()) {
-      return undefined;
-    }
-
     const board = this.boards.get(boardId);
     if (board) {
       this.logger.debug("Updating board name", {
@@ -192,10 +161,6 @@ export class ServerCardStorage
    * Set all cards for a board (replaces existing cards)
    */
   setBoardCards(boardId: string, cards: CardData[]): void {
-    if (!this.isDualStorageEnabled()) {
-      return;
-    }
-
     const board = this.boards.get(boardId);
     if (board) {
       this.logger.debug("Setting board cards", {
@@ -228,9 +193,7 @@ export class ServerCardStorage
    * Set/update a single card
    */
   async setCard(boardId: string, card: CardData): Promise<void> {
-    if (!this.isDualStorageEnabled() || !card.miroLink) {
-      return;
-    }
+    invariant(card.miroLink, "Cannot set card without miroLink");
 
     const board = this.boards.get(boardId);
     if (board) {
@@ -256,10 +219,6 @@ export class ServerCardStorage
    * Set card by miro link (alternative interface)
    */
   set(miroLink: string, card: CardData): void {
-    if (!this.isDualStorageEnabled()) {
-      return;
-    }
-
     // Extract board ID from miro link
     const url = new URL(miroLink);
     const match = url.pathname.match(/\/app\/board\/([^/]+)\//);
@@ -290,10 +249,6 @@ export class ServerCardStorage
    * Get card by miro link
    */
   getCardByLink(link: string): CardData | undefined {
-    if (!this.isDualStorageEnabled()) {
-      return undefined;
-    }
-
     return [...this.boards.values()]
       .flatMap((board) => Object.values(board.cards))
       .find((card) => card.miroLink === link);
@@ -303,10 +258,6 @@ export class ServerCardStorage
    * Delete card by miro link
    */
   deleteCardByLink(link: string): void {
-    if (!this.isDualStorageEnabled()) {
-      return;
-    }
-
     this.logger.debug("Deleting card by link", { miroLink: link });
 
     [...this.boards.values()].forEach((board) => {
@@ -328,10 +279,6 @@ export class ServerCardStorage
    * Get total number of cards across all boards
    */
   totalCards(): number {
-    if (!this.isDualStorageEnabled()) {
-      return 0;
-    }
-
     return [...this.boards.values()].reduce(
       (acc, board) => acc + Object.keys(board.cards).length,
       0,
@@ -342,9 +289,6 @@ export class ServerCardStorage
    * List all board IDs
    */
   listBoardIds(): string[] {
-    if (!this.isDualStorageEnabled()) {
-      return [];
-    }
     return [...this.boards.keys()];
   }
 
@@ -352,9 +296,6 @@ export class ServerCardStorage
    * List all cards across all boards
    */
   listAllCards(): CardData[] {
-    if (!this.isDualStorageEnabled()) {
-      return [];
-    }
     return [...this.boards.values()].flatMap((board) =>
       Object.values(board.cards),
     );
@@ -364,10 +305,6 @@ export class ServerCardStorage
    * Assign workspaces to a board
    */
   assignWorkspacesToBoard(boardId: string, workspaceIds: string[]): void {
-    if (!this.isDualStorageEnabled()) {
-      return;
-    }
-
     const board = this.boards.get(boardId);
     if (board) {
       this.logger.debug("Assigning workspaces to board", {
@@ -384,10 +321,6 @@ export class ServerCardStorage
    * Get workspaces assigned to a board
    */
   getBoardWorkspaces(boardId: string): string[] {
-    if (!this.isDualStorageEnabled()) {
-      return [];
-    }
-
     const board = this.boards.get(boardId);
     return board ? board.assignedWorkspaces : [];
   }
@@ -396,10 +329,6 @@ export class ServerCardStorage
    * Clear all data (for testing/cleanup)
    */
   clear(): void {
-    if (!this.isDualStorageEnabled()) {
-      return;
-    }
-
     this.logger.info("Clearing all server storage data");
 
     this.listBoardIds().forEach((boardId) => {
@@ -422,13 +351,11 @@ export class ServerCardStorage
     boardCount: number;
     cardCount: number;
     connectedBoardCount: number;
-    isEnabled: boolean;
   } {
     return {
       boardCount: this.boards.size,
       cardCount: this.totalCards(),
       connectedBoardCount: this.connectedBoards.size,
-      isEnabled: this.isDualStorageEnabled(),
     };
   }
 }
