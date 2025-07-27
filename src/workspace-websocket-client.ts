@@ -1,20 +1,14 @@
 import { EventEmitter } from "events";
-import { io as socketIO } from "socket.io-client";
+import { Socket, io as socketIO } from "socket.io-client";
 import * as vscode from "vscode";
 import {
-  BoardInfo,
-  CardData,
-  DEFAULT_QUERY_PROXY_CONFIG,
   DEFAULT_RETRY_CONFIG,
-  Queries,
-  QueryProxyConfig,
+  MiroToWorkspaceEvents,
+  QueryFunction,
+  QueryResultFunction,
   RetryConfig,
-  ServerCapabilities,
-  WorkspaceRegistrationRequest,
-  WorkspaceRegistrationResponse,
+  WorkspaceToMiroOperations,
 } from "./EventTypes";
-import { HandlerContext } from "./extension";
-import { FeatureFlagManager } from "./feature-flag-manager";
 import { createLogger } from "./logger";
 
 // Import socket.io-client for workspace connections
@@ -34,64 +28,51 @@ export interface WorkspaceClientOptions {
   retryConfig?: RetryConfig;
 }
 
-export interface WorkspaceClientEvents {
-  stateChange: {
-    state: WorkspaceClientState;
-    previousState: WorkspaceClientState;
-  };
-  serverCapabilities: { capabilities: ServerCapabilities };
-  registrationComplete: { response: WorkspaceRegistrationResponse };
-  boardConnected: { boardInfo: BoardInfo };
-  boardDisconnected: { boardId: string };
-  cardUpdate: { boardId: string; card: CardData };
-  cardDelete: { boardId: string; miroLink: string };
-  navigateToCard: { card: CardData };
-  connectionStatus: { connectedBoards: string[] };
-  error: { error: string; code?: string };
-}
+type WorkspaceEvents = {
+  error: [
+    {
+      error: string;
+      code?: string;
+    },
+  ];
+  stateChange: [
+    {
+      previousState: WorkspaceClientState;
+      state: WorkspaceClientState;
+    },
+  ];
+};
 
 /**
  * Workspace websocket client for connecting to the server's /workspace namespace
  */
 export class WorkspaceWebsocketClient
-  extends EventEmitter
+  extends EventEmitter<
+    WorkspaceEvents & {
+      [K in keyof MiroToWorkspaceEvents]: Parameters<MiroToWorkspaceEvents[K]>;
+    }
+  >
   implements vscode.Disposable
 {
-  private socket?: any; // Socket.IO client socket
+  private socket?: Socket<
+    QueryResultFunction<WorkspaceToMiroOperations> & MiroToWorkspaceEvents,
+    QueryFunction<WorkspaceToMiroOperations>
+  >;
+
+  getSocket() {
+    return this.socket;
+  }
   private state: WorkspaceClientState = "disconnected";
   private logger = createLogger("workspace-client");
   private reconnectTimer?: NodeJS.Timeout;
-  private pingInterval?: NodeJS.Timeout;
-  private serverCapabilities?: ServerCapabilities;
   private retryConfig: RetryConfig;
   private currentRetryAttempt = 0;
-  private currentRetryDelay = 0;
-  private queryProxyConfig: QueryProxyConfig;
-  private pendingQueries = new Map<
-    string,
-    {
-      resolve: (result: any) => void;
-      reject: (error: Error) => void;
-      timeout: NodeJS.Timeout;
-      query: keyof Queries;
-      boardId: string;
-      timestamp: number;
-    }
-  >();
 
-  constructor(
-    private options: WorkspaceClientOptions,
-    private featureFlagManager: FeatureFlagManager,
-    private handlerContext: HandlerContext,
-  ) {
+  constructor(private options: WorkspaceClientOptions) {
     super();
 
     // Initialize retry configuration
     this.retryConfig = options.retryConfig || DEFAULT_RETRY_CONFIG;
-    this.currentRetryDelay = this.retryConfig.initialDelay;
-
-    // Initialize query proxy configuration
-    this.queryProxyConfig = DEFAULT_QUERY_PROXY_CONFIG;
 
     this.logger.debug("WorkspaceWebsocketClient initialized", {
       serverUrl: options.serverUrl,
@@ -126,7 +107,7 @@ export class WorkspaceWebsocketClient
       this.socket = socketIO(wsUrl, {
         transports: ["websocket"],
         timeout: connectionTimeout,
-        reconnection: false, // We'll handle reconnection manually
+        reconnection: true,
         forceNew: true, // Force new connection on each attempt
       });
 
@@ -174,14 +155,13 @@ export class WorkspaceWebsocketClient
 
       this.setState("connected");
       this.resetRetryState(); // Reset retry state on successful connection
-      this.startRegistration();
     });
 
     // Connection error
     this.socket.on("connect_error", (error: any) => {
       this.logger.error("Workspace websocket connection error", { error });
       this.setState("error");
-      this.emit("error", { error: String(error) });
+      this.emit("error", { error: String(error), code: "CONNECTION_ERROR" });
     });
 
     // Disconnection
@@ -190,7 +170,6 @@ export class WorkspaceWebsocketClient
         reason,
       });
       this.setState("disconnected");
-      this.stopPingInterval();
 
       // Attempt reconnection if not manually disconnected
       if (reason !== "io client disconnect") {
@@ -198,83 +177,22 @@ export class WorkspaceWebsocketClient
       }
     });
 
-    // Server capabilities
-    this.socket.on(
-      "serverCapabilities",
-      (data: { capabilities: ServerCapabilities }) => {
-        this.logger.info("Received server capabilities", {
-          capabilities: data.capabilities,
-        });
-        this.serverCapabilities = data.capabilities;
-        this.emit("serverCapabilities", { capabilities: data.capabilities });
-      },
-    );
-
-    // Registration response
-    this.socket.on(
-      "workspaceRegistrationResponse",
-      (response: WorkspaceRegistrationResponse) => {
-        this.handleRegistrationResponse(response);
-      },
-    );
-
-    // Ping/pong for health monitoring
-    this.socket.on("pong", (data: { timestamp: number }) => {
-      this.logger.debug("Received pong", { timestamp: data.timestamp });
-    });
-
-    // Board and card events
-    this.socket.on("boardConnected", (data: { boardInfo: BoardInfo }) => {
-      this.logger.debug("Board connected event", { boardInfo: data.boardInfo });
-      this.emit("boardConnected", { boardInfo: data.boardInfo });
-    });
-
-    this.socket.on("boardDisconnected", (data: { boardId: string }) => {
-      this.logger.debug("Board disconnected event", { boardId: data.boardId });
-      this.emit("boardDisconnected", { boardId: data.boardId });
-    });
-
-    this.socket.on(
-      "cardUpdate",
-      (data: { boardId: string; card: CardData }) => {
-        this.logger.debug("Card update event", {
-          boardId: data.boardId,
-          cardTitle: data.card?.title,
-        });
-        this.emit("cardUpdate", { boardId: data.boardId, card: data.card });
-      },
-    );
-
-    this.socket.on(
-      "cardDelete",
-      (data: { boardId: string; miroLink: string }) => {
-        this.logger.debug("Card delete event", {
-          boardId: data.boardId,
-          miroLink: data.miroLink,
-        });
-        this.emit("cardDelete", {
-          boardId: data.boardId,
-          miroLink: data.miroLink,
-        });
-      },
-    );
-
-    this.socket.on("navigateToCard", (data: { card: CardData }) => {
+    this.socket.on("navigateTo", (card) => {
       // Enhanced logging for navigation events - this is key for debugging card clicks
       this.logger.info("📥 INCOMING WebSocket: Navigate to card event", {
         timestamp: new Date().toISOString(),
         workspaceId: this.options.workspaceId,
-        messageType: "navigateToCard",
+        messageType: "navigateTo",
         direction: "server->client",
-        cardTitle: data.card.title,
-        cardPath: data.card.path,
-        cardSymbol: data.card.type === "symbol" ? data.card.symbol : undefined,
-        cardBoardId: data.card.boardId,
-        cardMiroLink: data.card.miroLink,
-        cardStatus: data.card.status,
+        cardTitle: card.title,
+        cardPath: card.path,
+        cardSymbol: card.type === "symbol" ? card.symbol : undefined,
+        cardBoardId: card.boardId,
+        cardMiroLink: card.miroLink,
+        cardStatus: card.status,
       });
 
-      this.emit("navigateToCard", { card: data.card });
+      this.emit("navigateTo", card);
     });
 
     this.socket.on(
@@ -284,153 +202,11 @@ export class WorkspaceWebsocketClient
           connectedBoards: data.connectedBoards,
         });
         this.emit("connectionStatus", {
+          type: "connectionStatus",
           connectedBoards: data.connectedBoards,
         });
       },
     );
-
-    // Query response handling
-    this.socket.on(
-      "queryResponse",
-      (response: {
-        type: "queryResponse";
-        requestId: string;
-        result?: any;
-        error?: string;
-        duration?: number;
-      }) => {
-        this.handleQueryResponse(response);
-      },
-    );
-
-    // Error handling
-    this.socket.on("error", (data: { message: string; code?: string }) => {
-      this.logger.error("Workspace websocket error", {
-        message: data.message,
-        code: data.code,
-      });
-      this.emit("error", { error: data.message, code: data.code });
-    });
-  }
-
-  /**
-   * Start workspace registration process
-   */
-  private async startRegistration(): Promise<void> {
-    if (!this.socket || this.state !== "connected") {
-      this.logger.warn("Cannot start registration - invalid state", {
-        hasSocket: !!this.socket,
-        state: this.state,
-      });
-      return;
-    }
-
-    try {
-      this.logger.info("Starting workspace registration");
-
-      // Get current workspace boards
-      const boardIds = this.handlerContext.cardStorage.listBoardIds();
-
-      const registrationRequest: WorkspaceRegistrationRequest = {
-        workspaceId: this.options.workspaceId,
-        workspaceName: this.options.workspaceName,
-        rootPath: this.options.rootPath,
-        boardIds,
-        capabilities: this.getWorkspaceCapabilities(),
-      };
-
-      // Enhanced logging for workspace registration
-      this.logger.info("🚀 OUTGOING WebSocket: Workspace registration", {
-        timestamp: new Date().toISOString(),
-        workspaceId: registrationRequest.workspaceId,
-        workspaceName: registrationRequest.workspaceName,
-        boardCount: boardIds.length,
-        boardIds: boardIds,
-        capabilities: registrationRequest.capabilities,
-        messageType: "workspaceRegistration",
-        direction: "client->server",
-      });
-
-      this.logger.debug("📤 WebSocket emit details", {
-        timestamp: new Date().toISOString(),
-        event: "workspaceRegistration",
-        payload: registrationRequest,
-      });
-
-      this.socket.emit("workspaceRegistration", registrationRequest);
-    } catch (error) {
-      this.logger.error("Error during workspace registration", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      this.setState("error");
-      this.emit("error", { error: "Registration failed" });
-    }
-  }
-
-  /**
-   * Handle workspace registration response
-   */
-  private handleRegistrationResponse(
-    response: WorkspaceRegistrationResponse,
-  ): void {
-    if (response.success) {
-      this.logger.info("Workspace registration successful", {
-        workspaceId: response.workspaceId,
-        assignedBoards: response.assignedBoards,
-      });
-
-      this.setState("registered");
-      this.startPingInterval();
-      this.emit("registrationComplete", { response });
-    } else {
-      this.logger.error("Workspace registration failed", {
-        error: response.error,
-        workspaceId: response.workspaceId,
-      });
-
-      this.setState("error");
-      this.emit("error", { error: response.error || "Registration failed" });
-    }
-  }
-
-  /**
-   * Get workspace capabilities
-   */
-  private getWorkspaceCapabilities(): string[] {
-    const capabilities: string[] = ["cardStorage", "navigation"];
-
-    return capabilities;
-  }
-
-  /**
-   * Start ping interval for health monitoring
-   */
-  private startPingInterval(): void {
-    this.pingInterval = setInterval(() => {
-      if (this.socket && this.state === "registered") {
-        const pingMessage = { timestamp: Date.now() };
-
-        this.logger.debug("🏓 OUTGOING WebSocket: Ping", {
-          timestamp: new Date().toISOString(),
-          workspaceId: this.options.workspaceId,
-          messageType: "ping",
-          direction: "client->server",
-          pingTimestamp: pingMessage.timestamp,
-        });
-
-        this.socket.emit("ping", pingMessage);
-      }
-    }, 30000); // Ping every 30 seconds
-  }
-
-  /**
-   * Stop ping interval
-   */
-  private stopPingInterval(): void {
-    if (this.pingInterval) {
-      clearInterval(this.pingInterval);
-      this.pingInterval = undefined;
-    }
   }
 
   /**
@@ -468,7 +244,11 @@ export class WorkspaceWebsocketClient
       : baseDelay;
 
     this.currentRetryAttempt++;
-    this.currentRetryDelay = delay;
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = undefined;
+    }
 
     this.logger.info("Scheduling reconnection with exponential backoff", {
       attempt: this.currentRetryAttempt,
@@ -514,7 +294,6 @@ export class WorkspaceWebsocketClient
    */
   private resetRetryState(): void {
     this.currentRetryAttempt = 0;
-    this.currentRetryDelay = this.retryConfig.initialDelay;
 
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
@@ -534,61 +313,10 @@ export class WorkspaceWebsocketClient
   }
 
   /**
-   * Get current client state
-   */
-  getState(): WorkspaceClientState {
-    return this.state;
-  }
-
-  /**
-   * Get server capabilities (if received)
-   */
-  getServerCapabilities(): ServerCapabilities | undefined {
-    return this.serverCapabilities;
-  }
-
-  /**
-   * Get current retry state information
-   */
-  getRetryState(): {
-    currentAttempt: number;
-    maxRetries: number;
-    currentDelay: number;
-    isRetrying: boolean;
-  } {
-    return {
-      currentAttempt: this.currentRetryAttempt,
-      maxRetries: this.retryConfig.maxRetries,
-      currentDelay: this.currentRetryDelay,
-      isRetrying: !!this.reconnectTimer,
-    };
-  }
-
-  /**
-   * Manually trigger reconnection (resets retry state)
-   */
-  async reconnect(): Promise<void> {
-    this.logger.info("Manual reconnection triggered");
-
-    // Disconnect current connection if exists
-    if (this.socket) {
-      this.socket.disconnect();
-    }
-
-    // Reset retry state for fresh start
-    this.resetRetryState();
-
-    // Attempt connection
-    await this.connect();
-  }
-
-  /**
    * Disconnect from server
    */
   disconnect(): void {
     this.logger.info("Disconnecting from workspace websocket server");
-
-    this.stopPingInterval();
 
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
@@ -604,202 +332,10 @@ export class WorkspaceWebsocketClient
   }
 
   /**
-   * Proxy a query through the server to a Miro board
-   */
-  async proxyQuery<T extends keyof Queries>(
-    boardId: string,
-    query: T,
-    ...data: Parameters<Queries[T]>
-  ): Promise<Awaited<ReturnType<Queries[T]>>> {
-    if (this.state !== "registered") {
-      throw new Error("Workspace not registered with server");
-    }
-
-    if (!this.socket) {
-      throw new Error("No websocket connection to server");
-    }
-
-    const requestId = this.generateRequestId();
-    const timeout = this.queryProxyConfig.timeout;
-
-    // Enhanced logging for outgoing WebSocket messages
-    this.logger.info("🔄 OUTGOING WebSocket: Query proxy request", {
-      timestamp: new Date().toISOString(),
-      workspaceId: this.options.workspaceId,
-      requestId,
-      boardId,
-      query: String(query),
-      dataLength: data.length,
-      timeout,
-      messageType: "queryRequest",
-      direction: "client->server",
-    });
-
-    return new Promise<Awaited<ReturnType<Queries[T]>>>((resolve, reject) => {
-      // Set up timeout
-      const timeoutHandle = setTimeout(() => {
-        this.pendingQueries.delete(requestId);
-        this.logger.warn("⏰ Query proxy request timed out", {
-          timestamp: new Date().toISOString(),
-          workspaceId: this.options.workspaceId,
-          requestId,
-          boardId,
-          query: String(query),
-          timeout,
-        });
-        reject(
-          new Error(`Query ${String(query)} timed out after ${timeout}ms`),
-        );
-      }, timeout);
-
-      // Store pending query
-      this.pendingQueries.set(requestId, {
-        resolve,
-        reject,
-        timeout: timeoutHandle,
-        query,
-        boardId,
-        timestamp: Date.now(),
-      });
-
-      // Send query request to server with enhanced logging
-      const queryMessage = {
-        type: "queryRequest",
-        requestId,
-        boardId,
-        query,
-        data: data as any[],
-        timeout,
-      };
-
-      this.logger.debug("📤 WebSocket emit details", {
-        timestamp: new Date().toISOString(),
-        workspaceId: this.options.workspaceId,
-        event: "queryRequest",
-        payload: queryMessage,
-      });
-
-      this.socket!.emit("queryRequest", queryMessage);
-    });
-  }
-
-  /**
-   * Handle query response from server
-   */
-  private handleQueryResponse(response: {
-    type: "queryResponse";
-    requestId: string;
-    result?: any;
-    error?: string;
-    duration?: number;
-  }): void {
-    // Enhanced logging for incoming query responses
-    this.logger.info("📥 INCOMING WebSocket: Query response", {
-      timestamp: new Date().toISOString(),
-      workspaceId: this.options.workspaceId,
-      messageType: "queryResponse",
-      direction: "server->client",
-      requestId: response.requestId,
-      hasError: !!response.error,
-      hasResult: !!response.result,
-      serverDuration: response.duration ? `${response.duration}ms` : undefined,
-    });
-
-    const pendingQuery = this.pendingQueries.get(response.requestId);
-    if (!pendingQuery) {
-      this.logger.warn("❌ Received response for unknown query", {
-        timestamp: new Date().toISOString(),
-        workspaceId: this.options.workspaceId,
-        requestId: response.requestId,
-        pendingQueryCount: this.pendingQueries.size,
-      });
-      return;
-    }
-
-    // Clean up
-    clearTimeout(pendingQuery.timeout);
-    this.pendingQueries.delete(response.requestId);
-
-    const duration = Date.now() - pendingQuery.timestamp;
-
-    if (response.error) {
-      this.logger.error("❌ Query proxy request failed", {
-        timestamp: new Date().toISOString(),
-        workspaceId: this.options.workspaceId,
-        requestId: response.requestId,
-        boardId: pendingQuery.boardId,
-        query: String(pendingQuery.query),
-        error: response.error,
-        clientDuration: `${duration}ms`,
-        serverDuration: response.duration
-          ? `${response.duration}ms`
-          : undefined,
-      });
-
-      pendingQuery.reject(new Error(response.error));
-    } else {
-      this.logger.info("✅ Query proxy request successful", {
-        timestamp: new Date().toISOString(),
-        workspaceId: this.options.workspaceId,
-        requestId: response.requestId,
-        boardId: pendingQuery.boardId,
-        query: String(pendingQuery.query),
-        clientDuration: `${duration}ms`,
-        serverDuration: response.duration
-          ? `${response.duration}ms`
-          : undefined,
-        resultType: typeof response.result,
-      });
-
-      pendingQuery.resolve(response.result);
-    }
-  }
-
-  /**
-   * Generate unique request ID
-   */
-  private generateRequestId(): string {
-    return `${this.options.workspaceId}-${Date.now()}-${Math.random().toString(36).substring(2)}`;
-  }
-
-  /**
-   * Check if query proxying is available
-   */
-  isQueryProxyingAvailable(): boolean {
-    return (
-      this.state === "registered" &&
-      this.serverCapabilities?.supportedFeatures.includes("queryProxying") ===
-        true
-    );
-  }
-
-  /**
-   * Get query proxy statistics
-   */
-  getQueryProxyStats(): {
-    pendingQueries: number;
-    isAvailable: boolean;
-    serverCapabilities?: string[];
-  } {
-    return {
-      pendingQueries: this.pendingQueries.size,
-      isAvailable: this.isQueryProxyingAvailable(),
-      serverCapabilities: this.serverCapabilities?.supportedFeatures,
-    };
-  }
-
-  /**
    * Dispose of resources
    */
   dispose(): void {
     this.logger.debug("Disposing WorkspaceWebsocketClient resources");
-
-    // Clean up pending queries
-    this.pendingQueries.forEach((query, _requestId) => {
-      clearTimeout(query.timeout);
-      query.reject(new Error("Client disposed"));
-    });
-    this.pendingQueries.clear();
 
     this.disconnect();
     this.removeAllListeners();

@@ -148,7 +148,7 @@ suite("E2E Card Lifecycle Tests", () => {
     await E2ETestUtils.resetEditorState();
     await delay(1000);
 
-    await E2ETestUtils.navigateToCard(card);
+    await E2ETestUtils.navigateTo(card);
     await E2ETestUtils.waitForFileToOpen(card.path.split("/").pop()!);
     await delay(1000);
   });

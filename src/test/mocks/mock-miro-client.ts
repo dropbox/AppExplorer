@@ -5,19 +5,13 @@ import * as vscode from "vscode";
 import {
   AppExplorerTag,
   CardData,
-  Queries,
-  QueryImplementations,
-  ResponseEvents,
+  MiroToWorkspaceEvents,
   SymbolCardData,
+  WorkspaceToMiroOperations,
 } from "../../EventTypes";
 import { CardStorage, createMemoryCardStorage } from "../../card-storage";
-import { UnreachableError } from "../../commands/create-card";
 
 const debug = createDebugger("app-explorer:test:mock-miro-client");
-
-type PrettyPrint<T> = {
-  [K in keyof T]: T[K];
-} & {};
 
 /**
  * Type guard to check if a card is a symbol card
@@ -220,7 +214,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
-  socketEmit(event: keyof ResponseEvents, data: any) {
+  socketEmit(event: keyof MiroToWorkspaceEvents, data: any) {
     this.socket?.emit(event, data);
     debug("Sent %s event to server %O", event, {
       data,
@@ -280,7 +274,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
       return;
     }
 
-    const queryHandlers: QueryImplementations = {
+    const queryHandlers: WorkspaceToMiroOperations = {
       cardStatus: async (dataCard) => {
         const card = this.cardStorage.getCardByLink(dataCard.miroLink);
         if (!card) {
@@ -352,38 +346,21 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
     // Handle query commands from VSCode
     this.socket.on(
       "query",
-      async <Key extends keyof Queries>({
+      async <Key extends keyof WorkspaceToMiroOperations>({
         name,
         requestId,
         data,
       }: {
         name: Key;
         requestId: string;
-        data: Parameters<Queries[Key]>;
+        data: Parameters<WorkspaceToMiroOperations[Key]>;
       }) => {
         debug("[%s].%s(%j)", requestId, name, data);
 
         try {
           let response;
-          switch (name) {
-            case "getBoardInfo":
-            case "attachCard":
-            case "tagCards":
-            case "selectCard":
-            case "hoverCard":
-            case "getIdToken":
-            case "tags":
-            case "cards":
-            case "selected":
-            case "setBoardName":
-            case "newCards":
-            case "cardStatus": {
-              response = await queryHandlers[name](...data);
-              break;
-            }
-            default:
-              throw new UnreachableError(name);
-          }
+          // @ts-ignore-error Parameters<> always returns a tuple, so it should be able to be spread here
+          response = await queryHandlers[name](...data);
 
           debug("[%s].%s = %j", requestId, name, response);
           this.socket?.emit("queryResult", {

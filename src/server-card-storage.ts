@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import type { Socket } from "socket.io";
+import type { Socket as ServerSocket } from "socket.io";
 import invariant from "tiny-invariant";
 import * as vscode from "vscode";
 import { CardData } from "./EventTypes";
@@ -37,11 +37,13 @@ export type ServerCardStorageEvents = {
  * across multiple workspace connections.
  */
 export class ServerCardStorage
-  extends EventEmitter
+  extends EventEmitter<{
+    [K in keyof ServerCardStorageEvents]: [ServerCardStorageEvents[K]];
+  }>
   implements vscode.Disposable
 {
   private boards = new Map<string, ServerBoardInfo>();
-  private sockets = new Map<string, Socket>(); // boardId -> Miro board socket
+  private sockets = new Map<string, ServerSocket>(); // boardId -> Miro board socket
   private connectedBoards = new Set<string>();
   private logger = createLogger("server-card-storage");
 
@@ -68,7 +70,7 @@ export class ServerCardStorage
   /**
    * Connect a Miro board socket to the server storage
    */
-  async connectBoard(boardId: string, socket: Socket): Promise<void> {
+  async connectBoard(boardId: string, socket: ServerSocket): Promise<void> {
     this.logger.info("Connecting board to server storage", { boardId });
 
     this.sockets.set(boardId, socket);
@@ -99,7 +101,7 @@ export class ServerCardStorage
   /**
    * Get Miro board socket for a specific board
    */
-  getBoardSocket(boardId: string): Socket | undefined {
+  getBoardSocket(boardId: string): ServerSocket | undefined {
     return this.sockets.get(boardId);
   }
 

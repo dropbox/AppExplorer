@@ -79,7 +79,7 @@ export class Logger {
   };
 
   getLogFile() {
-    return this.logFile;
+    return this.logStream ? this.logFile : null;
   }
 
   storeLogs = (logUri: vscode.Uri) => {
@@ -87,11 +87,15 @@ export class Logger {
       this.logFile = vscode.Uri.joinPath(logUri, `app-explorer.log`).fsPath;
       this.logStream = createWriteStream(this.logFile);
       this.logStream.on("error", (err) => {
-        this.outputChannel.error(`[logger] Failed to write to log file: ${err.message}`);
+        this.outputChannel.error(
+          `[logger] Failed to write to log file: ${err.message}`,
+        );
       });
       this.withPrefix("logs").info("Logging to " + this.logFile);
     } catch (err) {
-      this.outputChannel.error(`[logger] Failed to initialize log file: ${err.message}`);
+      this.outputChannel.error(
+        `[logger] Failed to initialize log file: ${(err as any)?.message ?? err}`,
+      );
     }
   };
 

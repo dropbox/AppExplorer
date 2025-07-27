@@ -69,7 +69,7 @@ graph TB
     WSHandler -.->|"2- boardConnect event<br/>{id, name}"| Extension
 
     %% Navigation Event Flow (E2E Testing)
-    E2EUtils ==>|"navigateToCard(card)"| MockClient
+    E2EUtils ==>|"navigateTo(card)"| MockClient
     MockClient ==>|"navigateTo event<br/>{path, symbol, miroLink}"| WSHandler
     WSHandler ==>|"forward event"| Extension
     Extension ==>|"execute VSCode command"| Commands

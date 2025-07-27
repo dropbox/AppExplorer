@@ -1,4 +1,5 @@
 import { AppCard, TagColor } from "@mirohq/websdk-types";
+import { WorkspaceServerSocket } from "./server";
 
 export type SymbolCardData = {
   boardId: string;
@@ -41,13 +42,9 @@ export type AppExplorerTag = {
   color: TagColor;
 };
 
-export type QueryImplementations = {
-  [K in keyof Queries]: Queries[K] extends (...args: any[]) => unknown
-    ? (...args: Parameters<Queries[K]>) => ReturnType<Queries[K]>
-    : never;
-};
-
-export type Queries = {
+// Operations callable on Miro boards from workspaces (via server)
+// Data flow: Workspace → Server → Miro Board
+export type WorkspaceToMiroOperations = {
   getIdToken: () => Promise<string>;
   setBoardName: (name: string) => Promise<void>;
   getBoardInfo: () => Promise<{ name: string; boardId: string }>;
@@ -77,25 +74,68 @@ export type Queries = {
   hoverCard: (miroLink: string) => Promise<void>;
 };
 
-export type RequestEvents = {
-  query: <N extends keyof Queries>(data: {
-    name: N;
-    requestId: string;
-    data: Parameters<Queries[N]>;
-  }) => void;
-};
-export type ResponseEvents = {
-  cardsInEditor: (data: { path: string; cards: CardData[] }) => void;
-  selectedCards: (data: { data: CardData[] }) => void;
-  navigateTo: (card: CardData) => void;
-  card: (data: { url: string; card: CardData | null }) => void;
-  queryResult: <N extends keyof Queries>(data: {
-    name: N;
-    requestId: string;
-    response: Awaited<ReturnType<Queries[N]>>;
-  }) => void;
+export type ServerToWorkspaceEvents = {
+  registrationComplete: (response: WorkspaceRegistrationResponse) => void;
 };
 
+// Event notifications sent from server to workspace clients
+// Data flow: Server → Workspace (routed through server)
+export type MiroToWorkspaceEvents =
+  QueryResultFunction<WorkspaceToMiroOperations> & {
+    // Core workspace events
+    cardsInEditor: (data: { path: string; cards: CardData[] }) => void;
+    selectedCards: (data: { data: CardData[] }) => void;
+    navigateTo: (card: CardData) => void;
+    card: (data: { url: string; card: CardData | null }) => void;
+
+    // Board connection events
+    connectionStatus: (data: {
+      type: "connectionStatus";
+      connectedBoards: string[];
+    }) => void;
+
+    // Health and registration events
+    healthCheck: (data: { type: "healthCheck"; timestamp: number }) => void;
+  };
+
+// Operations callable on server from workspaces
+// Data flow: Workspace → Server
+export type WorkspaceToServerOperations = {
+  workspaceRegistration: (
+    request: WorkspaceRegistrationRequest,
+  ) => Promise<WorkspaceRegistrationResponse>;
+};
+
+export type EventMapType = {
+  // This does need to use any, it doesn't work with unknown
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [K: string]: (...args: any[]) => any;
+};
+export type QueryFunction<T extends EventMapType> = {
+  query: <N extends keyof T>(
+    data: Extract<OperationEventType<T>, { query: N }>,
+  ) => void;
+};
+export type QueryResultFunction<T extends EventMapType> = {
+  queryResult: <N extends keyof T>(
+    data:
+      | {
+          name: N;
+          requestId: string;
+          response: Awaited<ReturnType<T[N]>>;
+          error?: never;
+        }
+      | {
+          name: N;
+          requestId: string;
+          error: string;
+          response?: never;
+        },
+  ) => void;
+};
+
+// This does need to use any, it doesn't work with unknown
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Handler<T extends (...args: any[]) => void, U = void> = (
   ...args: Parameters<T>
 ) => U;
@@ -106,82 +146,6 @@ export type BoardInfo = {
   id: string;
   name: string;
 };
-
-export type ServerCapabilities = {
-  supportedFeatures: string[];
-  serverVersion: string;
-};
-
-export type WorkspaceEvents =
-  // Connection and health
-  | { type: "ping"; timestamp: number }
-  | { type: "pong"; timestamp: number }
-  | { type: "serverHealthCheck"; timestamp: number }
-  | { type: "serverHealthResponse"; timestamp: number; status: "healthy" }
-
-  // Workspace registration and capabilities
-  | { type: "workspaceRegistration"; workspaceId: string; boardIds: string[] }
-  | { type: "serverCapabilities"; capabilities: ServerCapabilities }
-
-  // Board connection events
-  | { type: "boardConnected"; boardInfo: BoardInfo }
-  | { type: "boardDisconnected"; boardId: string }
-  | { type: "connectionStatus"; connectedBoards: string[] }
-
-  // Card data synchronization
-  | { type: "cardUpdate"; boardId: string; card: CardData }
-  | { type: "cardDelete"; boardId: string; miroLink: string }
-  | { type: "navigateToCard"; card: CardData }
-
-  // Query proxying - workspace to server
-  | {
-      type: "queryRequest";
-      requestId: string;
-      boardId: string;
-      query: keyof Queries;
-      data: any[];
-      timeout?: number;
-    }
-  | {
-      type: "queryResponse";
-      requestId: string;
-      result?: any;
-      error?: string;
-      duration?: number;
-    }
-
-  // Query status and health
-  | {
-      type: "queryTimeout";
-      requestId: string;
-      query: keyof Queries;
-      boardId: string;
-    }
-  | {
-      type: "queryRetry";
-      requestId: string;
-      attempt: number;
-      maxAttempts: number;
-    }
-
-  // Workspace board assignment
-  | { type: "boardAssignmentRequest"; workspaceId: string; boardIds: string[] }
-  | {
-      type: "boardAssignmentResponse";
-      workspaceId: string;
-      assignedBoards: string[];
-      deniedBoards: string[];
-    }
-  | { type: "boardAccessDenied"; boardId: string; reason: string }
-
-  // Error handling
-  | { type: "error"; message: string; code?: string };
-
-export type WorkspaceEventHandler = (
-  event: WorkspaceEvents,
-) => void | Promise<void>;
-
-// Connection Retry Configuration
 
 export interface RetryConfig {
   initialDelay: number; // Initial delay in milliseconds
@@ -217,20 +181,14 @@ export const DEFAULT_QUERY_PROXY_CONFIG: QueryProxyConfig = {
   cacheTimeout: 30000, // 30 seconds
 };
 
-// Query proxy request tracking
-export interface QueryProxyRequest {
-  requestId: string;
+export type OperationEventType<T extends EventMapType> = {
   boardId: string;
-  query: keyof Queries;
-  data: any[];
-  timestamp: number;
-  timeout: number;
-  workspaceId: string;
-  attempt: number;
-  maxAttempts: number;
-}
-
-// Workspace Board Assignment Configuration
+  requestId: string;
+  query: keyof T;
+  data: Parameters<T[keyof T]>;
+  resolve: (response: Awaited<ReturnType<T[keyof T]>>) => void;
+  reject: (error: any) => void;
+};
 
 export interface WorkspaceBoardAssignment {
   workspaceId: string;
@@ -281,22 +239,6 @@ export const DEFAULT_HEALTH_CHECK_CONFIG: ServerHealthCheck = {
   maxRetries: 3,
 };
 
-// Connection State Management
-
-export type ConnectionState =
-  | "disconnected"
-  | "connecting"
-  | "connected"
-  | "reconnecting"
-  | "failed";
-
-export interface ConnectionStatus {
-  state: ConnectionState;
-  lastConnected?: Date;
-  retryCount: number;
-  error?: string;
-}
-
 // Workspace connection status
 export enum WorkspaceConnectionStatus {
   CONNECTED = "connected",
@@ -305,18 +247,9 @@ export enum WorkspaceConnectionStatus {
   STALE = "stale", // Connected but not responding to health checks
 }
 
-// Workspace Registration and Management
-
 export interface WorkspaceInfo {
   id: string; // Unique workspace identifier
-  name?: string; // Optional workspace name
-  rootPath?: string; // Workspace root path
-  connectedAt: Date; // When workspace connected to server
-  lastActivity: Date; // Last activity timestamp
-  boardIds: string[]; // Board IDs this workspace is interested in
-  connectionStatus: WorkspaceConnectionStatus;
-  lastHealthCheck: number; // Timestamp of last successful health check
-  reconnectCount: number; // Number of reconnection attempts
+  socket: WorkspaceServerSocket;
 }
 
 export interface WorkspaceRegistrationRequest {
@@ -330,28 +263,6 @@ export interface WorkspaceRegistrationRequest {
 export interface WorkspaceRegistrationResponse {
   success: boolean;
   workspaceId: string;
-  serverCapabilities: ServerCapabilities;
   assignedBoards: string[]; // Boards assigned to this workspace
   error?: string;
-}
-
-// Server-side workspace management events
-export type WorkspaceManagementEvents =
-  | { type: "workspaceConnected"; workspace: WorkspaceInfo }
-  | { type: "workspaceDisconnected"; workspaceId: string; reason?: string }
-  | { type: "workspaceUpdated"; workspace: WorkspaceInfo }
-  | { type: "boardAssignment"; workspaceId: string; boardIds: string[] }
-  | { type: "workspaceHeartbeat"; workspaceId: string; timestamp: number };
-
-// Workspace filtering and routing
-export interface BoardWorkspaceMapping {
-  boardId: string;
-  assignedWorkspaces: string[]; // Workspace IDs that should receive events for this board
-  primaryWorkspace?: string; // Primary workspace for this board (if any)
-}
-
-export interface WorkspaceFilter {
-  workspaceId: string;
-  boardIds: string[];
-  eventTypes: string[]; // Which event types this workspace wants to receive
 }

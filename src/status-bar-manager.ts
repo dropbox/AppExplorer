@@ -56,7 +56,7 @@ export class StatusBarManager {
       this.statusBar.show();
       return;
     }
-    const boardIds = this.cardStorage.listWorkspaceBoards();
+    const boardIds = this.cardStorage.listBoardIds();
     const allCards = boardIds.flatMap((boardId) =>
       Object.values(this.cardStorage.getBoard(boardId)!.cards),
     );

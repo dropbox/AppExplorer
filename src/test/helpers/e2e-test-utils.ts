@@ -16,15 +16,49 @@ const DEBUG = "app-explorer:*";
 process.env.DEBUG = DEBUG;
 createDebug.enable(DEBUG || "app-explorer:test:*");
 
-const tail = (file: string, callback: (data: string) => void) => {
-  const readStream = fs.createReadStream(file);
-  const rl = readline.createInterface({
-    input: readStream,
-    crlfDelay: Infinity,
-  });
-  rl.on("line", (line: string) => {
-    callback(line);
-  });
+const tail = (file: string | null, callback: (data: string) => void) => {
+  if (!file) {
+    return;
+  }
+  try {
+    const readStream = fs.createReadStream(file);
+
+    // Handle stream errors gracefully
+    readStream.on("error", (error) => {
+      console.warn(`Warning: Could not read log file ${file}:`, error.message);
+      return; // Exit gracefully without throwing
+    });
+
+    const rl = readline.createInterface({
+      input: readStream,
+      crlfDelay: Infinity,
+    });
+
+    // Handle readline errors gracefully
+    rl.on("error", (error) => {
+      console.warn(`Warning: Error reading log file ${file}:`, error.message);
+      rl.close();
+      return;
+    });
+
+    rl.on("line", (line: string) => {
+      try {
+        callback(line);
+      } catch (error) {
+        console.warn(`Warning: Error processing log line:`, error);
+      }
+    });
+
+    // Clean up on close
+    rl.on("close", () => {
+      readStream.destroy();
+    });
+  } catch (error) {
+    console.warn(
+      `Warning: Could not set up log file tailing for ${file}:`,
+      error,
+    );
+  }
 };
 
 /**
@@ -267,7 +301,7 @@ export class E2ETestUtils {
    * Simulate card navigation and wait for VSCode response
    * This directly calls the navigation function instead of going through WebSocket
    */
-  static async navigateToCard(card: CardData): Promise<void> {
+  static async navigateTo(card: CardData): Promise<void> {
     const mockClient = this.getMockClient();
     assert.ok(mockClient, "MockMiroClient not initialized");
     debug("[E2ETestUtils] Navigating to card: %O", card);
@@ -289,7 +323,7 @@ export class E2ETestUtils {
    * This is the recommended approach for new tests
    */
   static createSinonNotificationCapture(): {
-    sandbox: any;
+    sandbox: { restore: () => void };
     getCapturedNotifications: () => Array<{ type: string; message: string }>;
     clearCapturedNotifications: () => void;
   } {
@@ -348,7 +382,7 @@ export class E2ETestUtils {
     const testPort = E2ETestUtils.getTestPort();
     debug(`E2E Test Suite will use port: ${testPort}`);
 
-    const logFile = await vscode.commands.executeCommand<string>(
+    const logFile = await vscode.commands.executeCommand<string | null>(
       "app-explorer.internal.logFile",
     );
     const logDebugger = createDebug("app-explorer:logs");

@@ -223,7 +223,7 @@ DEBUG=app-explorer:test:* npm test
 
    ```typescript
    // ✅ Uses actual WebSocket events
-   await E2ETestUtils.navigateToCard(testCard);
+   await E2ETestUtils.navigateTo(testCard);
    ```
 
 2. **Proper Verification**:
@@ -374,7 +374,7 @@ test("Complete card lifecycle workflow", async () => {
   // Step 6: Close editor and navigate back
   debug("Step 6: Testing navigation");
   await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
-  await E2ETestUtils.navigateToCard(createdCard);
+  await E2ETestUtils.navigateTo(createdCard);
 
   // Step 7: Verify navigation worked
   debug("Step 7: Verifying navigation");
@@ -398,7 +398,7 @@ test("Handle invalid file navigation gracefully", async () => {
   const invalidCard = E2ETestUtils.createInvalidCard("nonexistent-file");
 
   debug("Testing navigation to invalid file: %s", invalidCard.path);
-  await E2ETestUtils.navigateToCard(invalidCard);
+  await E2ETestUtils.navigateTo(invalidCard);
 
   // Verify appropriate error notification
   const notifications = E2ETestUtils.getCapturedNotifications();
@@ -430,9 +430,7 @@ test("Handle multiple simultaneous card operations", async () => {
 
   // Trigger multiple navigation events
   const cards = TEST_CARDS.slice(0, 3);
-  const navigationPromises = cards.map((card) =>
-    E2ETestUtils.navigateToCard(card),
-  );
+  const navigationPromises = cards.map((card) => E2ETestUtils.navigateTo(card));
 
   // Wait for all navigations to complete
   await Promise.all(navigationPromises);
@@ -519,7 +517,7 @@ test("Card navigation workflow", async () => {
   const testCard = TEST_CARDS[0];
 
   // Navigate to card using real WebSocket events
-  await E2ETestUtils.navigateToCard(testCard);
+  await E2ETestUtils.navigateTo(testCard);
 
   // Verify file opened correctly
   const editor = await E2ETestUtils.waitForFileToOpen(testCard.path);
@@ -546,7 +544,7 @@ test("Handle invalid file gracefully", async () => {
   const invalidCard = E2ETestUtils.createInvalidCard("nonexistent-file");
 
   // Attempt navigation (should fail gracefully)
-  await E2ETestUtils.navigateToCard(invalidCard);
+  await E2ETestUtils.navigateTo(invalidCard);
 
   // Verify appropriate error notification
   const notifications = E2ETestUtils.getCapturedNotifications();
@@ -671,7 +669,7 @@ test("Error handling with Sinon", async () => {
 
   try {
     // Test code that should trigger notifications
-    await E2ETestUtils.navigateToCard(invalidCard);
+    await E2ETestUtils.navigateTo(invalidCard);
 
     // Check captured notifications
     const notifications = notificationCapture.getCapturedNotifications();

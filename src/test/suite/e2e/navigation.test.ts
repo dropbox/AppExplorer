@@ -67,7 +67,7 @@ suite("E2E Navigation Tests", () => {
     assert.ok(testCard, "Test card for testMethod not found");
     assert.ok(isSymbolCard(testCard), "Test card should be a symbol card");
 
-    await E2ETestUtils.navigateToCard(testCard);
+    await E2ETestUtils.navigateTo(testCard);
     await E2ETestUtils.waitForFileToOpen("example.ts");
 
     debug("Waiting for card update...");
@@ -92,7 +92,7 @@ suite("E2E Navigation Tests", () => {
       "Expected test cards to be loaded into mock client",
     );
 
-    await E2ETestUtils.navigateToCard(invalidCard);
+    await E2ETestUtils.navigateTo(invalidCard);
     const numCardsAfter = mockClient.getTestCards().length;
     assert.equal(
       numCardsAfter,
@@ -150,7 +150,7 @@ suite("E2E Navigation Tests", () => {
 
     // Simulate navigation to card with invalid symbol
     // For nonexistent symbols, the file should still open (graceful degradation)
-    await E2ETestUtils.navigateToCard(invalidCard);
+    await E2ETestUtils.navigateTo(invalidCard);
 
     // Verify file opened correctly (file exists, just symbol doesn't)
     const editor = await E2ETestUtils.waitForFileToOpen(invalidCard.path);
@@ -208,7 +208,7 @@ suite("E2E Navigation Tests", () => {
       debug(`  ${i + 1}. Navigating to ${card.title}...`);
 
       // Navigate to card
-      await E2ETestUtils.navigateToCard(card);
+      await E2ETestUtils.navigateTo(card);
 
       // Verify correct file and symbol
       const editor = await E2ETestUtils.waitForFileToOpen(card.path);

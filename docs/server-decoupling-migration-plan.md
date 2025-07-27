@@ -131,7 +131,6 @@ class FeatureFlagManager {
    - Implement basic connection retry logic
 
 5. **Basic Communication**:
-   - Implement basic ping/pong to verify connection
    - Add simple server capability broadcasting to connected workspaces
    - Implement graceful fallback to legacy mode when flags disabled
 
@@ -258,7 +257,7 @@ class FeatureFlagManager {
 
 2. **Server-Side Event Handling** (gated by `enableServerEventRouting` flag):
 
-   - Move Miro event handlers (`navigateToCard`, `updateCard`) to server when flag enabled
+   - Move Miro event handlers (`navigateTo`, `updateCard`) to server when flag enabled
    - Implement workspace routing logic (which workspace gets which events)
    - Add workspace registration for board interests
 
@@ -266,7 +265,7 @@ class FeatureFlagManager {
 
    - Update extension event handlers to receive events via workspace websocket when flag enabled
    - Maintain direct event handling as fallback when flag disabled
-   - Handle `navigateToCard` broadcasting to all workspaces when board unknown
+   - Handle `navigateTo` broadcasting to all workspaces when board unknown
 
 4. **Hybrid Event Support**:
    - Support both direct and routed event handling based on flag state
@@ -388,7 +387,7 @@ type WorkspaceEvents =
   | { type: "boardConnected"; boardInfo: BoardInfo }
   | { type: "boardDisconnected"; boardId: string }
   | { type: "cardUpdate"; boardId: string; card: CardData }
-  | { type: "navigateToCard"; card: CardData }
+  | { type: "navigateTo"; card: CardData }
   | { type: "connectionStatus"; connectedBoards: string[] }
   | {
       type: "queryRequest";

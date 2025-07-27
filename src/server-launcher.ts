@@ -1,5 +1,3 @@
-import * as vscode from "vscode";
-import { HandlerContext } from "./extension";
 import { FeatureFlagManager } from "./feature-flag-manager";
 import { createLogger } from "./logger";
 import { PortConfig } from "./port-config";
@@ -7,7 +5,7 @@ import { MiroServer } from "./server";
 import { ServerDiscovery } from "./server-discovery";
 import { delay, waitForValue } from "./test/suite/test-utils";
 
-export type ServerMode = "server" | "client" | "disabled";
+export type ServerMode = "server" | "client";
 
 export interface ServerLaunchResult {
   mode: ServerMode;
@@ -22,7 +20,6 @@ export class ServerLauncher {
   private logger = createLogger("server-launcher");
 
   constructor(
-    _context: vscode.ExtensionContext,
     featureFlagManager: FeatureFlagManager,
     serverDiscovery?: ServerDiscovery,
   ) {
@@ -41,9 +38,7 @@ export class ServerLauncher {
   /**
    * Determine server mode and launch server if needed
    */
-  async initializeServer(
-    handlerContext: HandlerContext,
-  ): Promise<ServerLaunchResult> {
+  async initializeServer(): Promise<ServerLaunchResult> {
     this.logger.info("Initializing server");
 
     try {
@@ -69,7 +64,7 @@ export class ServerLauncher {
         this.logger.debug(
           "No existing server found, attempting to launch new server",
         );
-        return this.attemptServerLaunch(handlerContext);
+        return this.attemptServerLaunch();
       }
     } catch (error) {
       this.logger.error(
@@ -78,21 +73,19 @@ export class ServerLauncher {
       );
 
       // Fallback to legacy mode on error
-      return this.launchServer(handlerContext);
+      return this.launchServer();
     }
   }
 
   /**
    * Attempt to launch server with race condition handling
    */
-  private async attemptServerLaunch(
-    handlerContext: HandlerContext,
-  ): Promise<ServerLaunchResult> {
+  private async attemptServerLaunch(): Promise<ServerLaunchResult> {
     this.logger.debug("Attempting to launch server in this workspace");
 
     try {
       // Try to launch server - if another workspace wins the race, this will fail
-      const server = await this.launchServer(handlerContext);
+      const server = await this.launchServer();
 
       if (server.server) {
         this.logger.info("Successfully launched server in this workspace");
@@ -145,9 +138,7 @@ export class ServerLauncher {
   /**
    * Launch MiroServer in this workspace
    */
-  private async launchServer(
-    handlerContext: HandlerContext,
-  ): Promise<ServerLaunchResult> {
+  private async launchServer(): Promise<ServerLaunchResult> {
     const startTime = Date.now();
     const serverUrl = this.serverDiscovery.getServerUrl();
 
@@ -158,7 +149,6 @@ export class ServerLauncher {
       // Use the same port as ServerDiscovery for consistency
       const serverPort = PortConfig.getServerPort();
       const server = await MiroServer.create(
-        handlerContext,
         this.featureFlagManager,
         serverPort,
       );
@@ -195,15 +185,13 @@ export class ServerLauncher {
   /**
    * Handle server failover when current server goes down
    */
-  async handleServerFailover(
-    handlerContext: HandlerContext,
-  ): Promise<ServerLaunchResult> {
+  async handleServerFailover(): Promise<ServerLaunchResult> {
     this.logger.info(
       "Handling server failover, attempting to launch new server",
     );
 
     // Try to launch a new server to replace the failed one
-    return this.attemptServerLaunch(handlerContext);
+    return this.attemptServerLaunch();
   }
 
   /**

@@ -3,31 +3,42 @@ import { CardData } from "./EventTypes";
 import { HandlerContext } from "./extension";
 import { getRelativePath } from "./get-relative-path";
 import { LocationFinder } from "./location-finder";
+import { logger } from "./logger";
 import { WorkspaceCardStorageProxy } from "./workspace-card-storage-proxy";
+
+const log = logger.withPrefix("decorator");
 
 interface CardDecoration extends vscode.DecorationOptions {
   card: CardData;
+  selected: boolean;
 }
 
 export class EditorDecorator {
   #decorator: vscode.TextEditorDecorationType;
+  #selectedDecorator: vscode.TextEditorDecorationType;
   #activeEdtior: vscode.TextEditor | undefined;
   timeout: NodeJS.Timeout | undefined;
-  #decoratorMap = new WeakMap<vscode.TextEditor, CardDecoration[]>();
   #cardStorage: WorkspaceCardStorageProxy | undefined;
   #eventListeners:
     | {
         boardUpdate: () => void;
         cardUpdate: () => void;
         connectedBoards: () => void;
+        selectedCards: () => void;
         workspaceBoards: () => void;
       }
     | undefined;
   subscriptions: vscode.Disposable[] = [];
+  selectedIds: string[] = [];
 
   constructor(private handlerContext: HandlerContext) {
     this.#decorator = vscode.window.createTextEditorDecorationType({
       backgroundColor: new vscode.ThemeColor("appExplorer.backgroundHighlight"),
+      overviewRulerColor: new vscode.ThemeColor("appExplorer.rulerColor"),
+      overviewRulerLane: vscode.OverviewRulerLane.Right,
+    });
+    this.#selectedDecorator = vscode.window.createTextEditorDecorationType({
+      backgroundColor: new vscode.ThemeColor("appExplorer.selectedBackground"),
       overviewRulerColor: new vscode.ThemeColor("appExplorer.rulerColor"),
       overviewRulerLane: vscode.OverviewRulerLane.Right,
     });
@@ -72,25 +83,6 @@ export class EditorDecorator {
       ),
     );
 
-    this.subscriptions.push(
-      vscode.window.onDidChangeTextEditorSelection(
-        async (event) => {
-          const editor = event.textEditor;
-          if (editor) {
-            const position = editor.selection.active;
-            if (lastEditor && editor !== lastEditor && lastPosition) {
-              /* This implementation triggers when just switching tabs. I really
-               * want to detect jumpToDefinition */
-              // this.onJump(lastEditor, lastPosition, editor, position);
-            }
-            lastPosition = position;
-          }
-        },
-        null,
-        this.subscriptions,
-      ),
-    );
-
     if (this.#activeEdtior) {
       this.triggerUpdate();
     }
@@ -103,12 +95,15 @@ export class EditorDecorator {
       boardUpdate: () => this.triggerUpdate(true),
       cardUpdate: () => this.triggerUpdate(true),
       connectedBoards: () => this.triggerUpdate(true),
+      selectedCards: () => this.triggerUpdate(true),
       workspaceBoards: () => this.triggerUpdate(true),
     };
 
     // Listen to all storage events that might affect card display
     this.#cardStorage.on("boardUpdate", this.#eventListeners.boardUpdate);
     this.#cardStorage.on("cardUpdate", this.#eventListeners.cardUpdate);
+    this.#cardStorage.on("cardUpdate", this.#eventListeners.cardUpdate);
+    this.#cardStorage.on("selectedCards", this.#eventListeners.selectedCards);
     this.#cardStorage.on(
       "connectedBoards",
       this.#eventListeners.connectedBoards,
@@ -124,6 +119,10 @@ export class EditorDecorator {
     if (this.#cardStorage && this.#eventListeners) {
       this.#cardStorage.off("boardUpdate", this.#eventListeners.boardUpdate);
       this.#cardStorage.off("cardUpdate", this.#eventListeners.cardUpdate);
+      this.#cardStorage.off(
+        "selectedCards",
+        this.#eventListeners.selectedCards,
+      );
       this.#cardStorage.off(
         "connectedBoards",
         this.#eventListeners.connectedBoards,
@@ -143,45 +142,6 @@ export class EditorDecorator {
     this.subscriptions.forEach((s) => s.dispose());
   }
 
-  async onJump(
-    lastEditor: vscode.TextEditor,
-    lastPosition: vscode.Position,
-    editor: vscode.TextEditor,
-    position: vscode.Position,
-  ) {
-    const fromRanges = this.#decoratorMap.get(lastEditor);
-    const fromCard = fromRanges?.reduce(
-      (prev: CardDecoration | null, value) => {
-        if (lastPosition && value.range.contains(lastPosition)) {
-          if (prev?.range.contains(value.range)) {
-            return value;
-          }
-          return value;
-        }
-        return prev;
-      },
-      null,
-    );
-
-    if (fromCard) {
-      const toRanges = this.#decoratorMap.get(editor);
-      const toCard = toRanges?.reduce((prev: CardDecoration | null, value) => {
-        if (position && value.range.contains(position)) {
-          if (prev?.range.contains(value.range)) {
-            return value;
-          }
-          return value;
-        }
-        return prev;
-      }, null);
-      if (!toCard && fromCard.card.miroLink) {
-        await vscode.commands.executeCommand("app-explorer.createCard", {
-          connect: [fromCard.card.miroLink!],
-        });
-      }
-    }
-  }
-
   triggerUpdate(throttle = false) {
     if (this.timeout) {
       clearTimeout(this.timeout);
@@ -189,8 +149,11 @@ export class EditorDecorator {
     }
 
     if (throttle) {
-      this.timeout = setTimeout(this.decorateEditor, 500);
+      // at 500, this seemed to get stuck in a loop
+      this.timeout = setTimeout(this.decorateEditor, 1000);
     } else {
+      this.selectedIds = this.#cardStorage?.getSelectedCardIDs() ?? [];
+      log.debug("Selected cards", this.selectedIds.length);
       this.decorateEditor();
     }
   }
@@ -221,6 +184,7 @@ export class EditorDecorator {
               range: symbol.range,
               hoverMessage: `AppExplorer: ${card.title}`,
               card,
+              selected: this.selectedIds.includes(card.miroLink!),
             },
           ];
         }
@@ -228,7 +192,13 @@ export class EditorDecorator {
       return [];
     });
 
-    this.#decoratorMap.set(editor, ranges);
-    editor.setDecorations(this.#decorator, ranges);
+    const notSelected = ranges.filter((r) => !r.selected);
+    editor.setDecorations(this.#decorator, notSelected);
+    const selected = ranges.filter((r) => r.selected);
+    editor.setDecorations(this.#selectedDecorator, selected);
+
+    log.debug(
+      `Decorated editor with ${ranges.length} cards. (${selected.length} selected) ${document.uri}`,
+    );
   };
 }

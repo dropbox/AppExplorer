@@ -11,13 +11,12 @@ import type {
 import { type Socket } from "socket.io-client";
 import invariant from "tiny-invariant";
 import {
-  QueryImplementations,
   type AppExplorerTag,
   type CardData,
   type Handler,
-  type Queries,
-  type RequestEvents,
-  type ResponseEvents,
+  type MiroToWorkspaceEvents,
+  type QueryFunction,
+  type WorkspaceToMiroOperations,
 } from "./EventTypes";
 
 function decode(str: string) {
@@ -164,10 +163,10 @@ async function nextCardLocation() {
   };
 }
 
-const newCard: Handler<Queries["newCards"], Promise<AppCard[]>> = async (
-  cards,
-  options = {},
-) => {
+const newCard: Handler<
+  WorkspaceToMiroOperations["newCards"],
+  Promise<AppCard[]>
+> = async (cards, options = {}) => {
   if (cards.length > 1) {
     await miro.board.deselect({
       id: (await miro.board.getSelection()).map((c) => c.id),
@@ -247,9 +246,12 @@ export async function attachToSocket() {
     "https://cdn.socket.io/4.3.2/socket.io.esm.min.js"
   );
 
-  const socket = io() as Socket<RequestEvents, ResponseEvents>;
+  const socket = io() as Socket<
+    QueryFunction<WorkspaceToMiroOperations>,
+    MiroToWorkspaceEvents
+  >;
 
-  const queryImplementations: QueryImplementations = {
+  const queryImplementations: WorkspaceToMiroOperations = {
     setBoardName: async (name: string) => {
       await miro.board.setAppData("name", name);
     },
@@ -412,16 +414,14 @@ export async function attachToSocket() {
     },
   };
 
-  socket.on("query", async ({ name, requestId, data }) => {
+  socket.on("query", async ({ query, data, resolve, reject }) => {
     try {
-      const response = await queryImplementations[name](...data);
-      socket.emit("queryResult", {
-        name,
-        requestId,
-        response,
-      });
+      // @ts-ignore-error Parameters<> always returns a tuple, so it should be able to be spread here
+      const response = await queryImplementations[query](...data);
+      resolve(response);
     } catch (error) {
-      console.error(`AppExplorer: Error querying ${name}`, error);
+      console.error(`AppExplorer: Error querying ${query}`, error);
+      reject(error);
     }
   });
   miro.board.ui.on("app_card:open", async (event) => {
@@ -485,6 +485,7 @@ export async function attachToSocket() {
           });
         });
       }
+      socket.emit("selectedCards", { data });
     } catch (error) {
       console.error(
         "AppExplorer: Notifying VSCode of updated selection",

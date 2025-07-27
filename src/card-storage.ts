@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
-import type { Socket } from "socket.io";
 import * as vscode from "vscode";
 import { CardData } from "./EventTypes";
+import { MiroServerSocket } from "./server";
 
 // Storage adapter interface to abstract persistence layer
 export interface StorageAdapter {
@@ -54,19 +54,28 @@ export type BoardInfo = {
   cards: Record<NonNullable<CardData["miroLink"]>, CardData>;
 };
 
-type StorageEvent =
-  | { type: "workspaceBoards"; boardIds: string[] }
-  | { type: "boardUpdate"; board: BoardInfo | null; boardId: BoardInfo["id"] }
-  | { type: "connectedBoards"; boards: string[] }
-  | {
+type StorageEvent = {
+  workspaceBoards: [{ type: "workspaceBoards"; boardIds: string[] }];
+  boardUpdate: [
+    { type: "boardUpdate"; board: BoardInfo | null; boardId: BoardInfo["id"] },
+  ];
+  connectedBoards: [{ type: "connectedBoards"; boards: string[] }];
+  cardUpdate: [
+    {
       type: "cardUpdate";
       miroLink: CardData["miroLink"];
       card: CardData | null;
-    };
+    },
+  ];
+  selectedCards: [CardData[]];
+};
 
-export class CardStorage extends EventEmitter implements vscode.Disposable {
+export class CardStorage
+  extends EventEmitter<StorageEvent>
+  implements vscode.Disposable
+{
   private boards = new Map<BoardInfo["id"], BoardInfo>();
-  private sockets = new Map<string, Socket>();
+  private sockets = new Map<string, MiroServerSocket>();
   private connectedBoards = new Set<string>();
 
   constructor(private storage: StorageAdapter) {
@@ -82,7 +91,6 @@ export class CardStorage extends EventEmitter implements vscode.Disposable {
   }
 
   dispose(): void {
-    // Clean up any resources if needed
     this.removeAllListeners();
   }
 
@@ -90,7 +98,7 @@ export class CardStorage extends EventEmitter implements vscode.Disposable {
     return Array.from(this.connectedBoards);
   }
 
-  async connectBoard(boardId: string, socket: Socket) {
+  async connectBoard(boardId: string, socket: MiroServerSocket) {
     this.sockets.set(boardId, socket);
     this.connectedBoards.add(boardId);
     this.emit("connectedBoards", {
@@ -228,10 +236,6 @@ export class CardStorage extends EventEmitter implements vscode.Disposable {
     }
     this.emit("workspaceBoards", { type: "workspaceBoards", boardIds });
   }
-  listWorkspaceBoards() {
-    return this.storage.get<string[]>(`board-filter`) ?? this.listBoardIds();
-  }
-
   listBoardIds() {
     return [...this.boards.keys()];
   }

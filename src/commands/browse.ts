@@ -8,7 +8,7 @@ import { SymbolAnchor } from "./create-card";
 
 export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
   const boards = cardStorage
-    .listWorkspaceBoards()
+    .listBoardIds()
     .map((boardId) => cardStorage.getBoard(boardId)!);
   const items = boards.map(
     (board): vscode.QuickPickItem => ({
@@ -32,7 +32,7 @@ export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
 
 export const makeBrowseHandler = (
   context: HandlerContext,
-  navigateToCard: (card: CardData, preview?: boolean) => Promise<boolean>,
+  navigateTo: (card: CardData, preview?: boolean) => Promise<boolean>,
 ) =>
   async function () {
     const { cardStorage } = context;
@@ -104,7 +104,7 @@ export const makeBrowseHandler = (
             "hoverCard",
             card.miroLink,
           );
-          await navigateToCard(card, true);
+          await navigateTo(card, true);
         }
       },
     });

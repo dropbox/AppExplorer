@@ -6,7 +6,7 @@ export function makeWorkspaceBoardHandler(context: HandlerContext) {
     const boards = context.cardStorage
       .listBoardIds()
       .map((k) => context.cardStorage.getBoard(k)!);
-    const ids = context.cardStorage.listWorkspaceBoards();
+    const ids = context.cardStorage.listBoardIds();
     const items = boards.map((board): vscode.QuickPickItem => {
       return {
         label: board.name ?? board.id,

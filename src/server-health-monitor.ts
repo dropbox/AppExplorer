@@ -1,8 +1,8 @@
-import { HandlerContext } from "./extension";
 import { FeatureFlagManager } from "./feature-flag-manager";
 import { createLogger } from "./logger";
 import { ServerDiscovery } from "./server-discovery";
 import { ServerLauncher } from "./server-launcher";
+import { WorkspaceCardStorageProxy } from "./workspace-card-storage-proxy";
 
 export type HealthStatus = "healthy" | "unhealthy" | "unknown";
 
@@ -31,7 +31,7 @@ export class ServerHealthMonitor {
   private serverDiscovery: ServerDiscovery;
   private featureFlagManager: FeatureFlagManager;
   private serverLauncher: ServerLauncher;
-  private handlerContext: HandlerContext;
+  private cardStorage: WorkspaceCardStorageProxy;
   private options: HealthMonitorOptions;
 
   private monitorInterval?: NodeJS.Timeout;
@@ -46,13 +46,13 @@ export class ServerHealthMonitor {
     serverDiscovery: ServerDiscovery,
     featureFlagManager: FeatureFlagManager,
     serverLauncher: ServerLauncher,
-    handlerContext: HandlerContext,
+    cardStorage: WorkspaceCardStorageProxy,
     options: Partial<HealthMonitorOptions> = {},
   ) {
     this.serverDiscovery = serverDiscovery;
     this.featureFlagManager = featureFlagManager;
     this.serverLauncher = serverLauncher;
-    this.handlerContext = handlerContext;
+    this.cardStorage = cardStorage;
     this.options = { ...DEFAULT_HEALTH_MONITOR_OPTIONS, ...options };
   }
 
@@ -182,9 +182,7 @@ export class ServerHealthMonitor {
     }
 
     try {
-      const result = await this.serverLauncher.handleServerFailover(
-        this.handlerContext,
-      );
+      const result = await this.serverLauncher.handleServerFailover();
 
       if (result.mode === "server" && result.server) {
         if (this.featureFlagManager.isEnabled("debugMode")) {
