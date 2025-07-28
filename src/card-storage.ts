@@ -98,6 +98,15 @@ export class CardStorage
     return Array.from(this.connectedBoards);
   }
 
+  async disconnectBoard(boardId: string) {
+    this.sockets.delete(boardId);
+    this.connectedBoards.delete(boardId);
+    this.emit("connectedBoards", {
+      type: "connectedBoards",
+      boards: this.getConnectedBoards(),
+    });
+  }
+
   async connectBoard(boardId: string, socket: MiroServerSocket) {
     this.sockets.set(boardId, socket);
     this.connectedBoards.add(boardId);
@@ -106,12 +115,8 @@ export class CardStorage
       boards: this.getConnectedBoards(),
     });
 
-    socket.once("disconnect", () => {
-      this.sockets.delete(boardId);
-      this.emit("connectedBoards", {
-        type: "connectedBoards",
-        boards: this.getConnectedBoards(),
-      });
+    socket.on("disconnect", () => {
+      this.disconnectBoard(boardId);
     });
   }
 

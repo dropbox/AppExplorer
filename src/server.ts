@@ -5,8 +5,6 @@ import * as vscode from "vscode";
 import { CardStorage, MemoryAdapter } from "./card-storage";
 import {
   MiroToWorkspaceEvents,
-  OperationEventType,
-  QueryFunction,
   ServerToWorkspaceEvents,
   WorkspaceInfo,
   WorkspaceRegistrationRequest,
@@ -17,7 +15,7 @@ import {
 import { FeatureFlagManager } from "./feature-flag-manager";
 import { createLogger } from "./logger";
 import { PortConfig } from "./port-config";
-import { querySocket } from "./utils/querySocket";
+import { promiseEmit } from "./utils/promise-emit";
 import compression = require("compression");
 import express = require("express");
 import morgan = require("morgan");
@@ -36,11 +34,11 @@ class UnreachableError extends Error {
 
 export type MiroServerSocket = ServerSocket<
   MiroToWorkspaceEvents,
-  QueryFunction<WorkspaceToMiroOperations>
+  WorkspaceToMiroOperations
 >;
 
 export type WorkspaceServerSocket = ServerSocket<
-  QueryFunction<WorkspaceToMiroOperations & WorkspaceToServerOperations>,
+  WorkspaceToMiroOperations & WorkspaceToServerOperations,
   MiroToWorkspaceEvents & ServerToWorkspaceEvents
 >;
 
@@ -63,10 +61,9 @@ export class MiroServer {
   ) {
     const app = express();
     this.httpServer = createServer(app);
-    const io = new Server<
-      MiroToWorkspaceEvents,
-      QueryFunction<WorkspaceToMiroOperations>
-    >(this.httpServer);
+    const io = new Server<MiroToWorkspaceEvents, WorkspaceToMiroOperations>(
+      this.httpServer,
+    );
     io.on("connection", this.onMiroConnection.bind(this));
 
     // Create workspace namespace
@@ -145,17 +142,6 @@ export class MiroServer {
       });
     });
   }
-
-  /**
-   * Handle query proxy request from workspace client
-   */
-  private async handleQueryProxyRequest(
-    _socket: ServerSocket<
-      QueryFunction<WorkspaceToMiroOperations>,
-      MiroToWorkspaceEvents
-    >,
-    _request: OperationEventType<WorkspaceToMiroOperations>,
-  ): Promise<void> {}
 
   /**
    * Broadcast event to all connected workspace clients
@@ -280,72 +266,6 @@ export class MiroServer {
       },
     };
 
-    // Handle query proxy requests
-    socket.on("query", async (operationEvent) => {
-      logger.debug("Received query from workspace client", {
-        workspaceId: socket.id,
-        query: operationEvent.query,
-        data: operationEvent.data,
-      });
-
-      // Type guard to check if this is a workspace-to-server operation
-      const isWorkspaceToServerOperation = (
-        query: string,
-      ): query is keyof WorkspaceToServerOperations => {
-        return query === "workspaceRegistration";
-      };
-
-      if (isWorkspaceToServerOperation(operationEvent.query)) {
-        // Handle workspace-to-server operations
-        switch (operationEvent.query) {
-          case "workspaceRegistration": {
-            // For workspace registration, data[0] contains the registration request
-            // Type assertion is necessary due to dynamic query parameter structure
-            const registrationRequest = operationEvent
-              .data[0] as WorkspaceRegistrationRequest;
-            const response =
-              await serverQueries.workspaceRegistration(registrationRequest);
-            socket.emit("registrationComplete", response);
-            break;
-          }
-          default:
-            throw new UnreachableError(operationEvent.query);
-        }
-      } else {
-        // Handle workspace-to-miro operations
-        // TypeScript now knows this is a WorkspaceToMiroOperations query
-        const miroOperationEvent =
-          operationEvent as OperationEventType<WorkspaceToMiroOperations>;
-
-        try {
-          // For other queries, forward to Miro boards via query proxy
-          const response = (await this.handleQueryProxyRequest(
-            socket,
-            miroOperationEvent,
-            // Assume its going to return a matching type for the request
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          )) as any;
-          logger.debug("Proxied result", {
-            workspaceId: socket.id,
-            requestId: miroOperationEvent.requestId,
-            query: miroOperationEvent.query,
-            response,
-          });
-          socket.emit("queryResult", {
-            name: miroOperationEvent.query,
-            requestId: miroOperationEvent.requestId,
-            response,
-          });
-        } catch (error) {
-          socket.emit("queryResult", {
-            name: miroOperationEvent.query,
-            requestId: miroOperationEvent.requestId,
-            error: String(error),
-          });
-        }
-      }
-    });
-
     // Handle workspace disconnection
     socket.on("disconnect", (reason: string) => {
       this.handleWorkspaceDisconnectionBySocket(socket, reason);
@@ -366,22 +286,25 @@ export class MiroServer {
   }
 
   async onMiroConnection(socket: MiroServerSocket) {
-    const { cardStorage } = this;
-    const info = await querySocket(socket, "", "getBoardInfo");
-    const boardId = info.boardId;
+    const info = await promiseEmit(socket, "getBoardInfo");
 
-    // Connect to workspace card storage (always)
-    cardStorage.connectBoard(boardId, socket);
+    let boardInfo = this.cardStorage.getBoard(info.boardId);
+    if (!boardInfo) {
+      boardInfo = await this.cardStorage.addBoard(info.boardId, info.name);
+    } else if (boardInfo.name !== info.name) {
+      this.cardStorage.setBoardName(info.boardId, info.name);
+    }
 
-    socket.once("disconnect", () => {
-      // Broadcast board disconnection to workspace clients
-    });
+    const cards = await promiseEmit(socket, "cards");
+    this.cardStorage.connectBoard(info.boardId, socket);
+    this.cardStorage.setBoardCards(info.boardId, cards);
+
     const handlers: MiroToWorkspaceEvents = {
-      navigateTo: async (card) => {
+      navigateTo: (card) => {
         // Enhanced logging for navigation events from Miro
         logger.info("🎯 MIRO EVENT: Navigate to card", {
           timestamp: new Date().toISOString(),
-          boardId,
+          boardId: info.boardId,
           cardTitle: card.title,
           cardPath: card.path,
           cardSymbol: card.type === "symbol" ? card.symbol : undefined,
@@ -406,22 +329,13 @@ export class MiroServer {
       cardsInEditor: function (_data) {
         throw new Error("Function not implemented.");
       },
-      queryResult(_data) {
-        throw new Error("Function not implemented.");
-      },
-      connectionStatus(_data): void {
-        throw new Error("Function not implemented.");
-      },
-      healthCheck(_data): void {
-        throw new Error("Function not implemented.");
-      },
     };
     Object.keys(handlers).forEach((k) => {
       const event = k as keyof typeof handlers;
       const handler = handlers[event];
       socket.on(event, (...args: any[]) => {
         logger.debug("Received event from Miro board", {
-          boardId,
+          boardId: info.boardId,
           event,
           args,
         });
@@ -429,15 +343,5 @@ export class MiroServer {
         return handler(...args);
       });
     });
-
-    let boardInfo = cardStorage.getBoard(boardId);
-    if (!boardInfo) {
-      boardInfo = await cardStorage.addBoard(boardId, info.name);
-    } else if (boardInfo.name !== info.name) {
-      cardStorage.setBoardName(boardId, info.name);
-    }
-
-    const cards = await querySocket(socket, boardId, "cards");
-    cardStorage.setBoardCards(boardId, cards);
   }
 }

@@ -84,7 +84,7 @@ export class Logger {
 
   storeLogs = (logUri: vscode.Uri) => {
     try {
-      this.logFile = vscode.Uri.joinPath(logUri, `app-explorer.log`).fsPath;
+      this.logFile = vscode.Uri.joinPath(logUri, `AppExplorer.log`).fsPath;
       this.logStream = createWriteStream(this.logFile);
       this.logStream.on("error", (err) => {
         this.outputChannel.error(

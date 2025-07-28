@@ -343,43 +343,44 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
       },
     };
 
-    // Handle query commands from VSCode
-    this.socket.on(
-      "query",
-      async <Key extends keyof WorkspaceToMiroOperations>({
-        name,
-        requestId,
+    // Handle query commands using socket.io callback pattern
+    this.socket.on("query", async (queryData, callback) => {
+      const { query, data, requestId } = queryData;
+      debug(
+        "MockMiroClient received query: %s with data: %j, requestId: %s, callback: %s",
+        query,
         data,
-      }: {
-        name: Key;
-        requestId: string;
-        data: Parameters<WorkspaceToMiroOperations[Key]>;
-      }) => {
-        debug("[%s].%s(%j)", requestId, name, data);
+        requestId,
+        typeof callback,
+      );
 
-        try {
-          let response;
-          // @ts-ignore-error Parameters<> always returns a tuple, so it should be able to be spread here
-          response = await queryHandlers[name](...data);
+      try {
+        // @ts-ignore-error Parameters<> always returns a tuple, so it should be able to be spread here
+        const result = await queryHandlers[query](...data);
+        debug("MockMiroClient query %s response: %j", query, result);
 
-          debug("[%s].%s = %j", requestId, name, response);
-          this.socket?.emit("queryResult", {
-            name,
-            requestId,
-            response,
-          });
-
-          this.emit("cardStatusUpdate", { name, requestId, response });
-        } catch (error) {
-          console.error("Error handling query command", {
-            queryName: name,
-            requestId,
-            error: error instanceof Error ? error.message : String(error),
-            boardId: this.boardId,
-          });
+        if (typeof callback === "function") {
+          callback({ result });
+        } else {
+          console.error("callback is not a function", { query, callback });
         }
-      },
-    );
+      } catch (error) {
+        console.error("Error handling query command", {
+          queryName: query,
+          requestId,
+          error: error instanceof Error ? error.message : String(error),
+          boardId: this.boardId,
+        });
+
+        if (typeof callback === "function") {
+          callback({
+            error: error instanceof Error ? error.message : String(error),
+          });
+        } else {
+          console.error("callback is not a function", { query, callback });
+        }
+      }
+    });
   }
 
   /**

@@ -15,7 +15,6 @@ import {
   type CardData,
   type Handler,
   type MiroToWorkspaceEvents,
-  type QueryFunction,
   type WorkspaceToMiroOperations,
 } from "./EventTypes";
 
@@ -247,7 +246,7 @@ export async function attachToSocket() {
   );
 
   const socket = io() as Socket<
-    QueryFunction<WorkspaceToMiroOperations>,
+    WorkspaceToMiroOperations,
     MiroToWorkspaceEvents
   >;
 
@@ -255,14 +254,14 @@ export async function attachToSocket() {
     setBoardName: async (name: string) => {
       await miro.board.setAppData("name", name);
     },
-    getBoardInfo: async () => {
+    getBoardInfo: async (done) => {
       const boardId = await miro.board.getInfo().then((info) => info.id);
       const name = (await miro.board.getAppData("name")) as string;
-      return { boardId, name };
+      done({ boardId, name });
     },
-    newCards: async (event) => {
+    newCards: async (cards, options, done) => {
       try {
-        await newCard(event).then(async (cards) => {
+        await newCard(cards, options).then(async (cards) => {
           const selection = await miro.board.getSelection();
           await miro.board.deselect({
             id: selection.map((c) => c.id),
@@ -273,10 +272,12 @@ export async function attachToSocket() {
         });
       } catch (error) {
         console.error("AppExplorer: Error creating new cards", error);
+      } finally {
+        done?.();
       }
     },
-    getIdToken: () => miro.board.getIdToken(),
-    attachCard: async (cardData) => {
+    getIdToken: (done) => miro.board.getIdToken().then(done),
+    attachCard: async (cardData, done) => {
       try {
         const selection = await miro.board.getSelection();
         const card = selection[0];
@@ -297,8 +298,9 @@ export async function attachToSocket() {
       } catch (error) {
         console.error("AppExplorer: Error attaching card", error);
       }
+      done?.();
     },
-    hoverCard: async (cardUrl) => {
+    hoverCard: async (cardUrl, done) => {
       try {
         const url = new URL(cardUrl);
         const id = url.searchParams.get("moveToWidget")!;
@@ -309,16 +311,17 @@ export async function attachToSocket() {
       } catch (error) {
         console.error("AppExplorer: Error hovering card", error);
       }
+      done?.();
     },
-    cards: async () => {
+    cards: async (done) => {
       const cards = (
         await miro.board.get({
           type: ["app_card"],
         })
       ).filter((c) => c.type === "app_card");
-      return (await Promise.all(cards.map(extractCardData))).filter(notEmpty);
+      done((await Promise.all(cards.map(extractCardData))).filter(notEmpty));
     },
-    selectCard: async (cardUrl) => {
+    selectCard: async (cardUrl, done) => {
       try {
         const url = new URL(cardUrl);
         const id = url.searchParams.get("moveToWidget")!;
@@ -331,7 +334,7 @@ export async function attachToSocket() {
           await miro.board.select({ id: card.id });
           await zoomIntoCards([card]);
           miro.board.notifications.showInfo(`Selected card: ${card.title}`);
-          return true;
+          done(true);
         } else {
           socket.emit("card", { url: cardUrl, card: null });
           miro.board.notifications.showError(`Card not found ${cardUrl}`);
@@ -342,9 +345,10 @@ export async function attachToSocket() {
           `AppExplorer: Error selecting card ${error}`,
         );
       }
+      done(false);
       return false;
     },
-    cardStatus: async ({ miroLink, status, codeLink }) => {
+    cardStatus: async ({ miroLink, status, codeLink }, done) => {
       try {
         const url = new URL(miroLink);
         const id = url.searchParams.get("moveToWidget")!;
@@ -360,20 +364,23 @@ export async function attachToSocket() {
       } catch (error) {
         console.error("AppExplorer: Error updating card status", error);
       }
+      done?.();
     },
-    tags: async () => {
+    tags: async (done) => {
       const selection = await miro.board.get({ type: "tag" });
-      return await Promise.all(
-        selection.map(
-          (tag): AppExplorerTag => ({
-            id: tag.id,
-            title: tag.title,
-            color: tag.color as AppExplorerTag["color"],
-          }),
+      done(
+        await Promise.all(
+          selection.map(
+            (tag): AppExplorerTag => ({
+              id: tag.id,
+              title: tag.title,
+              color: tag.color as AppExplorerTag["color"],
+            }),
+          ),
         ),
       );
     },
-    tagCards: async ({ miroLink: links, tag }) => {
+    tagCards: async ({ miroLink: links, tag }, done) => {
       try {
         let tagObject: Tag;
         if (typeof tag === "string") {
@@ -405,25 +412,21 @@ export async function attachToSocket() {
       } catch (error) {
         console.error("AppExplorer: Error tagging cards", error);
       }
+      done?.();
     },
-    selected: async () => {
+    selected: async (done) => {
       const selection = await miro.board.getSelection();
-      return (await Promise.all(selection.map(extractCardData))).filter(
-        notEmpty,
+      done(
+        (await Promise.all(selection.map(extractCardData))).filter(notEmpty),
       );
     },
   };
 
-  socket.on("query", async ({ query, data, resolve, reject }) => {
-    try {
-      // @ts-ignore-error Parameters<> always returns a tuple, so it should be able to be spread here
-      const response = await queryImplementations[query](...data);
-      resolve(response);
-    } catch (error) {
-      console.error(`AppExplorer: Error querying ${query}`, error);
-      reject(error);
-    }
+  Object.keys(queryImplementations).forEach((key) => {
+    const query = key as keyof typeof queryImplementations;
+    socket.on(query, queryImplementations[query]);
   });
+
   miro.board.ui.on("app_card:open", async (event) => {
     try {
       const { appCard } = event;

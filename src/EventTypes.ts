@@ -42,36 +42,52 @@ export type AppExplorerTag = {
   color: TagColor;
 };
 
+/**
+ * This type is used in callbacks to represent whatever error might return.
+ * Anything can be thrown and any promise can be rejected with anything. So a named type means I don't have to disable the lint rule everywhere.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AnyError = any;
+
+type SuccessCallback = () => void;
+
 // Operations callable on Miro boards from workspaces (via server)
 // Data flow: Workspace → Server → Miro Board
 export type WorkspaceToMiroOperations = {
-  getIdToken: () => Promise<string>;
-  setBoardName: (name: string) => Promise<void>;
-  getBoardInfo: () => Promise<{ name: string; boardId: string }>;
-  tags: () => Promise<AppExplorerTag[]>;
-  attachCard: (data: CardData) => Promise<void>;
-  tagCards: (data: {
-    miroLink: string[];
-    tag:
-      | string
-      | {
-          color: TagColor;
-          title: string;
-        };
-  }) => Promise<void>;
-  selectCard: (miroLink: string) => Promise<boolean>;
-  cardStatus: (data: {
-    miroLink: string;
-    status: "connected" | "disconnected";
-    codeLink: string | null;
-  }) => Promise<void>;
-  cards: () => Promise<CardData[]>;
-  selected: () => Promise<CardData[]>;
+  getIdToken: (callback: (id: string) => void) => void;
+  setBoardName: (name: string, callback?: SuccessCallback) => void;
+  getBoardInfo: (callback: (boardInfo: BoardInfo) => void) => void;
+  tags: (callback: (tags: AppExplorerTag[]) => void) => void;
+  attachCard: (data: CardData, callback?: SuccessCallback) => void;
+  tagCards: (
+    data: {
+      miroLink: string[];
+      tag:
+        | string
+        | {
+            color: TagColor;
+            title: string;
+          };
+    },
+    callback?: SuccessCallback,
+  ) => void;
+  selectCard: (miroLink: string, callback: (success: boolean) => void) => void;
+  cardStatus: (
+    data: {
+      miroLink: string;
+      status: "connected" | "disconnected";
+      codeLink: string | null;
+    },
+    callback?: SuccessCallback,
+  ) => void;
+  cards: (callback: (cards: CardData[]) => void) => void;
+  selected: (callback: (cards: CardData[]) => void) => void;
   newCards: (
     data: CardData[],
     options?: { connect?: string[] },
-  ) => Promise<void>;
-  hoverCard: (miroLink: string) => Promise<void>;
+    callback?: SuccessCallback,
+  ) => void;
+  hoverCard: (miroLink: string, callback?: SuccessCallback) => void;
 };
 
 export type ServerToWorkspaceEvents = {
@@ -80,23 +96,13 @@ export type ServerToWorkspaceEvents = {
 
 // Event notifications sent from server to workspace clients
 // Data flow: Server → Workspace (routed through server)
-export type MiroToWorkspaceEvents =
-  QueryResultFunction<WorkspaceToMiroOperations> & {
-    // Core workspace events
-    cardsInEditor: (data: { path: string; cards: CardData[] }) => void;
-    selectedCards: (data: { data: CardData[] }) => void;
-    navigateTo: (card: CardData) => void;
-    card: (data: { url: string; card: CardData | null }) => void;
-
-    // Board connection events
-    connectionStatus: (data: {
-      type: "connectionStatus";
-      connectedBoards: string[];
-    }) => void;
-
-    // Health and registration events
-    healthCheck: (data: { type: "healthCheck"; timestamp: number }) => void;
-  };
+export type MiroToWorkspaceEvents = {
+  // Core workspace events
+  cardsInEditor: (data: { path: string; cards: CardData[] }) => void;
+  selectedCards: (data: { data: CardData[] }) => void;
+  navigateTo: (card: CardData) => void;
+  card: (data: { url: string; card: CardData | null }) => void;
+};
 
 // Operations callable on server from workspaces
 // Data flow: Workspace → Server
@@ -111,28 +117,7 @@ export type EventMapType = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [K: string]: (...args: any[]) => any;
 };
-export type QueryFunction<T extends EventMapType> = {
-  query: <N extends keyof T>(
-    data: Extract<OperationEventType<T>, { query: N }>,
-  ) => void;
-};
-export type QueryResultFunction<T extends EventMapType> = {
-  queryResult: <N extends keyof T>(
-    data:
-      | {
-          name: N;
-          requestId: string;
-          response: Awaited<ReturnType<T[N]>>;
-          error?: never;
-        }
-      | {
-          name: N;
-          requestId: string;
-          error: string;
-          response?: never;
-        },
-  ) => void;
-};
+export type QueryFunction<T extends EventMapType> = T;
 
 // This does need to use any, it doesn't work with unknown
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -143,7 +128,7 @@ export type Handler<T extends (...args: any[]) => void, U = void> = (
 // Workspace-Server Communication Protocol Types
 
 export type BoardInfo = {
-  id: string;
+  boardId: string;
   name: string;
 };
 
@@ -186,8 +171,18 @@ export type OperationEventType<T extends EventMapType> = {
   requestId: string;
   query: keyof T;
   data: Parameters<T[keyof T]>;
-  resolve: (response: Awaited<ReturnType<T[keyof T]>>) => void;
-  reject: (error: any) => void;
+};
+export type OperationEventCallback<
+  T extends EventMapType,
+  K extends keyof T = keyof T,
+> = (error: AnyError | null, result: Awaited<ReturnType<T[K]>>) => void;
+
+// New type for socket.io callback-based queries
+export type CallbackQueryEventType<T extends EventMapType> = {
+  boardId: string;
+  requestId: string;
+  query: keyof T;
+  data: Parameters<T[keyof T]>;
 };
 
 export interface WorkspaceBoardAssignment {

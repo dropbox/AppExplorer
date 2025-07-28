@@ -59,10 +59,11 @@ export async function activate(context: vscode.ExtensionContext) {
     workspaceName: vscode.workspace.name,
     rootPath: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
   });
+  context.subscriptions.push(workspaceClient);
 
   const cardStorage = new WorkspaceCardStorageProxy(
     new MemoryAdapter(),
-    workspaceClient,
+    `http://localhost:${serverPort}`,
   );
   // Log port configuration for debugging
   extensionLogger.info("Server port configuration", {
@@ -73,6 +74,7 @@ export async function activate(context: vscode.ExtensionContext) {
     featureFlagManager,
     new ServerDiscovery({ port: serverPort }),
   );
+  context.subscriptions.push(serverLauncher);
 
   const serverResult = await serverLauncher.initializeServer();
   if (serverResult.mode === "server" && serverResult.server) {
@@ -81,9 +83,6 @@ export async function activate(context: vscode.ExtensionContext) {
     extensionLogger.info("Launched MiroServer, now switching to client mode");
   }
 
-  // Initialize logger with feature flag manager
-
-  // Create extension logger
   extensionLogger.info("AppExplorer extension activating");
   extensionLogger.debug("Migration flags:", featureFlagManager.getFlags());
 
@@ -185,32 +184,7 @@ export async function activate(context: vscode.ExtensionContext) {
     });
   });
 
-  // Connect navigation events from Miro to actual navigation function
-  workspaceClient.on("navigateTo", async (card) => {
-    extensionLogger.info("🎯 NAVIGATION EVENT: Executing card navigation", {
-      timestamp: new Date().toISOString(),
-      cardTitle: card.title,
-      cardPath: card.path,
-      cardSymbol: card.type === "symbol" ? card.symbol : undefined,
-      eventSource: "workspace-websocket-client",
-    });
-
-    try {
-      // Call the actual navigation function
-      const success = await navigateTo(card, false);
-      extensionLogger.info("🎯 NAVIGATION RESULT: Card navigation completed", {
-        timestamp: new Date().toISOString(),
-        cardTitle: card.title,
-        success,
-      });
-    } catch (error) {
-      extensionLogger.error("❌ NAVIGATION ERROR: Failed to navigate to card", {
-        timestamp: new Date().toISOString(),
-        cardTitle: card.title,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  });
+  workspaceClient.on("navigateTo", async (card) => navigateTo(card, false));
 
   // Connect to server
   try {
@@ -238,20 +212,6 @@ export async function activate(context: vscode.ExtensionContext) {
       "Continuing extension activation despite client connection failure",
     );
   }
-
-  // Add client to subscriptions for cleanup
-  context.subscriptions.push(workspaceClient);
-
-  // Add server launcher to subscriptions
-  context.subscriptions.push(serverLauncher);
-
-  // NOTE: In the corrected architecture, ALL workspace instances operate in CLIENT mode
-  // Events are now handled through WorkspaceCardStorageProxy, not direct miroServer events
-  // The WorkspaceCardStorageProxy receives events from the central server and handles:
-  // - navigateTo: Navigation events from Miro boards
-  // - updateCard: Card updates and synchronization
-  // - connect/disconnect: Board connection status changes
-  // This ensures consistent behavior across all workspace instances
 
   context.subscriptions.push(
     vscode.commands.registerCommand("app-explorer.connect", () => {
