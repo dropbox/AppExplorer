@@ -4,6 +4,7 @@ import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
 import { getRelativePath } from "../get-relative-path";
 import { LocationFinder } from "../location-finder";
+import { promiseEmit } from "../utils/promise-emit";
 import { SymbolAnchor } from "./create-card";
 
 export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
@@ -12,7 +13,10 @@ export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
     .map((boardId) => cardStorage.getBoard(boardId)!);
   const items = boards.map(
     (board): vscode.QuickPickItem => ({
-      label: board.name === board.id ? `Board ID: ${board.id}` : board.name,
+      label:
+        board.name === board.boardId
+          ? `Board ID: ${board.boardId}`
+          : board.name,
       detail: `${Object.keys(board.cards).length} cards`,
     }),
   );
@@ -30,12 +34,10 @@ export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
   return null;
 }
 
-export const makeBrowseHandler = (
-  context: HandlerContext,
-  navigateTo: (card: CardData, preview?: boolean) => Promise<boolean>,
-) =>
+export const makeBrowseHandler = (context: HandlerContext) =>
   async function () {
     const { cardStorage } = context;
+    const navigateTo = cardStorage.navigateTo;
     const locationFinder = new LocationFinder();
     type CardQuickPickItem = vscode.QuickPickItem & {
       miroLink: string;
@@ -55,7 +57,10 @@ export const makeBrowseHandler = (
 
     const boardSeparator = {
       kind: vscode.QuickPickItemKind.Separator,
-      label: board.name === board.id ? `Board ID: ${board.id}` : board.name,
+      label:
+        board.name === board.boardId
+          ? `Board ID: ${board.boardId}`
+          : board.name,
     } as CardQuickPickItem;
 
     const items: CardQuickPickItem[] = [boardSeparator].concat(
@@ -99,10 +104,11 @@ export const makeBrowseHandler = (
         const card = cardStorage.getCardByLink(item.miroLink);
         if (card && card.miroLink) {
           // Use universal query method through WorkspaceCardStorageProxy
-          await context.cardStorage.query(
-            card.boardId,
+          await promiseEmit(
+            cardStorage.socket,
             "hoverCard",
-            card.miroLink,
+            card.boardId,
+            card.miroLink!,
           );
           await navigateTo(card, true);
         }
@@ -117,9 +123,10 @@ export const makeBrowseHandler = (
       const card = cardStorage.getCardByLink(selected.miroLink);
       if (card) {
         // Use universal query method through WorkspaceCardStorageProxy
-        await context.cardStorage.query(
-          card.boardId,
+        await promiseEmit(
+          context.cardStorage.socket,
           "selectCard",
+          card.boardId,
           card.miroLink!,
         );
         const dest = await locationFinder.findCardDestination(card);
@@ -152,11 +159,16 @@ export const makeBrowseHandler = (
           }
 
           // Use universal query method through WorkspaceCardStorageProxy
-          await context.cardStorage.query(card.boardId, "cardStatus", {
-            miroLink: card.miroLink,
-            status,
-            codeLink,
-          });
+          await promiseEmit(
+            context.cardStorage.socket,
+            "cardStatus",
+            card.boardId,
+            {
+              miroLink: card.miroLink,
+              status,
+              codeLink,
+            },
+          );
         }
       }
     }
@@ -172,6 +184,7 @@ export async function findCardDestination(
 export async function goToCardCode(card: CardData, preview = false) {
   const locationFinder = new LocationFinder();
   const symbol = await locationFinder.findCardDestination(card);
+
   if (symbol && "range" in symbol) {
     const editor = await vscode.window.showTextDocument(symbol.uri, {
       preview,

@@ -9,9 +9,9 @@ export function makeWorkspaceBoardHandler(context: HandlerContext) {
     const ids = context.cardStorage.listBoardIds();
     const items = boards.map((board): vscode.QuickPickItem => {
       return {
-        label: board.name ?? board.id,
+        label: board.name ?? board.boardId,
         detail: `${Object.keys(board.cards).length} cards`,
-        picked: ids.includes(board.id),
+        picked: ids.includes(board.boardId),
       };
     });
 
@@ -22,7 +22,7 @@ export function makeWorkspaceBoardHandler(context: HandlerContext) {
 
     if (selected) {
       context.cardStorage.setWorkspaceBoards(
-        selected.map((s) => boards[items.indexOf(s)].id),
+        selected.map((s) => boards[items.indexOf(s)].boardId),
       );
     }
   };

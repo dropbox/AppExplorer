@@ -67,6 +67,9 @@ suite("E2E Navigation Tests", () => {
     assert.ok(testCard, "Test card for testMethod not found");
     assert.ok(isSymbolCard(testCard), "Test card should be a symbol card");
 
+    // Wait a bit to ensure workspace is registered before sending navigation event
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
     await E2ETestUtils.navigateTo(testCard);
     await E2ETestUtils.waitForFileToOpen("example.ts");
 

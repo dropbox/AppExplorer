@@ -4,6 +4,7 @@ import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
 import { getRelativePath } from "../get-relative-path";
 import { LocationFinder } from "../location-finder";
+import { promiseEmit } from "../utils/promise-emit";
 
 export class UnreachableError extends Error {
   constructor(item: never) {
@@ -33,7 +34,10 @@ export async function selectConnectedBoard({ cardStorage }: HandlerContext) {
 
     const items = boards.map((board): vscode.QuickPickItem => {
       return {
-        label: board.name === board.id ? `Board ID: ${board.id}` : board.name,
+        label:
+          board.name === board.boardId
+            ? `Board ID: ${board.boardId}`
+            : board.name,
         detail: `${Object.keys(board.cards).length} cards`,
       };
     });
@@ -65,10 +69,15 @@ export const makeNewCardHandler = (context: HandlerContext) =>
           canPickMany: false,
         });
         if (cardData) {
-          // Use universal query method through WorkspaceCardStorageProxy
-          await context.cardStorage.query(boardId, "newCards", cardData, {
-            connect: options.connect,
-          });
+          await promiseEmit(
+            context.cardStorage.socket,
+            "newCards",
+            boardId,
+            cardData,
+            {
+              connect: options.connect,
+            },
+          );
         }
         return cardData;
       }

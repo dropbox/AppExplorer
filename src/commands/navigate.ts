@@ -2,6 +2,7 @@ import createDebug from "debug";
 import * as vscode from "vscode";
 import type { HandlerContext } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
+import { promiseEmit } from "../utils/promise-emit";
 
 const debug = createDebug("app-explorer:navigate");
 
@@ -10,18 +11,19 @@ export const makeNavigationHandler = (context: HandlerContext) => {
     const card = context.cardStorage.getCardByLink(miroLink);
     debug("navigateTo", miroLink, locationLink);
     if (card && context.cardStorage.getConnectedBoards().length > 0) {
+      const boardId = card.boardId;
       const codeLink = await getGitHubUrl(locationLink);
 
-      // Use universal query method through WorkspaceCardStorageProxy
-      await context.cardStorage.query(card.boardId, "cardStatus", {
+      await promiseEmit(context.cardStorage.socket, "cardStatus", boardId, {
         codeLink,
         miroLink,
         status: "connected",
       });
 
-      const success = await context.cardStorage.query(
-        card.boardId,
+      const success = await promiseEmit(
+        context.cardStorage.socket,
         "selectCard",
+        boardId,
         miroLink,
       );
       debug("selectCard result", success);

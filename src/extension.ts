@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { AppExplorerLens } from "./app-explorer-lens";
 import { MemoryAdapter } from "./card-storage";
 import { makeAttachCardHandler } from "./commands/attach-card";
-import { goToCardCode, makeBrowseHandler } from "./commands/browse";
+import { makeBrowseHandler } from "./commands/browse";
 import { makeNewCardHandler } from "./commands/create-card";
 import { makeDebugMockClientHandler } from "./commands/debug-mock-client";
 import { makeWorkspaceBoardHandler } from "./commands/manage-workspace-boards";
@@ -11,9 +11,7 @@ import { makeRenameHandler } from "./commands/rename-board";
 import { makeTagCardHandler } from "./commands/tag-card";
 import { registerUpdateCommand } from "./commands/update-extension";
 import { EditorDecorator } from "./editor-decorator";
-import type { CardData } from "./EventTypes";
 import { FeatureFlagManager } from "./feature-flag-manager";
-import { getGitHubUrl } from "./get-github-url";
 import { LocationFinder } from "./location-finder";
 import { logger } from "./logger";
 import { PortConfig } from "./port-config";
@@ -21,7 +19,6 @@ import { ServerDiscovery } from "./server-discovery";
 import { ServerLauncher } from "./server-launcher";
 import { StatusBarManager } from "./status-bar-manager";
 import { WorkspaceCardStorageProxy } from "./workspace-card-storage-proxy";
-import { WorkspaceWebsocketClient } from "./workspace-websocket-client";
 import path = require("node:path");
 import fs = require("node:fs");
 
@@ -53,17 +50,12 @@ export async function activate(context: vscode.ExtensionContext) {
   const featureFlagManager = new FeatureFlagManager(context);
   logger.initialize(featureFlagManager);
 
-  const workspaceClient = new WorkspaceWebsocketClient({
-    serverUrl: `http://localhost:${serverPort}`,
-    workspaceId,
-    workspaceName: vscode.workspace.name,
-    rootPath: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
-  });
-  context.subscriptions.push(workspaceClient);
-
+  const locationFinder = new LocationFinder();
   const cardStorage = new WorkspaceCardStorageProxy(
+    workspaceId,
     new MemoryAdapter(),
     `http://localhost:${serverPort}`,
+    locationFinder,
   );
   // Log port configuration for debugging
   extensionLogger.info("Server port configuration", {
@@ -86,14 +78,13 @@ export async function activate(context: vscode.ExtensionContext) {
   extensionLogger.info("AppExplorer extension activating");
   extensionLogger.debug("Migration flags:", featureFlagManager.getFlags());
 
-  const locationFinder = new LocationFinder();
-
   context.subscriptions.push(new StatusBarManager(cardStorage));
 
   // Create handler context with the proxy as the only CardStorage
   const handlerContext: HandlerContext = {
     cardStorage,
     async waitForConnections() {
+      extensionLogger.debug("Waiting for connections...");
       if (handlerContext.cardStorage.getConnectedBoards().length > 0) {
         return;
       }
@@ -106,62 +97,20 @@ export async function activate(context: vscode.ExtensionContext) {
         },
         async (_progress, token) => {
           token.onCancellationRequested(() => {
-            console.log("User canceled the long running operation");
+            extensionLogger.debug("User canceled the long running operation");
           });
 
           while (handlerContext.cardStorage.getConnectedBoards().length === 0) {
+            extensionLogger.debug(
+              "Waiting for connections...",
+              cardStorage.getConnectedBoards(),
+            );
             await new Promise((resolve) => setTimeout(resolve, 500));
           }
         },
       );
+      extensionLogger.debug("Finished waiting for connections");
     },
-  };
-
-  const navigateTo = async (card: CardData, preview = false) => {
-    const dest = await locationFinder.findCardDestination(card);
-
-    // Only connect if it's able to reach the symbol
-    const status = (await goToCardCode(card, preview))
-      ? "connected"
-      : "disconnected";
-    if (card.miroLink) {
-      let codeLink: string | null = null;
-      if (dest) {
-        const activeEditor = vscode.window.activeTextEditor;
-        if (activeEditor) {
-          const uri = activeEditor.document.uri;
-          const selection =
-            status === "connected"
-              ? new vscode.Range(
-                  activeEditor.selection.start,
-                  activeEditor.selection.end,
-                )
-              : new vscode.Range(
-                  new vscode.Position(0, 0),
-                  new vscode.Position(0, 0),
-                );
-
-          const def: vscode.LocationLink = {
-            targetUri: uri,
-            targetRange: selection,
-          };
-          codeLink = await getGitHubUrl(def);
-        }
-      }
-      if (status !== card.status) {
-        cardStorage.setCard(card.boardId, {
-          ...card,
-          status,
-          miroLink: codeLink ?? undefined,
-        });
-      }
-      await handlerContext.cardStorage.query(card.boardId, "cardStatus", {
-        miroLink: card.miroLink,
-        status,
-        codeLink,
-      });
-    }
-    return status === "connected";
   };
 
   // This workspace should connect as a client
@@ -169,26 +118,9 @@ export async function activate(context: vscode.ExtensionContext) {
     serverUrl: serverResult.serverUrl,
   });
 
-  // Set up client event handlers
-  workspaceClient.on("stateChange", (event) => {
-    extensionLogger.debug("Workspace client state changed", {
-      from: event.previousState,
-      to: event.state,
-    });
-  });
-
-  workspaceClient.on("error", (event) => {
-    extensionLogger.error("Workspace client error", {
-      error: event.error,
-      code: event.code,
-    });
-  });
-
-  workspaceClient.on("navigateTo", async (card) => navigateTo(card, false));
-
   // Connect to server
   try {
-    await workspaceClient.connect();
+    await cardStorage.socket.connect();
     extensionLogger.info(
       "Successfully connected to server as workspace client",
     );
@@ -235,7 +167,7 @@ export async function activate(context: vscode.ExtensionContext) {
     ),
     vscode.commands.registerCommand(
       "app-explorer.browseCards",
-      makeBrowseHandler(handlerContext, navigateTo),
+      makeBrowseHandler(handlerContext),
     ),
     vscode.commands.registerCommand(
       "app-explorer.createCard",

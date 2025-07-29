@@ -69,13 +69,13 @@
       },
       {
         "command": "app-explorer.launchMockMiroClient",
-        "title": "AppExplorer: Launch Mock Miro Client",
-        "category": "AppExplorer"
+        "title": "Launch Mock Miro Client",
+        "category": "AppExplorer: MockMiro"
       },
       {
         "command": "app-explorer.mockMiro.showCardList",
-        "title": "MockMiro: Show Card List",
-        "category": "AppExplorer"
+        "title": "Show Card List",
+        "category": "AppExplorer: MockMiro"
       },
       {
         "command": "app-explorer.mockMiro.simulateCardOpen",
@@ -103,6 +103,10 @@
         {
           "command": "app-explorer.createCard",
           "when": "appExplorer.enabled"
+        },
+        {
+          "command": "app-explorer.internal.logFile",
+          "when": "app-explorer.never"
         },
         {
           "command": "app-explorer.attachCard",

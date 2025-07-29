@@ -2,8 +2,9 @@ import * as vscode from "vscode";
 import { CardData } from "../EventTypes";
 import { HandlerContext } from "../extension";
 import { getRelativePath } from "../get-relative-path";
+import { notEmpty } from "../utils/notEmpty";
+import { promiseEmit } from "../utils/promise-emit";
 import { makeCardData } from "./create-card";
-import { notEmpty } from "./tag-card";
 
 export const makeAttachCardHandler = (context: HandlerContext) => {
   return async function () {
@@ -20,9 +21,10 @@ export const makeAttachCardHandler = (context: HandlerContext) => {
           async (p, boardId) => {
             const selected: CardData[] = await p;
             // Use universal query method through WorkspaceCardStorageProxy
-            const selectedCards = await context.cardStorage.query(
-              boardId,
+            const selectedCards = await promiseEmit(
+              context.cardStorage.socket,
               "selected",
+              boardId,
             );
             return selected.concat(selectedCards).filter(notEmpty);
           },
@@ -37,8 +39,12 @@ export const makeAttachCardHandler = (context: HandlerContext) => {
         });
         const cardData = result?.[0];
         if (cardData) {
-          // Use universal query method through WorkspaceCardStorageProxy
-          await context.cardStorage.query(boardId, "attachCard", cardData);
+          await promiseEmit(
+            context.cardStorage.socket,
+            "attachCard",
+            cardData.boardId,
+            cardData,
+          );
           if (cardData.miroLink) {
             await context.cardStorage.setCard(cardData.miroLink, cardData);
           }

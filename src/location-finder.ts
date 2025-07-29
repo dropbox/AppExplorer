@@ -44,7 +44,7 @@ export class LocationFinder {
           }
 
           const rootUri = folder.uri;
-          const uri = rootUri.with({ path: rootUri.path + "/" + path });
+          const uri = vscode.Uri.joinPath(rootUri, path);
 
           try {
             const stat = await vscode.workspace.fs.stat(uri);
@@ -60,7 +60,7 @@ export class LocationFinder {
             // Retry symbol finding with delays to handle Language Server timing
             let symbols: SymbolAnchor[] = [];
             let attempts = 0;
-            const maxAttempts = 1;
+            const maxAttempts = 5; // Increased from 1 to 5
 
             while (symbols.length === 0 && attempts < maxAttempts) {
               attempts++;
@@ -68,7 +68,7 @@ export class LocationFinder {
 
               if (symbols.length === 0 && attempts < maxAttempts) {
                 // Wait a bit for the Language Server to process the file
-                await new Promise((resolve) => setTimeout(resolve, 500));
+                await new Promise((resolve) => setTimeout(resolve, 1000)); // Increased from 500ms to 1000ms
               }
             }
 
@@ -80,6 +80,11 @@ export class LocationFinder {
               symbol = symbols.find((symbol) =>
                 symbol.label.endsWith(`/${card.symbol}`),
               );
+            }
+
+            if (symbol) {
+            } else {
+              console.log("❌ Symbol not found, returning URI only");
             }
 
             return symbol ?? uri;

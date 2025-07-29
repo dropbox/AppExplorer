@@ -2,10 +2,8 @@ import { TagColor } from "@mirohq/websdk-types";
 import * as vscode from "vscode";
 import { CardData, allColors } from "../EventTypes";
 import { HandlerContext } from "../extension";
-
-export function notEmpty<T>(value: T | null | undefined): value is T {
-  return value != null;
-}
+import { notEmpty } from "../utils/notEmpty";
+import { promiseEmit } from "../utils/promise-emit";
 
 export const makeTagCardHandler = (context: HandlerContext) => {
   return async function () {
@@ -14,10 +12,10 @@ export const makeTagCardHandler = (context: HandlerContext) => {
     const selectedCards = await context.cardStorage.getConnectedBoards().reduce(
       async (p, boardId) => {
         const selected: CardData[] = await p;
-        // Use universal query method through WorkspaceCardStorageProxy
-        const selectedCards = await context.cardStorage.query(
-          boardId,
+        const selectedCards = await promiseEmit(
+          context.cardStorage.socket,
           "selected",
+          boardId,
         );
         return selected.concat(selectedCards).filter(notEmpty);
       },
@@ -45,10 +43,13 @@ export const makeTagCardHandler = (context: HandlerContext) => {
         id: "NEW_TAG",
       };
       const quickPicks: TagSelection[] = [newCard];
-      // Use universal query method through WorkspaceCardStorageProxy
-      const tags = await context.cardStorage.query(boardId, "tags");
+      const tags = await promiseEmit(
+        context.cardStorage.socket,
+        "tags",
+        boardId,
+      );
       quickPicks.push(
-        ...tags.map((tag: any) => ({
+        ...tags.map((tag) => ({
           label: tag.title,
           description: tag.color,
           id: tag.id,
@@ -73,8 +74,7 @@ export const makeTagCardHandler = (context: HandlerContext) => {
             title: "Tag Color",
           });
           if (color) {
-            // Use universal query method through WorkspaceCardStorageProxy
-            await context.cardStorage.query(boardId, "tagCards", {
+            await promiseEmit(context.cardStorage.socket, "tagCards", boardId, {
               miroLink: links,
               tag: {
                 title,
@@ -83,8 +83,7 @@ export const makeTagCardHandler = (context: HandlerContext) => {
             });
           }
         } else {
-          // Use universal query method through WorkspaceCardStorageProxy
-          await context.cardStorage.query(boardId, "tagCards", {
+          await promiseEmit(context.cardStorage.socket, "tagCards", boardId, {
             miroLink: links,
             tag: tag.id,
           });

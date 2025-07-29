@@ -5,7 +5,7 @@ import * as vscode from "vscode";
 import {
   AppExplorerTag,
   CardData,
-  MiroToWorkspaceEvents,
+  MiroToWorkspaceOperations,
   SymbolCardData,
   WorkspaceToMiroOperations,
 } from "../../EventTypes";
@@ -214,7 +214,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
-  socketEmit(event: keyof MiroToWorkspaceEvents, data: any) {
+  socketEmit(event: keyof MiroToWorkspaceOperations, data: any) {
     this.socket?.emit(event, data);
     debug("Sent %s event to server %O", event, {
       data,
@@ -275,7 +275,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
     }
 
     const queryHandlers: WorkspaceToMiroOperations = {
-      cardStatus: async (dataCard) => {
+      cardStatus: async (_routedBoardId, dataCard, done) => {
         const card = this.cardStorage.getCardByLink(dataCard.miroLink);
         if (!card) {
           throw new Error("Card not found");
@@ -287,9 +287,10 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
         if (!card.miroLink) {
           throw new Error("Card missing miroLink");
         }
-        this.cardStorage.setCard(this.boardId, card);
+        await this.cardStorage.setCard(this.boardId, card);
+        done(true); // Call the callback to indicate success
       },
-      newCards: async (data) => {
+      newCards: async (_routedBoardId, data, _options, done) => {
         const cards = data.map((card) => ({
           ...card,
           miroLink: `https://miro.com/app/board/${this.boardId}/?moveToWidget=${Math.random().toString(36)}`,
@@ -301,85 +302,71 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
             this.cardStorage.setCard(this.boardId, card),
           ),
         );
+        done(true); // Indicate success
       },
-      getBoardInfo: async () => {
+      getBoardInfo: async (_routedBoardId, done) => {
         const boardInfo = this.cardStorage.getBoard(this.boardId)!;
-        return { boardId: boardInfo.id, name: boardInfo.name };
+        queryHandlers.cards(_routedBoardId, (cards) => {
+          done({
+            boardId: boardInfo.boardId,
+            name: boardInfo.name,
+            cards: cards.reduce(
+              (acc, c) => {
+                acc[c.miroLink!] = c;
+                return acc;
+              },
+              {} as Record<string, CardData>,
+            ),
+          });
+        });
       },
-      cards: async () => {
-        return this.cardStorage.listAllCards();
+      cards: async (_routedBoardId, done) => {
+        done(this.cardStorage.listAllCards());
       },
-      selected: async () => {
-        return this.selectedCards;
+      selected: async (_routedBoardId, done) => {
+        done(this.selectedCards);
       },
-      selectCard: async (miroLink: string): Promise<boolean> => {
+      selectCard: async (
+        _routedBoardId,
+        miroLink: string,
+      ): Promise<boolean> => {
         const cards = this.cardStorage.listAllCards().filter((card) => {
           return card.miroLink === miroLink;
         });
         this.sendSelectionUpdateEvent(cards);
         return true;
       },
-      getIdToken: async (): Promise<string> => {
+      getIdToken: async (_routedBoardId): Promise<string> => {
         return "mock-token";
       },
-      setBoardName: async (name: string): Promise<void> => {
+      setBoardName: async (_routedBoardId, name: string): Promise<void> => {
         this.boardName = name;
         this.cardStorage.setBoardName(this.boardId, name);
       },
-      tags: async (): Promise<AppExplorerTag[]> => {
+      tags: async (_routedBoardId): Promise<AppExplorerTag[]> => {
         // Tags only exist in Miro, nothing needs to be done where
         return [];
       },
-      attachCard: async (data: CardData): Promise<void> => {
+      attachCard: async (
+        _routedBoardId,
+        data: CardData,
+        done,
+      ): Promise<void> => {
         this.cardStorage.setCard(this.boardId, data);
+        done(true);
       },
-      tagCards: async (_data): Promise<void> => {
+      tagCards: async (_routedBoardId, _data): Promise<void> => {
         // Right now tags only exist within Miro, they aren't part of the card
         // data.
       },
-      hoverCard: async (_miroLink: string): Promise<void> => {
+      hoverCard: async (_routedBoardId, _miroLink: string): Promise<void> => {
         // This visually positions the cards in the middle of the screen. There
         // is nothing to do in the mock.
       },
     };
-
-    // Handle query commands using socket.io callback pattern
-    this.socket.on("query", async (queryData, callback) => {
-      const { query, data, requestId } = queryData;
-      debug(
-        "MockMiroClient received query: %s with data: %j, requestId: %s, callback: %s",
-        query,
-        data,
-        requestId,
-        typeof callback,
-      );
-
-      try {
-        // @ts-ignore-error Parameters<> always returns a tuple, so it should be able to be spread here
-        const result = await queryHandlers[query](...data);
-        debug("MockMiroClient query %s response: %j", query, result);
-
-        if (typeof callback === "function") {
-          callback({ result });
-        } else {
-          console.error("callback is not a function", { query, callback });
-        }
-      } catch (error) {
-        console.error("Error handling query command", {
-          queryName: query,
-          requestId,
-          error: error instanceof Error ? error.message : String(error),
-          boardId: this.boardId,
-        });
-
-        if (typeof callback === "function") {
-          callback({
-            error: error instanceof Error ? error.message : String(error),
-          });
-        } else {
-          console.error("callback is not a function", { query, callback });
-        }
-      }
+    Object.keys(queryHandlers).forEach((key) => {
+      const query = key as keyof typeof queryHandlers;
+      this.socket?.on(query, queryHandlers[query]);
     });
   }
 

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { HandlerContext } from "../extension";
+import { promiseEmit } from "../utils/promise-emit";
 
 export function makeRenameHandler(context: HandlerContext) {
   return async function renameHandler(boardId?: string) {
@@ -11,7 +12,7 @@ export function makeRenameHandler(context: HandlerContext) {
     if (!boardId) {
       const items = boards.map((board): vscode.QuickPickItem => {
         return {
-          label: board.name ?? board.id,
+          label: board.name ?? board.boardId,
           detail: `${Object.keys(board.cards).length} cards`,
         };
       });
@@ -25,7 +26,7 @@ export function makeRenameHandler(context: HandlerContext) {
       const index = items.indexOf(selected);
       return renameHandler(connectedBoardIds[index]);
     }
-    const board = boards.find((b) => b.id === boardId);
+    const board = boards.find((b) => b.boardId === boardId);
 
     const newName = await vscode.window.showInputBox({
       value: board?.name ?? boardId,
@@ -35,8 +36,12 @@ export function makeRenameHandler(context: HandlerContext) {
     if (!newName) {
       return;
     }
-    // Use universal query method through WorkspaceCardStorageProxy
-    await context.cardStorage.query(boardId, "setBoardName", newName);
+    await promiseEmit(
+      context.cardStorage.socket,
+      "setBoardName",
+      boardId,
+      newName,
+    );
     context.cardStorage.setBoardName(boardId, newName);
   };
 }

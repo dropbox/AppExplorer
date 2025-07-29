@@ -49,7 +49,7 @@ export class MemoryAdapter implements StorageAdapter {
 }
 
 export type BoardInfo = {
-  id: string;
+  boardId: string;
   name: string;
   cards: Record<NonNullable<CardData["miroLink"]>, CardData>;
 };
@@ -57,13 +57,17 @@ export type BoardInfo = {
 type StorageEvent = {
   workspaceBoards: [{ type: "workspaceBoards"; boardIds: string[] }];
   boardUpdate: [
-    { type: "boardUpdate"; board: BoardInfo | null; boardId: BoardInfo["id"] },
+    {
+      type: "boardUpdate";
+      board: BoardInfo | null;
+      boardId: BoardInfo["boardId"];
+    },
   ];
-  connectedBoards: [{ type: "connectedBoards"; boards: string[] }];
+  connectedBoards: [{ type: "connectedBoards"; boardIds: string[] }];
   cardUpdate: [
     {
       type: "cardUpdate";
-      miroLink: CardData["miroLink"];
+      miroLink: NonNullable<CardData["miroLink"]>;
       card: CardData | null;
     },
   ];
@@ -74,9 +78,10 @@ export class CardStorage
   extends EventEmitter<StorageEvent>
   implements vscode.Disposable
 {
-  private boards = new Map<BoardInfo["id"], BoardInfo>();
+  private boards = new Map<BoardInfo["boardId"], BoardInfo>();
   private sockets = new Map<string, MiroServerSocket>();
-  private connectedBoards = new Set<string>();
+  protected connectedBoardIds = new Set<string>();
+  private selectedIds: string[] = [];
 
   constructor(private storage: StorageAdapter) {
     super();
@@ -85,7 +90,7 @@ export class CardStorage
     boardIds?.forEach((id) => {
       const board = this.storage.get<BoardInfo>(`board-${id}`);
       if (board) {
-        this.boards.set(board.id, board);
+        this.boards.set(board.boardId, board);
       }
     });
   }
@@ -95,24 +100,24 @@ export class CardStorage
   }
 
   getConnectedBoards() {
-    return Array.from(this.connectedBoards);
+    return Array.from(this.connectedBoardIds);
   }
 
   async disconnectBoard(boardId: string) {
     this.sockets.delete(boardId);
-    this.connectedBoards.delete(boardId);
+    this.connectedBoardIds.delete(boardId);
     this.emit("connectedBoards", {
       type: "connectedBoards",
-      boards: this.getConnectedBoards(),
+      boardIds: this.getConnectedBoards(),
     });
   }
 
   async connectBoard(boardId: string, socket: MiroServerSocket) {
     this.sockets.set(boardId, socket);
-    this.connectedBoards.add(boardId);
+    this.connectedBoardIds.add(boardId);
     this.emit("connectedBoards", {
       type: "connectedBoards",
-      boards: this.getConnectedBoards(),
+      boardIds: this.getConnectedBoards(),
     });
 
     socket.on("disconnect", () => {
@@ -125,7 +130,7 @@ export class CardStorage
   }
 
   async addBoard(boardId: string, name: string) {
-    const board: BoardInfo = { id: boardId, name, cards: {} };
+    const board: BoardInfo = { boardId: boardId, name, cards: {} };
     this.boards.set(boardId, board);
     const boardIds = this.storage.get<string[]>("boardIds") || [];
     boardIds.push(boardId);
@@ -143,7 +148,7 @@ export class CardStorage
       this.emit("cardUpdate", {
         type: "cardUpdate",
         card,
-        miroLink: card.miroLink,
+        miroLink: card.miroLink!,
       });
     } else {
       throw new Error(`Board not found: ${boardId}`);
@@ -196,7 +201,7 @@ export class CardStorage
     [...this.boards.values()].forEach((b) => {
       if (b.cards[link]) {
         delete b.cards[link];
-        this.storage.set(`board-${b.id}`, b);
+        this.storage.set(`board-${b.boardId}`, b);
         this.emit("cardUpdate", {
           type: "cardUpdate",
           miroLink: link,
@@ -246,6 +251,15 @@ export class CardStorage
   }
   listAllCards() {
     return [...this.boards.values()].flatMap((b) => Object.values(b.cards));
+  }
+
+  selectedCards(data: CardData[]) {
+    this.selectedIds = data.map((c) => c.miroLink!);
+    this.emit("selectedCards", data);
+  }
+
+  getSelectedCardIDs(): string[] {
+    return this.selectedIds;
   }
 }
 

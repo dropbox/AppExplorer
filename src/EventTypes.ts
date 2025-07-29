@@ -1,4 +1,5 @@
 import { AppCard, TagColor } from "@mirohq/websdk-types";
+import { BoardInfo } from "./card-storage";
 import { WorkspaceServerSocket } from "./server";
 
 export type SymbolCardData = {
@@ -49,17 +50,29 @@ export type AppExplorerTag = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyError = any;
 
-type SuccessCallback = () => void;
+type SuccessCallback = (success: boolean) => void;
 
 // Operations callable on Miro boards from workspaces (via server)
 // Data flow: Workspace → Server → Miro Board
 export type WorkspaceToMiroOperations = {
-  getIdToken: (callback: (id: string) => void) => void;
-  setBoardName: (name: string, callback?: SuccessCallback) => void;
-  getBoardInfo: (callback: (boardInfo: BoardInfo) => void) => void;
-  tags: (callback: (tags: AppExplorerTag[]) => void) => void;
-  attachCard: (data: CardData, callback?: SuccessCallback) => void;
+  getIdToken: (boardId: string, callback: (id: string) => void) => void;
+  setBoardName: (
+    boardId: string,
+    name: string,
+    callback: SuccessCallback,
+  ) => void;
+  getBoardInfo: (
+    boardId: string,
+    callback: (boardInfo: BoardInfo) => void,
+  ) => void;
+  tags: (boardId: string, callback: (tags: AppExplorerTag[]) => void) => void;
+  attachCard: (
+    boardId: string,
+    data: CardData,
+    callback: SuccessCallback,
+  ) => void;
   tagCards: (
+    boardId: string,
     data: {
       miroLink: string[];
       tag:
@@ -69,37 +82,48 @@ export type WorkspaceToMiroOperations = {
             title: string;
           };
     },
-    callback?: SuccessCallback,
+    callback: SuccessCallback,
   ) => void;
-  selectCard: (miroLink: string, callback: (success: boolean) => void) => void;
+  selectCard: (
+    boardId: string,
+    miroLink: string,
+    callback: (success: boolean) => void,
+  ) => void;
   cardStatus: (
+    boardId: string,
     data: {
       miroLink: string;
       status: "connected" | "disconnected";
       codeLink: string | null;
     },
-    callback?: SuccessCallback,
+    callback: SuccessCallback,
   ) => void;
-  cards: (callback: (cards: CardData[]) => void) => void;
-  selected: (callback: (cards: CardData[]) => void) => void;
+  cards: (boardId: string, callback: (cards: CardData[]) => void) => void;
+  selected: (boardId: string, callback: (cards: CardData[]) => void) => void;
   newCards: (
+    boardId: string,
     data: CardData[],
-    options?: { connect?: string[] },
-    callback?: SuccessCallback,
+    options: { connect?: string[] },
+    callback: SuccessCallback,
   ) => void;
-  hoverCard: (miroLink: string, callback?: SuccessCallback) => void;
+  hoverCard: (
+    boardId: string,
+    miroLink: string,
+    callback: SuccessCallback,
+  ) => void;
 };
 
 export type ServerToWorkspaceEvents = {
-  registrationComplete: (response: WorkspaceRegistrationResponse) => void;
+  connectedBoards: (boards: string[]) => void;
+  boardUpdate: (board: BoardInfo | null) => void;
+  cardUpdate: (url: string, card: CardData | null) => void;
 };
 
 // Event notifications sent from server to workspace clients
 // Data flow: Server → Workspace (routed through server)
-export type MiroToWorkspaceEvents = {
+export type MiroToWorkspaceOperations = {
   // Core workspace events
-  cardsInEditor: (data: { path: string; cards: CardData[] }) => void;
-  selectedCards: (data: { data: CardData[] }) => void;
+  selectedCards: (data: CardData[]) => void;
   navigateTo: (card: CardData) => void;
   card: (data: { url: string; card: CardData | null }) => void;
 };
@@ -109,7 +133,8 @@ export type MiroToWorkspaceEvents = {
 export type WorkspaceToServerOperations = {
   workspaceRegistration: (
     request: WorkspaceRegistrationRequest,
-  ) => Promise<WorkspaceRegistrationResponse>;
+    callback: (response: WorkspaceRegistrationResponse) => void,
+  ) => void;
 };
 
 export type EventMapType = {
@@ -124,13 +149,6 @@ export type QueryFunction<T extends EventMapType> = T;
 export type Handler<T extends (...args: any[]) => void, U = void> = (
   ...args: Parameters<T>
 ) => U;
-
-// Workspace-Server Communication Protocol Types
-
-export type BoardInfo = {
-  boardId: string;
-  name: string;
-};
 
 export interface RetryConfig {
   initialDelay: number; // Initial delay in milliseconds
@@ -251,13 +269,10 @@ export interface WorkspaceRegistrationRequest {
   workspaceId: string;
   workspaceName?: string;
   rootPath?: string;
-  boardIds: string[];
-  capabilities: string[]; // What features this workspace supports
 }
 
 export interface WorkspaceRegistrationResponse {
   success: boolean;
   workspaceId: string;
-  assignedBoards: string[]; // Boards assigned to this workspace
   error?: string;
 }
