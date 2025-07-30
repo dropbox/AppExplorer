@@ -89,11 +89,7 @@ export function promiseEmit<
 
       // Emit the event with all arguments plus the callback
       // Socket.io automatically handles the callback routing
-      (
-        socket as unknown as {
-          emit: (eventName: string, ...args: unknown[]) => void;
-        }
-      ).emit(eventName as string, ...args, callback);
+      socket.emit(eventName, ...args, callback);
     } catch (error) {
       reject(error);
     }

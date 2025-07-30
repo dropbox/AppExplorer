@@ -211,7 +211,7 @@ export class WorkspaceCardStorage
         codeLink,
       });
     }
-    console.log("🔍 Returning from navigateTo", {
+    logger.debug("🔍 Returning from navigateTo", {
       connected: status === "connected",
     });
     return status === "connected";

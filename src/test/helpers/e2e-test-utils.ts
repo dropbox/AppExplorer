@@ -10,11 +10,9 @@ import { MockMiroClient } from "../mocks/mock-miro-client";
 import { waitFor } from "../suite/test-utils";
 
 const debug = createDebug("app-explorer:test:e2e");
-// IDK why createDebug isn't reading the environment variable. Setting it
-// manually seems to be working.
-const DEBUG = "app-explorer:*";
-process.env.DEBUG = DEBUG;
-createDebug.enable(DEBUG || "app-explorer:test:*");
+// Ensure process.env.DEBUG respects existing configuration or defaults to test-specific namespace.
+process.env.DEBUG = process.env.DEBUG || "app-explorer:test:e2e";
+createDebug.enable(process.env.DEBUG);
 
 const tail = (file: string | null, callback: (data: string) => void) => {
   if (!file) {
@@ -504,10 +502,13 @@ export class E2ETestUtils {
     const symbols = await this.locationFinder.findSymbolsInDocument(
       document.uri,
     );
-    const symbol = symbols.find(
-      (s) => s.label === symbolName || s.label.includes(symbolName),
-    );
+    // First, attempt to find an exact match for the symbol name
+    let symbol = symbols.find((s) => s.label === symbolName);
 
+    // If no exact match is found, attempt to find a substring match
+    if (!symbol) {
+      symbol = symbols.find((s) => s.label.includes(symbolName));
+    }
     if (symbol) {
       return symbol.range.start;
     }

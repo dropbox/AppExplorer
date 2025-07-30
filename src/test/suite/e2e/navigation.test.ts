@@ -62,7 +62,7 @@ suite("E2E Navigation Tests", () => {
         isSymbolCard(card) &&
         card.symbol === "testMethod",
     ) as SymbolCardData;
-    testCard.status = "disconnected";
+    testCard = { ...testCard, status: "disconnected" };
 
     assert.ok(testCard, "Test card for testMethod not found");
     assert.ok(isSymbolCard(testCard), "Test card should be a symbol card");

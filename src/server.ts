@@ -505,7 +505,7 @@ export class MiroServer {
             willBroadcastTo: "assigned-workspaces",
           });
 
-          console.log("🔄 BROADCASTING TO BOARD WORKSPACES", {
+          logger.debug("🔄 BROADCASTING TO BOARD WORKSPACES", {
             boardId: card.boardId,
           });
 

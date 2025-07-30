@@ -256,7 +256,7 @@ export async function attachToSocket() {
       done(true);
     },
     getBoardInfo: async (routedBoardId, done) => {
-      // The boardID might not be known by the client yet, so an emtpy string is passed as a placeholder.
+      // The boardID might not be known by the client yet, so an empty string is passed as a placeholder.
       invariant(
         routedBoardId === "" || boardId === routedBoardId,
         "Board ID mismatch",
