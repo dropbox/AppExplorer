@@ -20,6 +20,7 @@ import {
 import { FeatureFlagManager } from "./feature-flag-manager";
 import { createLogger } from "./logger";
 import { PortConfig } from "./port-config";
+import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
 import { bindHandlers } from "./utils/bindHandlers";
 import { promiseEmit } from "./utils/promise-emit";
 import compression = require("compression");
@@ -65,6 +66,9 @@ export class MiroServer {
     // Defaults to 9042 for production, but can be overridden for E2E testing
     private port: number = PortConfig.getServerPort(),
   ) {
+    listenToAllEvents(this.cardStorage, (eventName, ...args) => {
+      logger.debug("Server storage event", eventName, ...args);
+    });
     const app = express();
     this.httpServer = createServer(app);
     const io = new Server<MiroToWorkspaceOperations, WorkspaceToMiroOperations>(
@@ -107,6 +111,13 @@ export class MiroServer {
     // Add health check endpoint for server discovery
     app.get("/health", (_req, res) => {
       res.json({ status: "healthy", timestamp: new Date().toISOString() });
+    });
+
+    app.get("/storage", (_req, res) => {
+      res.json({
+        connectedBoards: this.cardStorage.getConnectedBoards(),
+        cards: this.cardStorage.listAllCards(),
+      });
     });
 
     // Server startup is now handled by the startServer() method
@@ -164,75 +175,24 @@ export class MiroServer {
   }
 
   /**
-   * Broadcast event to all connected workspace clients
-   */
-  private broadcastToWorkspaces<K extends keyof MiroToWorkspaceOperations>(
-    eventType: K,
-    ...args: Parameters<MiroToWorkspaceOperations[K]>
-  ): void {
-    if (!this.workspaceNamespace) {
-      logger.debug("No workspace namespace available for broadcasting");
-      return;
-    }
-
-    logger.debug("Broadcasting to workspace clients", {
-      eventType,
-      connectedClients: this.connectedWorkspaces.size,
-    });
-
-    // Broadcast to all connected workspace clients
-    this.workspaceNamespace.emit(eventType, ...args);
-  }
-
-  /**
-   * Broadcast event to specific workspace clients by board assignment
-   */
-  private broadcastToBoardWorkspaces<K extends keyof MiroToWorkspaceOperations>(
-    boardId: string,
-    eventType: K,
-    ...args: Parameters<MiroToWorkspaceOperations[K]>
-  ): void {
-    // Enhanced logging for event routing decisions
-    logger.info("🎯 EVENT ROUTING: Board-specific broadcast", {
-      timestamp: new Date().toISOString(),
-      boardId,
-      eventType,
-      direction: "server->clients",
-      argsCount: args.length,
-      hasWorkspaceNamespace: !!this.workspaceNamespace,
-    });
-
-    if (!this.workspaceNamespace) {
-      logger.warn("❌ Cannot broadcast - no workspace namespace", {
-        timestamp: new Date().toISOString(),
-        boardId,
-        eventType,
-      });
-      return;
-    }
-
-    console.log("📡 EMITTING TO WORKSPACE NAMESPACE", {
-      eventType,
-      args,
-      connectedWorkspaces: this.connectedWorkspaces.size,
-    });
-    this.workspaceNamespace.emit(eventType, ...args);
-
-    logger.debug("Event broadcast completed", {
-      timestamp: new Date().toISOString(),
-      boardId,
-      eventType,
-      totalConnectedWorkspaces: this.connectedWorkspaces.size,
-    });
-  }
-
-  /**
    * Handle workspace websocket connection
    */
   private async onWorkspaceConnection(
     socket: WorkspaceServerSocket,
   ): Promise<void> {
     logger.info("New workspace connection", { socketId: socket.id });
+    socket.onAny((event, ...args) => {
+      logger.debug("Received workspace event", socket.id, {
+        event,
+        args,
+      });
+    });
+    socket.onAnyOutgoing((event, ...args) => {
+      logger.debug("Sending workspace event", socket.id, {
+        event,
+        args,
+      });
+    });
 
     const connectedWorkspaces = this.connectedWorkspaces;
     const cardStorage = this.cardStorage;
@@ -499,6 +459,19 @@ export class MiroServer {
     try {
       // Add a small delay to allow the client to set up its handlers
       await new Promise((resolve) => setTimeout(resolve, 100));
+      socket.onAny((event, ...args) => {
+        logger.debug("Received miro event", socket.id, {
+          event,
+          args,
+        });
+      });
+      socket.onAnyOutgoing((event, ...args) => {
+        logger.debug("Sending miro event", socket.id, {
+          event,
+          args,
+        });
+      });
+
       const info = await promiseEmit(socket, "getBoardInfo", "");
       logger.info("Miro board connected", info);
 
@@ -535,16 +508,17 @@ export class MiroServer {
           console.log("🔄 BROADCASTING TO BOARD WORKSPACES", {
             boardId: card.boardId,
           });
-          this.broadcastToBoardWorkspaces(card.boardId, "navigateTo", card);
+
+          this.workspaceNamespace.emit("navigateTo", card);
         },
         selectedCards: async (data) => {
           // Broadcast selected cards to all workspaces (no specific board routing needed)
-          this.broadcastToWorkspaces("selectedCards", data);
+          this.workspaceNamespace.emit("selectedCards", data);
         },
         card: async ({ url, card }) => {
           // Route card update to workspaces assigned to the board
           if (card?.boardId) {
-            this.broadcastToBoardWorkspaces(card.boardId, "card", {
+            this.workspaceNamespace.emit("card", {
               url,
               card,
             });

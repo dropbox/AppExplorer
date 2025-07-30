@@ -1,0 +1,20 @@
+import EventEmitter = require("events");
+
+export function listenToAllEvents(
+  ee: EventEmitter,
+  callback: (eventName: string, ...args: any[]) => void,
+) {
+  const listening: Record<string | symbol, boolean> = {};
+  const listenToEvent = (eventName: string | symbol): void => {
+    if (typeof eventName !== "string") {
+      return;
+    }
+    if (listening[eventName]) {
+      return;
+    }
+    listening[eventName] = true;
+    ee.on(eventName, callback);
+  };
+  ee.eventNames().forEach(listenToEvent);
+  ee.on("newListener", (eventName) => listenToEvent(eventName));
+}

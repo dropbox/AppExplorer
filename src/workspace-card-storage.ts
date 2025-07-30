@@ -12,13 +12,13 @@ import {
 } from "./EventTypes";
 import { getGitHubUrl } from "./get-github-url";
 import { LocationFinder } from "./location-finder";
-import { logger } from "./logger";
+import { createLogger } from "./logger";
 import { bindHandlers } from "./utils/bindHandlers";
 import { promiseEmit } from "./utils/promise-emit";
 
-const log = logger.withPrefix("workspace-card-proxy");
+const logger = createLogger("workspace-card-storage");
 
-export class WorkspaceCardStorageProxy
+export class WorkspaceCardStorage
   extends CardStorage
   implements
     vscode.Disposable,
@@ -47,6 +47,18 @@ export class WorkspaceCardStorageProxy
       reconnection: true,
       forceNew: true, // Force new connection on each attempt
     });
+    this.socket.onAny((event, ...args) => {
+      logger.debug("Received server event", this.socket.id, {
+        event,
+        args,
+      });
+    });
+    this.socket.onAnyOutgoing((event, ...args) => {
+      logger.debug("Sending server event", this.socket.id, {
+        event,
+        args,
+      });
+    });
 
     const ServerToWorkspaceEvents: ServerToWorkspaceEvents = {
       connectedBoards: this.connectedBoards.bind(this),
@@ -64,7 +76,7 @@ export class WorkspaceCardStorageProxy
 
     // Register with server when connected
     this.socket.on("connect", async () => {
-      log.info("Connected to server, registering workspace");
+      logger.info("Connected to server, registering workspace");
       try {
         const registrationRequest: WorkspaceRegistrationRequest = {
           workspaceId,
@@ -82,9 +94,9 @@ export class WorkspaceCardStorageProxy
           type: "connectedBoards",
           boardIds: [...this.connectedBoardIds],
         });
-        log.info("Workspace registration", { workspaceId });
+        logger.info("Workspace registration", { workspaceId });
       } catch (error) {
-        log.error("Failed to register workspace", { error });
+        logger.error("Failed to register workspace", { error });
       }
     });
   }
@@ -97,7 +109,8 @@ export class WorkspaceCardStorageProxy
   }
   boardUpdate(board: BoardInfo | null) {
     if (board) {
-      this.addBoard(board.boardId, board.name);
+      this.setBoardName(board.boardId, board.name);
+      this.setBoardCards(board.boardId, Object.values(board.cards));
     }
   }
   async cardUpdate(url: string, card: CardData | null) {
@@ -108,7 +121,7 @@ export class WorkspaceCardStorageProxy
         this.deleteCardByLink(url);
       }
     } catch (error) {
-      log.error("Error handling cardUpdate event", { error, url, card });
+      logger.error("Error handling cardUpdate event", { error, url, card });
     }
   }
 
@@ -120,7 +133,7 @@ export class WorkspaceCardStorageProxy
         this.deleteCardByLink(url);
       }
     } catch (error) {
-      log.error("Error handling card event", { error, url, card });
+      logger.error("Error handling card event", { error, url, card });
     }
   }
 
@@ -179,7 +192,7 @@ export class WorkspaceCardStorageProxy
             error instanceof Error &&
             error.message.includes("Board not found")
           ) {
-            log.info("Board not found in workspace, creating it", {
+            logger.info("Board not found in workspace, creating it", {
               boardId: card.boardId,
             });
             // Create the board with a default name

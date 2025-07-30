@@ -2,7 +2,7 @@ import { FeatureFlagManager } from "./feature-flag-manager";
 import { createLogger } from "./logger";
 import { ServerDiscovery } from "./server-discovery";
 import { ServerLauncher } from "./server-launcher";
-import { WorkspaceCardStorageProxy } from "./workspace-card-storage-proxy";
+import { WorkspaceCardStorage } from "./workspace-card-storage";
 
 export type HealthStatus = "healthy" | "unhealthy" | "unknown";
 
@@ -31,7 +31,7 @@ export class ServerHealthMonitor {
   private serverDiscovery: ServerDiscovery;
   private featureFlagManager: FeatureFlagManager;
   private serverLauncher: ServerLauncher;
-  private cardStorage: WorkspaceCardStorageProxy;
+  private cardStorage: WorkspaceCardStorage;
   private options: HealthMonitorOptions;
 
   private monitorInterval?: NodeJS.Timeout;
@@ -46,7 +46,7 @@ export class ServerHealthMonitor {
     serverDiscovery: ServerDiscovery,
     featureFlagManager: FeatureFlagManager,
     serverLauncher: ServerLauncher,
-    cardStorage: WorkspaceCardStorageProxy,
+    cardStorage: WorkspaceCardStorage,
     options: Partial<HealthMonitorOptions> = {},
   ) {
     this.serverDiscovery = serverDiscovery;

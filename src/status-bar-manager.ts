@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { WorkspaceCardStorageProxy } from "./workspace-card-storage-proxy";
+import { WorkspaceCardStorage } from "./workspace-card-storage";
 
 export class StatusBarManager {
   public statusBar: vscode.StatusBarItem;
@@ -10,7 +10,7 @@ export class StatusBarManager {
     workspaceBoards: () => void;
   };
 
-  constructor(private cardStorage: WorkspaceCardStorageProxy) {
+  constructor(private cardStorage: WorkspaceCardStorage) {
     this.statusBar = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       100,
@@ -51,7 +51,7 @@ export class StatusBarManager {
 
   renderStatusBar() {
     const connectedBoards = this.cardStorage.getConnectedBoards();
-    if (connectedBoards.length == 0) {
+    if (connectedBoards.length === 0) {
       this.statusBar.text = "$(app-explorer) (No Miro connections)";
       this.statusBar.show();
       return;

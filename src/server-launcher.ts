@@ -5,6 +5,7 @@ import { MiroServer } from "./server";
 import { ServerDiscovery } from "./server-discovery";
 import { delay, waitForValue } from "./test/suite/test-utils";
 
+const logger = createLogger("server-launcher");
 export type ServerMode = "server" | "client";
 
 export interface ServerLaunchResult {
@@ -17,7 +18,6 @@ export interface ServerLaunchResult {
 export class ServerLauncher {
   private serverDiscovery: ServerDiscovery;
   private featureFlagManager: FeatureFlagManager;
-  private logger = createLogger("server-launcher");
 
   constructor(
     featureFlagManager: FeatureFlagManager,
@@ -30,7 +30,7 @@ export class ServerLauncher {
       new ServerDiscovery({
         port: PortConfig.getServerPort(),
       });
-    this.logger.debug("ServerLauncher initialized", {
+    logger.debug("ServerLauncher initialized", {
       serverPort: this.serverDiscovery.getServerUrl(),
     });
   }
@@ -39,19 +39,19 @@ export class ServerLauncher {
    * Determine server mode and launch server if needed
    */
   async initializeServer(): Promise<ServerLaunchResult> {
-    this.logger.info("Initializing server");
+    logger.info("Initializing server");
 
     try {
       // Step 1: Check if server already exists
-      this.logger.debug("Checking for existing server...");
+      logger.debug("Checking for existing server...");
       const serverExists = await this.serverDiscovery.checkServerHealth();
-      this.logger.debug("Server health check result", { serverExists });
+      logger.debug("Server health check result", { serverExists });
 
       if (serverExists) {
         // Step 2a: Server exists, connect as client
         const serverUrl = this.serverDiscovery.getServerUrl();
 
-        this.logger.info("Existing server detected, connecting as client", {
+        logger.info("Existing server detected, connecting as client", {
           serverUrl,
         });
 
@@ -61,13 +61,13 @@ export class ServerLauncher {
         };
       } else {
         // Step 2b: No server exists, try to launch one
-        this.logger.debug(
+        logger.debug(
           "No existing server found, attempting to launch new server",
         );
         return this.attemptServerLaunch();
       }
     } catch (error) {
-      this.logger.error(
+      logger.error(
         "Error during server initialization, falling back to legacy mode",
         { error },
       );
@@ -81,21 +81,21 @@ export class ServerLauncher {
    * Attempt to launch server with race condition handling
    */
   private async attemptServerLaunch(): Promise<ServerLaunchResult> {
-    this.logger.debug("Attempting to launch server in this workspace");
+    logger.debug("Attempting to launch server in this workspace");
 
     try {
       // Try to launch server - if another workspace wins the race, this will fail
       const server = await this.launchServer();
 
       if (server.server) {
-        this.logger.info("Successfully launched server in this workspace");
+        logger.info("Successfully launched server in this workspace");
         return server;
       } else {
         throw new Error("Failed to launch server");
       }
     } catch (launchError) {
       // Server launch failed - likely another workspace won the race
-      this.logger.info(
+      logger.info(
         "Server launch failed (likely race condition), attempting to connect as client",
         {
           error:
@@ -109,25 +109,24 @@ export class ServerLauncher {
       );
 
       // Wait a moment for the other server to fully start
-      this.logger.debug("Waiting for other server to fully start...");
+      logger.debug("Waiting for other server to fully start...");
       await delay(1000);
 
       // Try to connect as client to the server that won the race
-      this.logger.debug("Checking if other server is now available...");
+      logger.debug("Checking if other server is now available...");
       const serverExists = await waitForValue(async () => {
         return (await this.serverDiscovery.checkServerHealth())
           ? true
           : undefined;
       });
-      this.logger.debug("Post-race server health check result", {
+      logger.debug("Post-race server health check result", {
         serverExists,
       });
 
       const serverUrl = this.serverDiscovery.getServerUrl();
-      this.logger.info(
-        "Successfully connecting as client after race condition",
-        { serverUrl },
-      );
+      logger.info("Successfully connecting as client after race condition", {
+        serverUrl,
+      });
       return {
         mode: "client",
         serverUrl,
@@ -142,7 +141,7 @@ export class ServerLauncher {
     const startTime = Date.now();
     const serverUrl = this.serverDiscovery.getServerUrl();
 
-    this.logger.debug("Starting server launch", { serverUrl });
+    logger.debug("Starting server launch", { serverUrl });
 
     try {
       // Create and start server instance with proper error handling
@@ -154,7 +153,7 @@ export class ServerLauncher {
       );
 
       const duration = Date.now() - startTime;
-      this.logger.info("Server launched successfully", {
+      logger.info("Server launched successfully", {
         serverUrl,
         duration: `${duration}ms`,
         mode: "server",
@@ -169,7 +168,7 @@ export class ServerLauncher {
       const duration = Date.now() - startTime;
 
       // Port binding failed - another process is using the port
-      this.logger.warn("Server launch failed", {
+      logger.warn("Server launch failed", {
         serverUrl,
         duration: `${duration}ms`,
         error: error instanceof Error ? error.message : String(error),
@@ -186,9 +185,7 @@ export class ServerLauncher {
    * Handle server failover when current server goes down
    */
   async handleServerFailover(): Promise<ServerLaunchResult> {
-    this.logger.info(
-      "Handling server failover, attempting to launch new server",
-    );
+    logger.info("Handling server failover, attempting to launch new server");
 
     // Try to launch a new server to replace the failed one
     return this.attemptServerLaunch();
@@ -205,8 +202,8 @@ export class ServerLauncher {
    * Dispose of resources
    */
   dispose(): void {
-    this.logger.debug("Disposing ServerLauncher resources");
+    logger.debug("Disposing ServerLauncher resources");
     this.serverDiscovery.dispose();
-    this.logger.debug("ServerLauncher disposed");
+    logger.debug("ServerLauncher disposed");
   }
 }

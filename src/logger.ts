@@ -52,28 +52,32 @@ export class Logger {
   withPrefix = (prefix: string): PrefixedLogger => {
     return {
       debug: (message: string, ...args: any[]) => {
+        const cleanArgs = args.map(cleanCardEvents);
         this.logStream?.write(
-          `[${prefix}] [DEBUG] ${message} ${JSON.stringify(args)}\n`,
+          `[${prefix}] [DEBUG] ${message} ${JSON.stringify(cleanArgs)}\n`,
         );
-        this.outputChannel.debug(`[${prefix}] ${message}`, ...args);
+        this.outputChannel.debug(`[${prefix}] ${message}`, cleanArgs);
       },
       info: (message: string, ...args: any[]) => {
+        const cleanArgs = args.map(cleanCardEvents);
         this.logStream?.write(
-          `[${prefix}] [INFO ] ${message} ${JSON.stringify(args)}\n`,
+          `[${prefix}] [INFO ] ${message} ${JSON.stringify(cleanArgs)}\n`,
         );
-        this.outputChannel.info(`[${prefix}] ${message}`, ...args);
+        this.outputChannel.info(`[${prefix}] ${message}`, cleanArgs);
       },
       warn: (message: string, ...args: any[]) => {
+        const cleanArgs = args.map(cleanCardEvents);
         this.logStream?.write(
-          `[${prefix}] [WARN ] ${message} ${JSON.stringify(args)}\n`,
+          `[${prefix}] [WARN ] ${message} ${JSON.stringify(cleanArgs)}\n`,
         );
-        this.outputChannel.warn(`[${prefix}] ${message}`, ...args);
+        this.outputChannel.warn(`[${prefix}] ${message}`, cleanArgs);
       },
       error: (message: string, ...args: any[]) => {
+        const cleanArgs = args.map(cleanCardEvents);
         this.logStream?.write(
-          `[${prefix}] [ERROR] ${message} ${JSON.stringify(args)}\n`,
+          `[${prefix}] [ERROR] ${message} ${JSON.stringify(cleanArgs)}\n`,
         );
-        this.outputChannel.error(`[${prefix}] ${message}`, ...args);
+        this.outputChannel.error(`[${prefix}] ${message}`, cleanArgs);
       },
     };
   };
@@ -114,4 +118,35 @@ export const logger = Logger.getInstance();
 // Export a convenience function for creating prefixed loggers
 export function createLogger(prefix: string): PrefixedLogger {
   return logger.withPrefix(prefix);
+}
+
+const cleanMap = new WeakMap<object, boolean>();
+function cleanCardEvents<T extends unknown>(eventFragment: T): T {
+  if (Array.isArray(eventFragment)) {
+    return eventFragment.map(cleanCardEvents) as T;
+  }
+  if (typeof eventFragment === "object" && eventFragment !== null) {
+    if (cleanMap.get(eventFragment)) {
+      return eventFragment;
+    }
+    cleanMap.set(eventFragment, true);
+    const cleaned = Object.fromEntries(
+      Object.entries(eventFragment).map(([key, value]) => {
+        if (
+          key === "cards" &&
+          typeof value === "object" &&
+          !Array.isArray(value) &&
+          value
+        ) {
+          return [key, `(${Object.keys(value).length} cards)`];
+        }
+
+        return [key, cleanCardEvents(value)];
+      }),
+    );
+    cleanMap.delete(eventFragment);
+    return cleaned as T;
+  }
+
+  return eventFragment;
 }

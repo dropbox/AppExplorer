@@ -25,10 +25,6 @@ export class VSCodeAdapter implements StorageAdapter {
   async delete(key: string): Promise<void> {
     await this.context.workspaceState.update(key, undefined);
   }
-
-  addToSubscriptions(disposable: vscode.Disposable): void {
-    this.context.subscriptions.push(disposable);
-  }
 }
 
 // Memory adapter that uses Map for in-memory storage
@@ -261,16 +257,6 @@ export class CardStorage
   getSelectedCardIDs(): string[] {
     return this.selectedIds;
   }
-}
-
-// Factory functions for creating CardStorage with different adapters
-export function createVSCodeCardStorage(
-  context: vscode.ExtensionContext,
-): CardStorage {
-  const adapter = new VSCodeAdapter(context);
-  const storage = new CardStorage(adapter);
-  adapter.addToSubscriptions(storage);
-  return storage;
 }
 
 export function createMemoryCardStorage(): CardStorage {

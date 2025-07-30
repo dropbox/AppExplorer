@@ -3,10 +3,10 @@ import { CardData } from "./EventTypes";
 import { HandlerContext } from "./extension";
 import { getRelativePath } from "./get-relative-path";
 import { LocationFinder } from "./location-finder";
-import { logger } from "./logger";
-import { WorkspaceCardStorageProxy } from "./workspace-card-storage-proxy";
+import { createLogger } from "./logger";
+import { WorkspaceCardStorage } from "./workspace-card-storage";
 
-const log = logger.withPrefix("decorator");
+const logger = createLogger("decorator");
 
 interface CardDecoration extends vscode.DecorationOptions {
   card: CardData;
@@ -18,7 +18,7 @@ export class EditorDecorator {
   #selectedDecorator: vscode.TextEditorDecorationType;
   #activeEdtior: vscode.TextEditor | undefined;
   timeout: NodeJS.Timeout | undefined;
-  #cardStorage: WorkspaceCardStorageProxy | undefined;
+  #cardStorage: WorkspaceCardStorage | undefined;
   #eventListeners:
     | {
         boardUpdate: () => void;
@@ -152,8 +152,16 @@ export class EditorDecorator {
       // at 500, this seemed to get stuck in a loop
       this.timeout = setTimeout(this.decorateEditor, 1000);
     } else {
+      // Only decorate files, not output panels
+      if (
+        this.#activeEdtior &&
+        this.#activeEdtior.document.uri.scheme !== "file"
+      ) {
+        return;
+      }
+
       this.selectedIds = this.#cardStorage?.getSelectedCardIDs() ?? [];
-      log.debug("Selected cards", this.selectedIds.length);
+      logger.debug("Selected cards", this.selectedIds.length);
       this.decorateEditor();
     }
   }
@@ -197,7 +205,7 @@ export class EditorDecorator {
     const selected = ranges.filter((r) => r.selected);
     editor.setDecorations(this.#selectedDecorator, selected);
 
-    log.debug(
+    logger.debug(
       `Decorated editor with ${ranges.length} cards. (${selected.length} selected) ${document.uri}`,
     );
   };

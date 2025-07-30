@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { AppExplorerLens } from "./app-explorer-lens";
-import { MemoryAdapter } from "./card-storage";
+import { VSCodeAdapter } from "./card-storage";
 import { makeAttachCardHandler } from "./commands/attach-card";
 import { makeBrowseHandler } from "./commands/browse";
 import { makeNewCardHandler } from "./commands/create-card";
@@ -13,23 +13,24 @@ import { registerUpdateCommand } from "./commands/update-extension";
 import { EditorDecorator } from "./editor-decorator";
 import { FeatureFlagManager } from "./feature-flag-manager";
 import { LocationFinder } from "./location-finder";
-import { logger } from "./logger";
+import { logger as baseLogger, createLogger } from "./logger";
 import { PortConfig } from "./port-config";
 import { ServerDiscovery } from "./server-discovery";
 import { ServerLauncher } from "./server-launcher";
 import { StatusBarManager } from "./status-bar-manager";
-import { WorkspaceCardStorageProxy } from "./workspace-card-storage-proxy";
+import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
+import { WorkspaceCardStorage } from "./workspace-card-storage";
 import path = require("node:path");
 import fs = require("node:fs");
 
-const extensionLogger = logger.withPrefix("extension");
+const logger = createLogger("extension");
 export type HandlerContext = {
-  cardStorage: WorkspaceCardStorageProxy;
+  cardStorage: WorkspaceCardStorage;
   waitForConnections: () => Promise<void>;
 };
 
 export async function activate(context: vscode.ExtensionContext) {
-  logger.storeLogs(context.logUri);
+  // baseLogger.storeLogs(context.logUri);
   vscode.commands.executeCommand("setContext", "appExplorer.enabled", true);
   vscode.commands.executeCommand(
     "setContext",
@@ -48,17 +49,20 @@ export async function activate(context: vscode.ExtensionContext) {
   // Initialize server discovery and launcher with configured port
   const serverPort = PortConfig.getServerPort();
   const featureFlagManager = new FeatureFlagManager(context);
-  logger.initialize(featureFlagManager);
+  baseLogger.initialize(featureFlagManager);
 
   const locationFinder = new LocationFinder();
-  const cardStorage = new WorkspaceCardStorageProxy(
+  const cardStorage = new WorkspaceCardStorage(
     workspaceId,
-    new MemoryAdapter(),
+    new VSCodeAdapter(context),
     `http://localhost:${serverPort}`,
     locationFinder,
   );
+  listenToAllEvents(cardStorage, (eventName, ...args) => {
+    logger.debug("Extension storage event", eventName, args);
+  });
   // Log port configuration for debugging
-  extensionLogger.info("Server port configuration", {
+  logger.info("Server port configuration", {
     port: serverPort,
   });
 
@@ -72,11 +76,11 @@ export async function activate(context: vscode.ExtensionContext) {
   if (serverResult.mode === "server" && serverResult.server) {
     const miroServer = serverResult.server;
     context.subscriptions.push(miroServer);
-    extensionLogger.info("Launched MiroServer, now switching to client mode");
+    logger.info("Launched MiroServer, now switching to client mode");
   }
 
-  extensionLogger.info("AppExplorer extension activating");
-  extensionLogger.debug("Migration flags:", featureFlagManager.getFlags());
+  logger.info("AppExplorer extension activating");
+  logger.debug("Migration flags:", featureFlagManager.getFlags());
 
   context.subscriptions.push(new StatusBarManager(cardStorage));
 
@@ -84,7 +88,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const handlerContext: HandlerContext = {
     cardStorage,
     async waitForConnections() {
-      extensionLogger.debug("Waiting for connections...");
+      logger.debug("Waiting for connections...");
       if (handlerContext.cardStorage.getConnectedBoards().length > 0) {
         return;
       }
@@ -97,11 +101,11 @@ export async function activate(context: vscode.ExtensionContext) {
         },
         async (_progress, token) => {
           token.onCancellationRequested(() => {
-            extensionLogger.debug("User canceled the long running operation");
+            logger.debug("User canceled the long running operation");
           });
 
           while (handlerContext.cardStorage.getConnectedBoards().length === 0) {
-            extensionLogger.debug(
+            logger.debug(
               "Waiting for connections...",
               cardStorage.getConnectedBoards(),
             );
@@ -109,27 +113,25 @@ export async function activate(context: vscode.ExtensionContext) {
           }
         },
       );
-      extensionLogger.debug("Finished waiting for connections");
+      logger.debug("Finished waiting for connections");
     },
   };
 
   // This workspace should connect as a client
-  extensionLogger.info("Running in client mode, connecting to server", {
+  logger.info("Running in client mode, connecting to server", {
     serverUrl: serverResult.serverUrl,
   });
 
   // Connect to server
   try {
     await cardStorage.socket.connect();
-    extensionLogger.info(
-      "Successfully connected to server as workspace client",
-    );
+    logger.info("Successfully connected to server as workspace client");
 
-    extensionLogger.info("WorkspaceCardStorageProxy client mode enabled", {
+    logger.info("WorkspaceCardStorageProxy client mode enabled", {
       hasWorkspaceClient: true,
     });
   } catch (error) {
-    extensionLogger.error("Failed to connect as workspace client", { error });
+    logger.error("Failed to connect as workspace client", { error });
 
     // Don't show error message during tests to avoid disrupting test execution
     if (!process.env.VSCODE_TEST_MODE) {
@@ -140,7 +142,7 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     // Don't throw error - continue with extension activation to ensure commands are registered
-    extensionLogger.warn(
+    logger.warn(
       "Continuing extension activation despite client connection failure",
     );
   }
@@ -154,7 +156,7 @@ export async function activate(context: vscode.ExtensionContext) {
       // instead of creating new cards.
     }),
     vscode.commands.registerCommand("app-explorer.internal.logFile", () => {
-      return logger.getLogFile();
+      return baseLogger.getLogFile();
     }),
     new EditorDecorator(handlerContext),
     vscode.languages.registerCodeLensProvider(
