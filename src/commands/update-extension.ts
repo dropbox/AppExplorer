@@ -2,8 +2,10 @@ import * as childProcess from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
+import { createLogger } from "../logger";
 
 let outputChannel: vscode.OutputChannel;
+const logger = createLogger("update-extension");
 
 export function registerUpdateCommand(context: vscode.ExtensionContext) {
   let disposable = vscode.commands.registerCommand(
@@ -102,7 +104,7 @@ export function registerUpdateCommand(context: vscode.ExtensionContext) {
 function findVsceExecutable(rootPath: string): string | undefined {
   // Check if vsce is in the PATH
   let binary = process.platform === "win32" ? "vsce.cmd" : "vsce";
-  console.log("vsce binary", binary, process.platform);
+  logger.debug("vsce binary", binary, process.platform);
   try {
     const version = childProcess.spawnSync(binary, ["--version"], {
       cwd: rootPath,
@@ -122,12 +124,12 @@ function findVsceExecutable(rootPath: string): string | undefined {
           encoding: "utf8",
           shell: true,
         });
-        console.log(nodeModulesVsce, "version", version);
+        logger.debug(nodeModulesVsce, "version", version);
         if (version.status === 0) {
           return nodeModulesVsce;
         }
       } catch (e) {
-        console.log("vsce error", e);
+        logger.debug("vsce error", e);
         // Ignore errors
       }
     }

@@ -224,7 +224,7 @@ function setUpdateCommandContext(context: vscode.ExtensionContext) {
             break;
           }
         } catch (error) {
-          console.error("Error parsing package.json:", error);
+          logger.error("Error parsing package.json:", error);
         }
       }
     }

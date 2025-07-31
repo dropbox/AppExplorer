@@ -23,7 +23,7 @@ const tail = (file: string | null, callback: (data: string) => void) => {
 
     // Handle stream errors gracefully
     readStream.on("error", (error) => {
-      console.warn(`Warning: Could not read log file ${file}:`, error.message);
+      debug(`Warning: Could not read log file ${file}:`, error.message);
       return; // Exit gracefully without throwing
     });
 
@@ -34,7 +34,7 @@ const tail = (file: string | null, callback: (data: string) => void) => {
 
     // Handle readline errors gracefully
     rl.on("error", (error) => {
-      console.warn(`Warning: Error reading log file ${file}:`, error.message);
+      debug(`Warning: Error reading log file ${file}:`, error.message);
       rl.close();
       return;
     });
@@ -43,7 +43,7 @@ const tail = (file: string | null, callback: (data: string) => void) => {
       try {
         callback(line);
       } catch (error) {
-        console.warn(`Warning: Error processing log line:`, error);
+        debug(`Warning: Error processing log line:`, error);
       }
     });
 
@@ -52,10 +52,7 @@ const tail = (file: string | null, callback: (data: string) => void) => {
       readStream.destroy();
     });
   } catch (error) {
-    console.warn(
-      `Warning: Could not set up log file tailing for ${file}:`,
-      error,
-    );
+    debug(`Warning: Could not set up log file tailing for ${file}:`, error);
   }
 };
 
@@ -135,7 +132,7 @@ export class E2ETestUtils {
           throw new Error(`Server health check failed: ${response.status}`);
         }
       } catch (error) {
-        console.error("[E2ETestUtils] Server failed to start:", error);
+        debug("[E2ETestUtils] Server failed to start:", error);
         if (tries < 3) {
           await new Promise((resolve) => setTimeout(resolve, 1000));
           continue;
@@ -463,7 +460,7 @@ export class E2ETestUtils {
         range: symbol.range,
       }));
     } catch (error) {
-      console.error(`Error finding symbols in ${relativePath}:`, error);
+      debug(`Error finding symbols in ${relativePath}:`, error);
       return [];
     }
   }

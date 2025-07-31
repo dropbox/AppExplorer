@@ -1,9 +1,12 @@
 import * as vscode from "vscode";
 import { CardData } from "../EventTypes";
 import { HandlerContext } from "../extension";
+import { createLogger } from "../logger";
 import { TEST_CARDS } from "../test/fixtures/card-data";
 import { isSymbolCard } from "../test/helpers/e2e-test-utils";
 import { MockMiroClient } from "../test/mocks/mock-miro-client";
+
+const logger = createLogger("debug-mock-client");
 
 /**
  * Register manual debug commands for MockMiroClient
@@ -70,7 +73,7 @@ export const registerMockMiroDebugCommands = (
           `MockMiroClient: Simulated opening card "${card.title}" → ${card.path}:${isSymbolCard(card) ? card.symbol : "Group"}`,
         );
 
-        console.log("MockMiroClient: Sent navigateTo event", {
+        logger.debug("MockMiroClient: Sent navigateTo event", {
           cardTitle: card.title,
           path: card.path,
           symbol: isSymbolCard(card) ? card.symbol : undefined,
@@ -122,7 +125,7 @@ export const registerMockMiroDebugCommands = (
             `MockMiroClient: Simulated selecting ${selectedCards.length} cards`,
           );
 
-          console.log("MockMiroClient: Sent selection update event", {
+          logger.debug("MockMiroClient: Sent selection update event", {
             cardCount: selectedCards.length,
             cards: selectedCards.map((c) => ({ title: c.title, path: c.path })),
             timestamp: new Date().toISOString(),
@@ -179,7 +182,7 @@ export const registerMockMiroDebugCommands = (
             `MockMiroClient: Simulated updating card "${updatedCard.title}" status to ${updatedCard.status}`,
           );
 
-          console.log("MockMiroClient: Sent card update event", {
+          logger.debug("MockMiroClient: Sent card update event", {
             cardTitle: updatedCard.title,
             oldStatus: selected.card.status,
             newStatus: updatedCard.status,
@@ -207,7 +210,7 @@ MockMiroClient Status:
 
         vscode.window.showInformationMessage(statusMessage);
 
-        console.log("MockMiroClient Status", {
+        logger.debug("MockMiroClient Status", {
           connected: mockClient.isConnected,
           boardId: boardInfo.id,
           boardName: boardInfo.name,
@@ -259,7 +262,7 @@ export const makeDebugMockClientHandler = (
         `MockMiroClient connected as board "${mockClient.boardInfo.name}" with ${TEST_CARDS.length} test cards. Use "MockMiro: Show Card List" command to simulate events.`,
       );
 
-      console.log("MockMiroClient launched successfully", {
+      logger.debug("MockMiroClient launched successfully", {
         boardId: mockClient.boardInfo.id,
         boardName: mockClient.boardInfo.name,
         cardCount: TEST_CARDS.length,
@@ -271,7 +274,7 @@ export const makeDebugMockClientHandler = (
       vscode.window.showErrorMessage(
         `Failed to launch MockMiroClient: ${errorMessage}`,
       );
-      console.error("MockMiroClient launch failed", {
+      logger.error("MockMiroClient launch failed", {
         error: errorMessage,
         timestamp: new Date().toISOString(),
       });

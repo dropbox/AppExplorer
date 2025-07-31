@@ -8,6 +8,7 @@ import type {
   Rect,
   Tag,
 } from "@mirohq/websdk-types";
+import createDebug from "debug";
 import { type Socket } from "socket.io-client";
 import invariant from "tiny-invariant";
 import {
@@ -18,6 +19,8 @@ import {
 } from "./EventTypes";
 import { bindHandlers } from "./utils/bindHandlers";
 import { notEmpty } from "./utils/notEmpty";
+
+const debug = createDebug("app-explorer:miro");
 
 function decode(str: string) {
   return str.replaceAll(/&#([0-9A-F]{2});/g, (_, charCode) =>
@@ -290,7 +293,7 @@ export async function attachToSocket() {
         });
         done(true);
       } catch (error) {
-        console.error("AppExplorer: Error creating new cards", error);
+        debug("AppExplorer: Error creating new cards", error);
         done(false);
       }
     },
@@ -319,7 +322,7 @@ export async function attachToSocket() {
         }
         done(true);
       } catch (error) {
-        console.error("AppExplorer: Error attaching card", error);
+        debug("AppExplorer: Error attaching card", error);
         done(false);
       }
     },
@@ -334,7 +337,7 @@ export async function attachToSocket() {
         await zoomIntoCards([card]);
         done(true);
       } catch (error) {
-        console.error("AppExplorer: Error hovering card", error);
+        debug("AppExplorer: Error hovering card", error);
         done(false);
       }
     },
@@ -367,7 +370,7 @@ export async function attachToSocket() {
         }
         done(true);
       } catch (error) {
-        console.error("AppExplorer: Error selecting card", error);
+        debug("AppExplorer: Error selecting card", error);
         miro.board.notifications.showError(
           `AppExplorer: Error selecting card ${error}`,
         );
@@ -389,7 +392,7 @@ export async function attachToSocket() {
           await card.sync();
         }
       } catch (error) {
-        console.error("AppExplorer: Error updating card status", error);
+        debug("AppExplorer: Error updating card status", error);
       }
       done(true);
     },
@@ -439,7 +442,7 @@ export async function attachToSocket() {
           await card.sync();
         }, Promise.resolve());
       } catch (error) {
-        console.error("AppExplorer: Error tagging cards", error);
+        debug("AppExplorer: Error tagging cards", error);
       }
       done(true);
     },
@@ -463,7 +466,7 @@ export async function attachToSocket() {
         miro.board.notifications.showInfo("Opening card in VSCode");
       }
     } catch (error) {
-      console.error("AppExplorer: Error opening app card", error);
+      debug("AppExplorer: Error opening app card", error);
     }
   });
   miro.board.ui.on("app_card:connect", async (event) => {
@@ -476,7 +479,7 @@ export async function attachToSocket() {
         miro.board.notifications.showInfo("Opening card in VSCode");
       }
     } catch (error) {
-      console.error("AppExplorer: Error connecting app card", error);
+      debug("AppExplorer: Error connecting app card", error);
     }
   });
 
@@ -495,7 +498,7 @@ export async function attachToSocket() {
         Promise.resolve(null),
       );
     } catch (error) {
-      console.error("AppExplorer: Error deleting items", error);
+      debug("AppExplorer: Error deleting items", error);
     }
   });
 
@@ -516,10 +519,7 @@ export async function attachToSocket() {
       }
       socket.emit("selectedCards", data);
     } catch (error) {
-      console.error(
-        "AppExplorer: Notifying VSCode of updated selection",
-        error,
-      );
+      debug("AppExplorer: Notifying VSCode of updated selection", error);
     }
   });
 }

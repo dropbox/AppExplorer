@@ -4,6 +4,8 @@ import { ServerDiscovery } from "./server-discovery";
 import { ServerLauncher } from "./server-launcher";
 import { WorkspaceCardStorage } from "./workspace-card-storage";
 
+const logger = createLogger("health-monitor");
+
 export type HealthStatus = "healthy" | "unhealthy" | "unknown";
 
 export interface HealthMonitorOptions {
@@ -178,7 +180,7 @@ export class ServerHealthMonitor {
    */
   private async attemptFailover(): Promise<void> {
     if (this.featureFlagManager.isEnabled("debugMode")) {
-      console.log("AppExplorer: Attempting server failover...");
+      logger.debug("AppExplorer: Attempting server failover...");
     }
 
     try {
@@ -186,7 +188,7 @@ export class ServerHealthMonitor {
 
       if (result.mode === "server" && result.server) {
         if (this.featureFlagManager.isEnabled("debugMode")) {
-          console.log("AppExplorer: Successfully launched replacement server");
+          logger.debug("AppExplorer: Successfully launched replacement server");
         }
 
         // Reset health status since we now have a new server
@@ -198,7 +200,7 @@ export class ServerHealthMonitor {
         );
       } else if (result.mode === "client") {
         if (this.featureFlagManager.isEnabled("debugMode")) {
-          console.log(
+          logger.debug(
             "AppExplorer: Another workspace launched replacement server, connecting as client",
           );
         }
@@ -208,10 +210,10 @@ export class ServerHealthMonitor {
         this.consecutiveSuccesses = 0;
         await this.updateStatus("healthy", "Connected to replacement server");
       } else {
-        console.error("AppExplorer: Failover attempt failed:", result.error);
+        logger.error("AppExplorer: Failover attempt failed:", result.error);
       }
     } catch (error) {
-      console.error("AppExplorer: Failover attempt failed:", error);
+      logger.error("AppExplorer: Failover attempt failed:", error);
     }
   }
 
@@ -226,7 +228,7 @@ export class ServerHealthMonitor {
       this.currentStatus = status;
 
       if (this.featureFlagManager.isEnabled("debugMode")) {
-        console.log(
+        logger.debug(
           `AppExplorer: Server health status changed to ${status}: ${details}`,
         );
       }
@@ -265,7 +267,7 @@ export class ServerHealthMonitor {
       try {
         handler(event);
       } catch (error) {
-        console.error("AppExplorer: Error in health event handler:", error);
+        logger.error("AppExplorer: Error in health event handler:", error);
       }
     }
   }
