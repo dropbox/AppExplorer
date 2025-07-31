@@ -20,7 +20,6 @@ export const makeAttachCardHandler = (context: HandlerContext) => {
         .reduce(
           async (p, boardId) => {
             const selected: CardData[] = await p;
-            // Use universal query method through WorkspaceCardStorageProxy
             const selectedCards = await promiseEmit(
               context.cardStorage.socket,
               "selected",

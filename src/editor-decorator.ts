@@ -4,6 +4,7 @@ import { HandlerContext } from "./extension";
 import { getRelativePath } from "./get-relative-path";
 import { LocationFinder } from "./location-finder";
 import { createLogger } from "./logger";
+import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
 import { WorkspaceCardStorage } from "./workspace-card-storage";
 
 const logger = createLogger("decorator");
@@ -90,28 +91,12 @@ export class EditorDecorator {
     // Store CardStorage reference for cleanup
     this.#cardStorage = handlerContext.cardStorage;
 
-    // Create event listener functions that can be removed later
-    this.#eventListeners = {
-      boardUpdate: () => this.triggerUpdate(true),
-      cardUpdate: () => this.triggerUpdate(true),
-      connectedBoards: () => this.triggerUpdate(true),
-      selectedCards: () => this.triggerUpdate(true),
-      workspaceBoards: () => this.triggerUpdate(true),
-    };
-
     // Listen to all storage events that might affect card display
-    this.#cardStorage.on("boardUpdate", this.#eventListeners.boardUpdate);
-    this.#cardStorage.on("cardUpdate", this.#eventListeners.cardUpdate);
-    this.#cardStorage.on("cardUpdate", this.#eventListeners.cardUpdate);
-    this.#cardStorage.on("selectedCards", this.#eventListeners.selectedCards);
-    this.#cardStorage.on(
-      "connectedBoards",
-      this.#eventListeners.connectedBoards,
-    );
-    this.#cardStorage.on(
-      "workspaceBoards",
-      this.#eventListeners.workspaceBoards,
-    );
+    this.subscriptions.push({
+      dispose: listenToAllEvents(this.#cardStorage, () => {
+        this.triggerUpdate(true);
+      }),
+    });
   }
 
   dispose() {

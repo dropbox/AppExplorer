@@ -50,8 +50,6 @@ export type AppExplorerTag = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyError = any;
 
-type SuccessCallback = (success: boolean) => void;
-
 // Operations callable on Miro boards from workspaces (via server)
 // Data flow: Workspace → Server → Miro Board
 export type WorkspaceToMiroOperations = {
@@ -59,7 +57,7 @@ export type WorkspaceToMiroOperations = {
   setBoardName: (
     boardId: string,
     name: string,
-    callback: SuccessCallback,
+    callback: (success: boolean) => void,
   ) => void;
   getBoardInfo: (
     boardId: string,
@@ -69,7 +67,7 @@ export type WorkspaceToMiroOperations = {
   attachCard: (
     boardId: string,
     data: CardData,
-    callback: SuccessCallback,
+    callback: (success: boolean) => void,
   ) => void;
   tagCards: (
     boardId: string,
@@ -82,7 +80,7 @@ export type WorkspaceToMiroOperations = {
             title: string;
           };
     },
-    callback: SuccessCallback,
+    callback: (success: boolean) => void,
   ) => void;
   selectCard: (
     boardId: string,
@@ -96,7 +94,7 @@ export type WorkspaceToMiroOperations = {
       status: "connected" | "disconnected";
       codeLink: string | null;
     },
-    callback: SuccessCallback,
+    callback: (success: boolean) => void,
   ) => void;
   cards: (boardId: string, callback: (cards: CardData[]) => void) => void;
   selected: (boardId: string, callback: (cards: CardData[]) => void) => void;
@@ -104,12 +102,12 @@ export type WorkspaceToMiroOperations = {
     boardId: string,
     data: CardData[],
     options: { connect?: string[] },
-    callback: SuccessCallback,
+    callback: (success: boolean) => void,
   ) => void;
   hoverCard: (
     boardId: string,
     miroLink: string,
-    callback: SuccessCallback,
+    callback: (success: boolean) => void,
   ) => void;
 };
 
@@ -142,99 +140,6 @@ export type EventMapType = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [K: string]: (...args: any[]) => any;
 };
-export type QueryFunction<T extends EventMapType> = T;
-
-// This does need to use any, it doesn't work with unknown
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Handler<T extends (...args: any[]) => void, U = void> = (
-  ...args: Parameters<T>
-) => U;
-
-export interface RetryConfig {
-  initialDelay: number; // Initial delay in milliseconds
-  maxDelay: number; // Maximum delay in milliseconds
-  backoffMultiplier: number; // Multiplier for exponential backoff
-  maxRetries: number; // Maximum number of retry attempts
-  jitter: boolean; // Add randomization to prevent thundering herd
-}
-
-export const DEFAULT_RETRY_CONFIG: RetryConfig = {
-  initialDelay: 1000, // 1 second
-  maxDelay: 30000, // 30 seconds
-  backoffMultiplier: 2,
-  maxRetries: 10,
-  jitter: true,
-};
-
-// Query Proxying Configuration
-
-export interface QueryProxyConfig {
-  timeout: number; // Query timeout in milliseconds
-  maxRetries: number; // Maximum retry attempts for failed queries
-  retryDelay: number; // Delay between retry attempts
-  enableCaching: boolean; // Enable query result caching
-  cacheTimeout: number; // Cache timeout in milliseconds
-}
-
-export const DEFAULT_QUERY_PROXY_CONFIG: QueryProxyConfig = {
-  timeout: 10000, // 10 seconds
-  maxRetries: 3,
-  retryDelay: 1000, // 1 second
-  enableCaching: false, // Simplified - use ServerCardStorage instead
-  cacheTimeout: 30000, // 30 seconds
-};
-
-export type OperationEventType<T extends EventMapType> = {
-  boardId: string;
-  requestId: string;
-  query: keyof T;
-  data: Parameters<T[keyof T]>;
-};
-export type OperationEventCallback<
-  T extends EventMapType,
-  K extends keyof T = keyof T,
-> = (error: AnyError | null, result: Awaited<ReturnType<T[K]>>) => void;
-
-// New type for socket.io callback-based queries
-export type CallbackQueryEventType<T extends EventMapType> = {
-  boardId: string;
-  requestId: string;
-  query: keyof T;
-  data: Parameters<T[keyof T]>;
-};
-
-export interface WorkspaceBoardAssignment {
-  workspaceId: string;
-  assignedBoards: Set<string>;
-  lastActivity: Date;
-  permissions: BoardPermissions;
-}
-
-export interface BoardPermissions {
-  canRead: boolean;
-  canWrite: boolean;
-  canManage: boolean;
-}
-
-export const DEFAULT_BOARD_PERMISSIONS: BoardPermissions = {
-  canRead: true,
-  canWrite: true,
-  canManage: false, // Management requires explicit permission
-};
-
-export interface BoardAssignmentConfig {
-  autoAssignNewBoards: boolean; // Auto-assign new boards to all workspaces
-  requireExplicitAssignment: boolean; // Require explicit assignment for board access
-  maxBoardsPerWorkspace: number; // Maximum boards per workspace (0 = unlimited)
-  assignmentTimeout: number; // Timeout for assignment requests
-}
-
-export const DEFAULT_BOARD_ASSIGNMENT_CONFIG: BoardAssignmentConfig = {
-  autoAssignNewBoards: true,
-  requireExplicitAssignment: false,
-  maxBoardsPerWorkspace: 0, // Unlimited by default
-  assignmentTimeout: 5000, // 5 seconds
-};
 
 // Server Health Check Configuration
 
@@ -251,14 +156,6 @@ export const DEFAULT_HEALTH_CHECK_CONFIG: ServerHealthCheck = {
   retryInterval: 10000, // 10 seconds
   maxRetries: 3,
 };
-
-// Workspace connection status
-export enum WorkspaceConnectionStatus {
-  CONNECTED = "connected",
-  DISCONNECTED = "disconnected",
-  RECONNECTING = "reconnecting",
-  STALE = "stale", // Connected but not responding to health checks
-}
 
 export interface WorkspaceInfo {
   id: string; // Unique workspace identifier

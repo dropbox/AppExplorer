@@ -1,15 +1,9 @@
 import * as vscode from "vscode";
-import { CardData, SymbolCardData } from "../EventTypes";
+import { CardData } from "../EventTypes";
 import { HandlerContext } from "../extension";
 import { TEST_CARDS } from "../test/fixtures/card-data";
+import { isSymbolCard } from "../test/helpers/e2e-test-utils";
 import { MockMiroClient } from "../test/mocks/mock-miro-client";
-
-/**
- * Type guard to check if a card is a symbol card
- */
-function isSymbolCard(card: CardData): card is SymbolCardData {
-  return card.type === "symbol";
-}
 
 /**
  * Register manual debug commands for MockMiroClient

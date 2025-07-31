@@ -169,18 +169,15 @@ import createDebug from "debug";
 
 // Create namespaced debug loggers
 const debug = createDebug("app-explorer:test:e2e");
-const debugUI = createDebug("app-explorer:test:ui");
 
 test("Test with debug logging", async () => {
   debug("Starting card creation test");
 
-  debugUI("Opening file at symbol");
   await E2ETestUtils.openFileAtSymbol(
     "src/components/UserProfile.ts",
     "UserProfile",
   );
 
-  debugUI("Executing create card command");
   const cardsPromise = vscode.commands.executeCommand(
     "app-explorer.createCard",
   );
@@ -308,18 +305,6 @@ test("Test with proper cleanup", async function () {
   }
 });
 ```
-
-## Migration Checklist
-
-To convert existing tests to proper e2e tests:
-
-- [ ] Replace direct function calls with `vscode.commands.executeCommand()`
-- [ ] Remove manual UI mocking in favor of real VSCode command interaction
-- [ ] Replace `console.log` with `debug` library usage
-- [ ] Use Sinon for any necessary mocking instead of manual function replacement
-- [ ] Add proper error handling and cleanup
-- [ ] Verify tests actually simulate user workflows
-- [ ] Ensure tests use real VSCode APIs throughout
 
 ## Common Anti-Patterns to Avoid
 
@@ -563,8 +548,6 @@ test("Handle invalid file gracefully", async () => {
 
 ### Enhanced Debug Logging
 
-Use debug just like you would console. It has log, info, debug, and error methods.
-
 ```typescript
 // src/test/suite/e2e/navigation.test.ts
 import createDebug from "debug";
@@ -581,46 +564,7 @@ test("Test with debug logging", async () => {
 });
 ```
 
-### Improved Sinon Integration
-
-Use sinon directly in the test where its needed. We do not need an extra test
-utility to manage it.
-
-```typescript
-import * as sinon from "sinon";
-
-test("Test with external API mocking", async () => {
-  const sandbox = sinon.createSandbox();
-
-  try {
-    // Mock external dependencies only, never VSCode UI
-    const fetchStub = sandbox
-      .stub(global, "fetch")
-      .resolves(new Response(JSON.stringify({ success: true })));
-
-    // Execute test using real VSCode commands
-    await vscode.commands.executeCommand("app-explorer.createCard");
-
-    // Verify external calls
-    assert.ok(fetchStub.calledOnce);
-  } finally {
-    sandbox.restore();
-  }
-});
-```
-
 ## Environment Setup
-
-### Debug Configuration
-
-Add to your test environment setup:
-
-```typescript
-// Enable debug logging in test environment
-if (process.env.NODE_ENV === "test") {
-  process.env.DEBUG = process.env.DEBUG || "app-explorer:test:*";
-}
-```
 
 ### VSCode Test Configuration
 
@@ -680,11 +624,3 @@ test("Error handling with Sinon", async () => {
   }
 });
 ```
-
-### Migration Path
-
-1. **Existing tests**: Continue using `E2ETestUtils.startCapturingNotifications()` for now
-2. **New tests**: Use `E2ETestUtils.createSinonNotificationCapture()` for better mock management
-3. **Future**: Gradually migrate existing tests to use Sinon-based approach
-
-This provides a clear migration path while maintaining backward compatibility with existing tests.

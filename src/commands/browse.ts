@@ -103,7 +103,6 @@ export const makeBrowseHandler = (context: HandlerContext) =>
       onDidSelectItem: async (item: CardQuickPickItem) => {
         const card = cardStorage.getCardByLink(item.miroLink);
         if (card && card.miroLink) {
-          // Use universal query method through WorkspaceCardStorageProxy
           await promiseEmit(
             cardStorage.socket,
             "hoverCard",
@@ -122,7 +121,6 @@ export const makeBrowseHandler = (context: HandlerContext) =>
     } else if (selected) {
       const card = cardStorage.getCardByLink(selected.miroLink);
       if (card) {
-        // Use universal query method through WorkspaceCardStorageProxy
         await promiseEmit(
           context.cardStorage.socket,
           "selectCard",
@@ -158,7 +156,6 @@ export const makeBrowseHandler = (context: HandlerContext) =>
             }
           }
 
-          // Use universal query method through WorkspaceCardStorageProxy
           await promiseEmit(
             context.cardStorage.socket,
             "cardStatus",

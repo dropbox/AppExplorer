@@ -9,7 +9,7 @@ import {
   SymbolCardData,
   WorkspaceToMiroOperations,
 } from "../../EventTypes";
-import { CardStorage, createMemoryCardStorage } from "../../card-storage";
+import { CardStorage, MemoryAdapter } from "../../card-storage";
 
 const debug = createDebugger("app-explorer:test:mock-miro-client");
 
@@ -40,7 +40,8 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
     super();
     this.boardId = "mock-board-test-123";
     this.boardName = "Mock Test Board";
-    this.cardStorage = createMemoryCardStorage();
+    const adapter = new MemoryAdapter();
+    this.cardStorage = new CardStorage(adapter);
     this.cardStorage.addBoard(this.boardId, this.boardName);
     this.serverUrl = serverUrl;
   }

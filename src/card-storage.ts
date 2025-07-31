@@ -258,8 +258,3 @@ export class CardStorage
     return this.selectedIds;
   }
 }
-
-export function createMemoryCardStorage(): CardStorage {
-  const adapter = new MemoryAdapter();
-  return new CardStorage(adapter);
-}

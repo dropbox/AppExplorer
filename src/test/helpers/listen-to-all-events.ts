@@ -6,9 +6,6 @@ export function listenToAllEvents(
 ) {
   const listening: Record<string | symbol, boolean> = {};
   const listenToEvent = (eventName: string | symbol): void => {
-    if (typeof eventName !== "string") {
-      return;
-    }
     if (listening[eventName]) {
       return;
     }
@@ -17,4 +14,10 @@ export function listenToAllEvents(
   };
   ee.eventNames().forEach(listenToEvent);
   ee.on("newListener", (eventName) => listenToEvent(eventName));
+
+  return () => {
+    Object.keys(listening).forEach((eventName) => {
+      ee.off(eventName, callback);
+    });
+  };
 }
