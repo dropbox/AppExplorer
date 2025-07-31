@@ -412,7 +412,7 @@ export class MiroServer {
     Object.keys(miroOperations).forEach((k) => {
       const event = k as keyof typeof miroOperations;
       const handler = miroOperations[event];
-      socket.on(event, (...args: any[]) => {
+      socket.on(event, (...args: unknown[]) => {
         logger.debug("Received workspace query", {
           event,
           args,
@@ -426,7 +426,7 @@ export class MiroServer {
     Object.keys(serverQueries).forEach((k) => {
       const event = k as keyof typeof serverQueries;
       const handler = serverQueries[event];
-      socket.on(event, (...args: any[]) => {
+      socket.on(event, (...args: unknown[]) => {
         logger.debug("Received workspace query", {
           event,
           args,
@@ -435,20 +435,7 @@ export class MiroServer {
         return handler(...args);
       });
     });
-
-    // Handle workspace disconnection
-    socket.on("disconnect", (reason: string) => {
-      this.handleWorkspaceDisconnectionBySocket(socket, reason);
-    });
   }
-
-  /**
-   * Handle workspace disconnection by socket
-   */
-  private handleWorkspaceDisconnectionBySocket(
-    _socket: any,
-    _reason: string,
-  ): void {}
 
   dispose() {
     this.subscriptions.forEach((s) => s.dispose());

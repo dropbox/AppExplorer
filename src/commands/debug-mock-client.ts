@@ -248,31 +248,6 @@ export const makeDebugMockClientHandler = (
       // Register manual debug commands
       registerMockMiroDebugCommands(extensionContext, mockClient);
 
-      // Set up user feedback handlers
-      mockClient.on("cardStatusUpdate", (data) => {
-        vscode.window.showInformationMessage(
-          `MockMiroClient: Received card status update - ${JSON.stringify(data)}`,
-        );
-      });
-
-      mockClient.on("cardSelection", (cards) => {
-        vscode.window.showInformationMessage(
-          `MockMiroClient: Received card selection - ${cards.length} cards`,
-        );
-      });
-
-      mockClient.on("error", (error) => {
-        vscode.window.showErrorMessage(
-          `MockMiroClient Error: ${error.message}`,
-        );
-        // Clear context on error
-        vscode.commands.executeCommand(
-          "setContext",
-          "mockMiroClient.connected",
-          false,
-        );
-      });
-
       // Store reference for cleanup
       extensionContext.subscriptions.push({
         dispose: () => {

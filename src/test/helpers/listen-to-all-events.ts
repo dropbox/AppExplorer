@@ -2,7 +2,7 @@ import EventEmitter = require("events");
 
 export function listenToAllEvents(
   ee: EventEmitter,
-  callback: (eventName: string, ...args: any[]) => void,
+  callback: (eventName: string, ...args: unknown[]) => void,
 ) {
   const listening: Record<string | symbol, boolean> = {};
   const listenToEvent = (eventName: string | symbol): void => {

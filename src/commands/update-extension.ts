@@ -86,6 +86,7 @@ export function registerUpdateCommand(context: vscode.ExtensionContext) {
               });
           });
         });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         outputChannel.appendLine(`Extension update failed: ${error.message}`);
         vscode.window.showErrorMessage(

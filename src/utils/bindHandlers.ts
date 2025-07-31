@@ -2,7 +2,7 @@ import { Socket } from "socket.io-client";
 import { EventMapType } from "../EventTypes";
 
 export function bindHandlers<T extends EventMapType>(
-  socket: Socket<T, any>,
+  socket: Socket<T>,
   handlers: T,
 ) {
   Object.keys(handlers).forEach((k) => {

@@ -6,7 +6,7 @@ import { MiroServerSocket } from "./server";
 // Storage adapter interface to abstract persistence layer
 export interface StorageAdapter {
   get<T>(key: string): T | undefined;
-  set(key: string, value: any): Promise<void>;
+  set(key: string, value: unknown): Promise<void>;
   delete(key: string): Promise<void>;
 }
 
@@ -18,7 +18,7 @@ export class VSCodeAdapter implements StorageAdapter {
     return this.context.workspaceState.get<T>(key);
   }
 
-  async set(key: string, value: any): Promise<void> {
+  async set(key: string, value: unknown): Promise<void> {
     await this.context.workspaceState.update(key, value);
   }
 
@@ -29,13 +29,13 @@ export class VSCodeAdapter implements StorageAdapter {
 
 // Memory adapter that uses Map for in-memory storage
 export class MemoryAdapter implements StorageAdapter {
-  private storage = new Map<string, any>();
+  private storage = new Map<string, unknown>();
 
   get<T>(key: string): T | undefined {
     return this.storage.get(key) as T | undefined;
   }
 
-  async set(key: string, value: any): Promise<void> {
+  async set(key: string, value: unknown): Promise<void> {
     this.storage.set(key, value);
   }
 

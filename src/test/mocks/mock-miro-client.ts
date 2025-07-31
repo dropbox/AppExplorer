@@ -23,9 +23,6 @@ function isSymbolCard(card: CardData): card is SymbolCardData {
 export interface MockMiroClientEvents {
   connected: [];
   disconnected: [];
-  cardStatusUpdate: [any];
-  cardSelection: [CardData[]];
-  error: [{ message: string; code?: string }];
 }
 
 export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
@@ -105,13 +102,9 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
       });
 
       this.socket.on("connect_error", (error) => {
-        console.error("Connection error", {
+        debug("Connection error", {
           error: error.message,
           boardId: this.boardId,
-        });
-        this.emit("error", {
-          message: `Failed to connect to server: ${error.message}`,
-          code: "CONNECTION_ERROR",
         });
       });
 
@@ -135,7 +128,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
         });
       });
     } catch (error) {
-      console.error("Failed to connect to server", {
+      debug("Failed to connect to server", {
         error: error instanceof Error ? error.message : String(error),
         boardId: this.boardId,
       });
@@ -198,7 +191,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
     if (!this.socket?.connected) {
       const errorMsg = "MockMiroClient: Not connected to server";
       vscode.window.showErrorMessage(errorMsg);
-      console.error(errorMsg, { boardId: this.boardId });
+      debug(errorMsg, { boardId: this.boardId });
       return;
     }
     const storedCard = this.cardStorage.getCardByLink(card.miroLink!);
@@ -215,7 +208,10 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
-  socketEmit(event: keyof MiroToWorkspaceOperations, data: any) {
+  socketEmit<K extends keyof MiroToWorkspaceOperations>(
+    event: K,
+    data: Parameters<MiroToWorkspaceOperations[K]>[0],
+  ) {
     this.socket?.emit(event, data);
     debug("Sent %s event to server %O", event, {
       data,
@@ -229,7 +225,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
     if (!this.socket?.connected) {
       const errorMsg = "MockMiroClient: Not connected to server";
       vscode.window.showErrorMessage(errorMsg);
-      console.error(errorMsg, { boardId: this.boardId });
+      debug(errorMsg, { boardId: this.boardId });
       return;
     }
 
@@ -254,7 +250,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
     if (!this.socket?.connected) {
       const errorMsg = "MockMiroClient: Not connected to server";
       vscode.window.showErrorMessage(errorMsg);
-      console.error(errorMsg, { boardId: this.boardId });
+      debug(errorMsg, { boardId: this.boardId });
       return;
     }
 

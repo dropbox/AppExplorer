@@ -5,10 +5,10 @@ import { FeatureFlagManager } from "./feature-flag-manager";
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export interface PrefixedLogger {
-  debug(message: string, ...args: any[]): void;
-  info(message: string, ...args: any[]): void;
-  warn(message: string, ...args: any[]): void;
-  error(message: string, ...args: any[]): void;
+  debug(message: string, ...args: unknown[]): void;
+  info(message: string, ...args: unknown[]): void;
+  warn(message: string, ...args: unknown[]): void;
+  error(message: string, ...args: unknown[]): void;
 }
 
 export class Logger {
@@ -51,28 +51,28 @@ export class Logger {
    */
   withPrefix = (prefix: string): PrefixedLogger => {
     return {
-      debug: (message: string, ...args: any[]) => {
+      debug: (message: string, ...args: unknown[]) => {
         const cleanArgs = args.map(cleanCardEvents);
         this.logStream?.write(
           `[${prefix}] [DEBUG] ${message} ${JSON.stringify(cleanArgs)}\n`,
         );
         this.outputChannel.debug(`[${prefix}] ${message}`, cleanArgs);
       },
-      info: (message: string, ...args: any[]) => {
+      info: (message: string, ...args: unknown[]) => {
         const cleanArgs = args.map(cleanCardEvents);
         this.logStream?.write(
           `[${prefix}] [INFO ] ${message} ${JSON.stringify(cleanArgs)}\n`,
         );
         this.outputChannel.info(`[${prefix}] ${message}`, cleanArgs);
       },
-      warn: (message: string, ...args: any[]) => {
+      warn: (message: string, ...args: unknown[]) => {
         const cleanArgs = args.map(cleanCardEvents);
         this.logStream?.write(
           `[${prefix}] [WARN ] ${message} ${JSON.stringify(cleanArgs)}\n`,
         );
         this.outputChannel.warn(`[${prefix}] ${message}`, cleanArgs);
       },
-      error: (message: string, ...args: any[]) => {
+      error: (message: string, ...args: unknown[]) => {
         const cleanArgs = args.map(cleanCardEvents);
         this.logStream?.write(
           `[${prefix}] [ERROR] ${message} ${JSON.stringify(cleanArgs)}\n`,
@@ -98,6 +98,7 @@ export class Logger {
       this.withPrefix("logs").info("Logging to " + this.logFile);
     } catch (err) {
       this.outputChannel.error(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         `[logger] Failed to initialize log file: ${(err as any)?.message ?? err}`,
       );
     }

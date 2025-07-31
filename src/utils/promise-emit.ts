@@ -31,7 +31,11 @@ type CallbackEvents<T> = {
 
 // Filter to only callback-based event names
 type CallbackEventNames<T> = {
-  [K in keyof T]: CallbackEvents<T>[K] extends never ? never : K;
+  [K in keyof T]: CallbackEvents<T>[K] extends never
+    ? never
+    : K extends string
+      ? K
+      : never;
 }[keyof T];
 
 // Extract parameter types (excluding callback)
@@ -72,6 +76,8 @@ type EventResult<T, K extends keyof T> = CallbackEvents<T>[K] extends {
  * ```
  */
 export function promiseEmit<
+  // The correct types are extracted from these anys
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   TSocket extends ServerSocket<any, any> | ClientSocket<any, any>,
   TEventMap extends ExtractEventMap<TSocket>,
   TEventName extends CallbackEventNames<TEventMap>,
