@@ -1,3 +1,4 @@
+import createDebug from "debug";
 import { createWriteStream } from "fs";
 import * as vscode from "vscode";
 import { FeatureFlagManager } from "./feature-flag-manager";
@@ -21,6 +22,11 @@ export class Logger {
     this.outputChannel = vscode.window.createOutputChannel("AppExplorer", {
       log: true,
     });
+
+    createDebug.enable("app-explorer:*");
+    createDebug.log = (message, ...args: unknown[]) => {
+      this.outputChannel.debug(message, ...args.map(cleanCardEvents));
+    };
   }
 
   /**
@@ -133,18 +139,18 @@ function cleanCardEvents<T extends unknown>(eventFragment: T): T {
     cleanMap.set(eventFragment, true);
     const cleaned = Object.fromEntries(
       Object.entries(eventFragment).map(([key, value]) => {
-        if (
-          key === "cards" &&
-          typeof value === "object" &&
-          !Array.isArray(value) &&
-          value
-        ) {
+        if (value && key === "cards") {
+          if (Array.isArray(value)) {
+            return [key, `(${value.length} cards)`];
+          }
+
           return [key, `(${Object.keys(value).length} cards)`];
         }
 
         return [key, cleanCardEvents(value)];
       }),
     );
+    cleaned.__clean = true;
     cleanMap.delete(eventFragment);
     return cleaned as T;
   }

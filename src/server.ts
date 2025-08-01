@@ -115,6 +115,7 @@ export class MiroServer {
 
     app.get("/storage", (_req, res) => {
       res.json({
+        connectedBoards: this.cardStorage.getConnectedBoards(),
         cardsByBoard: this.cardStorage.getCardsByBoard(),
       });
     });
@@ -236,8 +237,8 @@ export class MiroServer {
           connectedWorkspaces.set(request.workspaceId, workspaceInfo);
 
           // Join the workspace room so the client can receive events sent to this workspace
-          socket.join(request.workspaceId);
-          logger.debug("Workspace client joined room", {
+          // socket.join(request.workspaceId);
+          logger.debug("Workspace client", {
             workspaceId: request.workspaceId,
             socketId: socket.id,
           });
@@ -456,9 +457,6 @@ export class MiroServer {
           event,
           args,
         });
-      });
-      socket.on("disconnect", () => {
-        logger.warn("Miro socket disconnected", { id: socket.id });
       });
 
       const info = await promiseEmit(socket, "getBoardInfo", "");

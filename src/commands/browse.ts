@@ -4,8 +4,11 @@ import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
 import { getRelativePath } from "../get-relative-path";
 import { LocationFinder } from "../location-finder";
+import { createLogger } from "../logger";
 import { promiseEmit } from "../utils/promise-emit";
 import { SymbolAnchor } from "./create-card";
+
+const logger = createLogger("browse");
 
 export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
   const boards = cardStorage
@@ -37,6 +40,10 @@ export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
 export const makeBrowseHandler = (context: HandlerContext) =>
   async function () {
     const { cardStorage } = context;
+    logger.debug("Browsing cards...", {
+      connectedBoards: cardStorage.getConnectedBoards(),
+      cardsByBoard: cardStorage.getCardsByBoard(),
+    });
     const navigateTo = cardStorage.navigateTo;
     const locationFinder = new LocationFinder();
     type CardQuickPickItem = vscode.QuickPickItem & {

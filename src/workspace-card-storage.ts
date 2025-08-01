@@ -101,20 +101,38 @@ export class WorkspaceCardStorage
       }
     });
   }
+
+  async disconnectBoard(boardId: string) {
+    return super.disconnectBoard(
+      boardId,
+      /**
+       * The server will delete cards on disconnection, but not workspaces.
+       */
+      false,
+    );
+  }
+
+  selectedCards(data: CardData[]): void {
+    logger.debug("Received selected cards", { data });
+    return super.selectedCards(data);
+  }
   connectedBoards(boardIds: string[]) {
-    this.connectedBoardIds = new Set(boardIds);
+    logger.debug("Received connected boards", { boardIds });
+    this.connectedBoardSet = new Set(boardIds);
     this.emit("connectedBoards", {
       type: "connectedBoards",
       boardIds: boardIds,
     });
   }
   boardUpdate(board: BoardInfo | null) {
+    logger.debug("Received board update", { board });
     if (board) {
       this.setBoardName(board.boardId, board.name);
       this.setBoardCards(board.boardId, Object.values(board.cards));
     }
   }
   async cardUpdate(url: string, card: CardData | null) {
+    logger.debug("Received card update", { url, card });
     try {
       if (card) {
         await this.setCard(card.boardId, card);
@@ -122,11 +140,16 @@ export class WorkspaceCardStorage
         this.deleteCardByLink(url);
       }
     } catch (error) {
-      logger.error("Error handling cardUpdate event", { error, url, card });
+      logger.error("Error handling cardUpdate event", {
+        error: String(error),
+        url,
+        card,
+      });
     }
   }
 
   async card({ url, card }: { url: string; card: CardData | null }) {
+    logger.debug("Received card event", { url, card });
     try {
       if (card) {
         await this.setCard(card.boardId, card);
@@ -134,11 +157,16 @@ export class WorkspaceCardStorage
         this.deleteCardByLink(url);
       }
     } catch (error) {
-      logger.error("Error handling card event", { error, url, card });
+      logger.error("Error handling card event", {
+        error: String(error),
+        url,
+        card,
+      });
     }
   }
 
   public navigateTo = async (card: CardData, preview = false) => {
+    logger.debug("Navigating to card", { card, preview });
     const dest = await this.locationFinder.findCardDestination(card);
 
     // Only connect if it's able to reach the symbol
