@@ -186,10 +186,10 @@
     "configuration": {
       "title": "AppExplorer",
       "properties": {
-        "appExplorer.migration.debugMode": {
-          "type": "boolean",
-          "default": false,
-          "description": "Enable debug logging for migration features"
+        "appExplorer.debug": {
+          "type": "string",
+          "default": null,
+          "description": "Set debug namespace"
         },
         "appExplorer.internal.serverPort": {
           "type": "integer",

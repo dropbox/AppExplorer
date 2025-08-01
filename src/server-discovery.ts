@@ -1,5 +1,5 @@
+import createDebug from "debug";
 import { DEFAULT_HEALTH_CHECK_CONFIG, ServerHealthCheck } from "./EventTypes";
-import { createLogger } from "./logger";
 import { PortConfig } from "./port-config";
 
 export interface ServerDiscoveryOptions {
@@ -28,11 +28,11 @@ export class ServerDiscovery {
   private healthCheckInterval?: NodeJS.Timeout;
   private lastHealthCheck?: Date;
   private consecutiveFailures = 0;
-  private logger = createLogger("server-discovery");
+  private debug = createDebug("app-explorer:server-discovery");
 
   constructor(options: Partial<ServerDiscoveryOptions> = {}) {
     this.options = { ...getDefaultServerOptions(), ...options };
-    this.logger.debug("ServerDiscovery initialized", { options: this.options });
+    this.debug("ServerDiscovery initialized", { options: this.options });
   }
 
   /**
@@ -43,7 +43,7 @@ export class ServerDiscovery {
     const startTime = Date.now();
 
     try {
-      this.logger.debug("Starting server health check", { url });
+      this.debug("Starting server health check", { url });
 
       const controller = new AbortController();
       const timeoutId = setTimeout(
@@ -66,7 +66,7 @@ export class ServerDiscovery {
         this.consecutiveFailures = 0;
         this.lastHealthCheck = new Date();
 
-        this.logger.debug("Server health check successful", {
+        this.debug("Server health check successful", {
           url,
           status: response.status,
           duration: `${duration}ms`,
@@ -77,7 +77,7 @@ export class ServerDiscovery {
       } else {
         this.consecutiveFailures++;
 
-        this.logger.warn("Server health check failed - non-200 response", {
+        this.debug("Server health check failed - non-200 response", {
           url,
           status: response.status,
           statusText: response.statusText,
@@ -91,7 +91,7 @@ export class ServerDiscovery {
       this.consecutiveFailures++;
       const duration = Date.now() - startTime;
 
-      this.logger.warn("Server health check failed - network error", {
+      this.debug("Server health check failed - network error", {
         url,
         error: error instanceof Error ? error.message : String(error),
         duration: `${duration}ms`,
@@ -108,7 +108,7 @@ export class ServerDiscovery {
    */
   stopHealthMonitoring(): void {
     if (this.healthCheckInterval) {
-      this.logger.debug("Stopping server health monitoring");
+      this.debug("Stopping server health monitoring");
       clearInterval(this.healthCheckInterval);
       this.healthCheckInterval = undefined;
     }
@@ -147,8 +147,8 @@ export class ServerDiscovery {
    * Dispose of resources
    */
   dispose(): void {
-    this.logger.debug("Disposing ServerDiscovery resources");
+    this.debug("Disposing ServerDiscovery resources");
     this.stopHealthMonitoring();
-    this.logger.debug("ServerDiscovery disposed");
+    this.debug("ServerDiscovery disposed");
   }
 }

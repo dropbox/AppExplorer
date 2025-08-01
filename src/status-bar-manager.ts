@@ -1,5 +1,8 @@
+import createDebug from "debug";
 import * as vscode from "vscode";
 import { WorkspaceCardStorage } from "./workspace-card-storage";
+
+const debug = createDebug("app-explorer:status-bar-manager");
 
 export class StatusBarManager {
   public statusBar: vscode.StatusBarItem;
@@ -57,9 +60,7 @@ export class StatusBarManager {
       return;
     }
     const boardIds = this.cardStorage.listBoardIds();
-    const allCards = boardIds.flatMap((boardId) =>
-      Object.values(this.cardStorage.getBoard(boardId)!.cards),
-    );
+    const allCards = this.cardStorage.listAllCards();
     const totalCards = allCards.length;
     if (connectedBoards.length > 0) {
       const disconnected = allCards.filter(

@@ -1,10 +1,10 @@
+import createDebug from "debug";
 import { FeatureFlagManager } from "./feature-flag-manager";
-import { createLogger } from "./logger";
 import { ServerDiscovery } from "./server-discovery";
 import { ServerLauncher } from "./server-launcher";
 import { WorkspaceCardStorage } from "./workspace-card-storage";
 
-const logger = createLogger("health-monitor");
+const debug = createDebug("app-explorer:health-monitor");
 
 export type HealthStatus = "healthy" | "unhealthy" | "unknown";
 
@@ -42,7 +42,7 @@ export class ServerHealthMonitor {
   private consecutiveSuccesses = 0;
   private isMonitoring = false;
   private eventHandlers: HealthEventHandler[] = [];
-  private logger = createLogger("health-monitor");
+  private debug = createDebug("app-explorer:health-monitor");
 
   constructor(
     serverDiscovery: ServerDiscovery,
@@ -67,7 +67,7 @@ export class ServerHealthMonitor {
     }
 
     this.isMonitoring = true;
-    this.logger.info("Starting server health monitoring", {
+    this.debug("Starting server health monitoring", {
       interval: this.options.checkInterval,
       failureThreshold: this.options.failureThreshold,
     });
@@ -89,7 +89,7 @@ export class ServerHealthMonitor {
       this.monitorInterval = undefined;
     }
     this.isMonitoring = false;
-    this.logger.info("Stopped server health monitoring");
+    this.debug("Stopped server health monitoring");
   }
 
   /**
@@ -125,7 +125,7 @@ export class ServerHealthMonitor {
         }
       }
     } catch (error) {
-      this.logger.error("Health check error", { error });
+      this.debug("Health check error", { error });
       this.consecutiveSuccesses = 0;
       this.consecutiveFailures++;
 
@@ -180,7 +180,7 @@ export class ServerHealthMonitor {
    */
   private async attemptFailover(): Promise<void> {
     if (this.featureFlagManager.isEnabled("debugMode")) {
-      logger.debug("AppExplorer: Attempting server failover...");
+      debug("AppExplorer: Attempting server failover...");
     }
 
     try {
@@ -188,7 +188,7 @@ export class ServerHealthMonitor {
 
       if (result.mode === "server" && result.server) {
         if (this.featureFlagManager.isEnabled("debugMode")) {
-          logger.debug("AppExplorer: Successfully launched replacement server");
+          debug("AppExplorer: Successfully launched replacement server");
         }
 
         // Reset health status since we now have a new server
@@ -200,7 +200,7 @@ export class ServerHealthMonitor {
         );
       } else if (result.mode === "client") {
         if (this.featureFlagManager.isEnabled("debugMode")) {
-          logger.debug(
+          debug(
             "AppExplorer: Another workspace launched replacement server, connecting as client",
           );
         }
@@ -210,10 +210,10 @@ export class ServerHealthMonitor {
         this.consecutiveSuccesses = 0;
         await this.updateStatus("healthy", "Connected to replacement server");
       } else {
-        logger.error("AppExplorer: Failover attempt failed:", result.error);
+        debug("AppExplorer: Failover attempt failed:", result.error);
       }
     } catch (error) {
-      logger.error("AppExplorer: Failover attempt failed:", error);
+      debug("AppExplorer: Failover attempt failed:", error);
     }
   }
 
@@ -228,7 +228,7 @@ export class ServerHealthMonitor {
       this.currentStatus = status;
 
       if (this.featureFlagManager.isEnabled("debugMode")) {
-        logger.debug(
+        debug(
           `AppExplorer: Server health status changed to ${status}: ${details}`,
         );
       }
@@ -267,7 +267,7 @@ export class ServerHealthMonitor {
       try {
         handler(event);
       } catch (error) {
-        logger.error("AppExplorer: Error in health event handler:", error);
+        debug("AppExplorer: Error in health event handler:", error);
       }
     }
   }

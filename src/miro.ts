@@ -40,13 +40,7 @@ async function updateCard(
 ): Promise<AppCard> {
   let metaData: MetaData;
   invariant(data.path, "missing data.path in updateCard");
-  if (data.type === "group") {
-    metaData = {
-      path: data.path,
-      symbol: null,
-      codeLink: null,
-    };
-  } else if (data.type === "symbol") {
+  if (data.type === "symbol") {
     metaData = {
       path: data.path,
       symbol: data.symbol ?? null,
@@ -539,7 +533,7 @@ async function extractCardData(card: Item): Promise<CardData | null> {
     }
 
     return {
-      type: symbol ? "symbol" : "group",
+      type: "symbol",
       boardId,
       title: decode(card.title),
       // description: decode(card.description),

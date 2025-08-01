@@ -1,9 +1,9 @@
+import createDebug from "debug";
 import * as vscode from "vscode";
 import { SymbolAnchor } from "./commands/create-card";
 import { CardData } from "./EventTypes";
-import { createLogger } from "./logger";
 
-const logger = createLogger("location-finder");
+const debug = createDebug("app-explorer:location-finder");
 
 export class LocationFinder {
   async findSymbolsInDocument(uri: vscode.Uri): Promise<Array<SymbolAnchor>> {
@@ -55,7 +55,7 @@ export class LocationFinder {
               return null;
             }
           } catch (e) {
-            logger.error(String(e));
+            debug(String(e));
             return null;
           }
 
@@ -87,7 +87,7 @@ export class LocationFinder {
 
             if (symbol) {
             } else {
-              logger.debug("❌ Symbol not found, returning URI only");
+              debug("❌ Symbol not found, returning URI only");
             }
 
             return symbol ?? uri;

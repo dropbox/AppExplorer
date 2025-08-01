@@ -1,4 +1,5 @@
 import { TagColor } from "@mirohq/websdk-types/stable/features/widgets/tag";
+import createDebug from "debug";
 import { createServer } from "http";
 import * as path from "path";
 import { Namespace, Server, Socket as ServerSocket } from "socket.io";
@@ -18,7 +19,6 @@ import {
   WorkspaceToServerOperations,
 } from "./EventTypes";
 import { FeatureFlagManager } from "./feature-flag-manager";
-import { createLogger } from "./logger";
 import { PortConfig } from "./port-config";
 import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
 import { bindHandlers } from "./utils/bindHandlers";
@@ -27,7 +27,7 @@ import compression = require("compression");
 import express = require("express");
 import morgan = require("morgan");
 import packageJson = require("../package.json");
-const logger = createLogger("server");
+const debug = createDebug("app-explorer:server");
 
 /**
  * Error class for exhaustive switch statement checking
@@ -67,7 +67,7 @@ export class MiroServer {
     private port: number = PortConfig.getServerPort(),
   ) {
     listenToAllEvents(this.cardStorage, (eventName, ...args) => {
-      logger.debug("Server storage event", eventName, ...args);
+      debug("Server storage event", eventName, ...args);
     });
     const app = express();
     this.httpServer = createServer(app);
@@ -148,7 +148,7 @@ export class MiroServer {
       // Set up error handling for port binding failures
       this.httpServer.on("error", (error) => {
         if ("code" in error && error.code === "EADDRINUSE") {
-          logger.error("Port already in use", {
+          debug("Port already in use", {
             port,
             error: error.message,
           });
@@ -158,14 +158,14 @@ export class MiroServer {
             ),
           );
         } else {
-          logger.error("Server error", { error });
+          debug("Server error", { error });
           reject(error);
         }
       });
 
       // Start listening on the port
       this.httpServer.listen(port, () => {
-        logger.info("Server started successfully", { port });
+        debug("Server started successfully", { port });
         vscode.window.showInformationMessage(
           `AppExplorer - Server started. Open a Miro board to connect.`,
         );
@@ -180,21 +180,21 @@ export class MiroServer {
   private async onWorkspaceConnection(
     socket: WorkspaceServerSocket,
   ): Promise<void> {
-    logger.info("New workspace connection", { socketId: socket.id });
+    debug("New workspace connection", { socketId: socket.id });
     socket.onAny((event, ...args) => {
-      logger.debug("Received workspace event", socket.id, {
+      debug("Received workspace event", socket.id, {
         event,
         args,
       });
     });
     socket.onAnyOutgoing((event, ...args) => {
-      logger.debug("Sending workspace event", socket.id, {
+      debug("Sending workspace event", socket.id, {
         event,
         args,
       });
     });
     socket.on("disconnect", () => {
-      logger.warn("Workspace socket disconnected", { id: socket.id });
+      debug("Workspace socket disconnected", { id: socket.id });
     });
 
     const connectedWorkspaces = this.connectedWorkspaces;
@@ -224,7 +224,7 @@ export class MiroServer {
         request: WorkspaceRegistrationRequest,
         callback: (response: WorkspaceRegistrationResponse) => void,
       ): void => {
-        logger.info("Workspace registration request", request);
+        debug("Workspace registration request", request);
 
         try {
           // Create workspace info
@@ -238,7 +238,7 @@ export class MiroServer {
 
           // Join the workspace room so the client can receive events sent to this workspace
           // socket.join(request.workspaceId);
-          logger.debug("Workspace client", {
+          debug("Workspace client", {
             workspaceId: request.workspaceId,
             socketId: socket.id,
           });
@@ -250,12 +250,12 @@ export class MiroServer {
             cardsByBoard: this.cardStorage.getCardsByBoard(),
           };
 
-          logger.info("Workspace registered successfully", {
+          debug("Workspace registered successfully", {
             workspaceId: request.workspaceId,
           });
           callback(response);
         } catch (error) {
-          logger.error("Workspace registration failed", {
+          debug("Workspace registration failed", {
             workspaceId: request.workspaceId,
             error,
           });
@@ -275,16 +275,24 @@ export class MiroServer {
        * Handle cardStatus request from workspace and route to Miro board
        */
       async cardStatus(boardId, data, callback) {
-        logger.info("Workspace cardStatus request", { data });
+        debug("Workspace cardStatus request", { data });
         const boardSocket = cardStorage.getBoardSocket(boardId);
 
         if (!boardSocket) {
-          logger.error("Board not connected", { boardId });
+          debug("Board not connected", { boardId });
           callback(false);
           return;
         }
 
         try {
+          const card = cardStorage.getCardByLink(data.miroLink);
+          invariant(card, "Card not found in storage");
+          cardStorage.setCard(data.miroLink, {
+            ...card,
+            status: data.status,
+            codeLink: data.codeLink,
+          });
+
           // Route the cardStatus event to the Miro board
           const success = await promiseEmit(
             boardSocket,
@@ -292,13 +300,13 @@ export class MiroServer {
             boardId,
             data,
           );
-          logger.info("cardStatus routed to board successfully", {
+          debug("cardStatus routed to board successfully", {
             boardId,
             success,
           });
           callback(success);
         } catch (error) {
-          logger.error("Failed to route cardStatus to board", {
+          debug("Failed to route cardStatus to board", {
             boardId,
             error,
           });
@@ -313,22 +321,33 @@ export class MiroServer {
         invariant(boardSocket, "Board not connected");
         promiseEmit(boardSocket, "getIdToken", boardId).then(callback);
       },
-      setBoardName: function (
+      setBoardName: (
         boardId: string,
         name: string,
         callback: (success: boolean) => void,
-      ): void {
+      ): void => {
         const boardSocket = cardStorage.getBoardSocket(boardId);
         invariant(boardSocket, "Board not connected");
+        cardStorage.setBoardName(boardId, name);
         promiseEmit(boardSocket, "setBoardName", boardId, name).then(callback);
       },
-      getBoardInfo: function (
+      getBoardInfo: async function (
         boardId: string,
         callback: (boardInfo: BoardInfo) => void,
-      ): void {
+      ) {
         const boardSocket = cardStorage.getBoardSocket(boardId);
         invariant(boardSocket, "Board not connected");
-        promiseEmit(boardSocket, "getBoardInfo", boardId).then(callback);
+        const info = await promiseEmit(boardSocket, "getBoardInfo", boardId);
+
+        let boardInfo = cardStorage.getBoard(info.boardId);
+        if (!boardInfo) {
+          boardInfo = await cardStorage.addBoard(info.boardId, info.name);
+        } else if (boardInfo.name !== info.name) {
+          cardStorage.setBoardName(info.boardId, info.name);
+        }
+        debug("boardInfo retrieved", { boardId, info });
+
+        callback(info);
       },
       tags: function (
         boardId: string,
@@ -359,44 +378,54 @@ export class MiroServer {
         invariant(boardSocket, "Board not connected");
         promiseEmit(boardSocket, "tagCards", boardId, data).then(callback);
       },
-      selectCard: function (
+      selectCard: (
         boardId: string,
         miroLink: string,
         callback: (success: boolean) => void,
-      ): void {
+      ): void => {
         const boardSocket = cardStorage.getBoardSocket(boardId);
         invariant(boardSocket, "Board not connected");
+        cardStorage.selectedCards([cardStorage.getCardByLink(miroLink)!]);
+
         promiseEmit(boardSocket, "selectCard", boardId, miroLink).then(
           callback,
         );
       },
-      cards: function (
-        boardId: string,
-        callback: (cards: CardData[]) => void,
-      ): void {
+      cards: async (boardId: string, callback: (cards: CardData[]) => void) => {
         const boardSocket = cardStorage.getBoardSocket(boardId);
         invariant(boardSocket, "Board not connected");
-        promiseEmit(boardSocket, "cards", boardId).then(callback);
+        const cards = await promiseEmit(boardSocket, "cards", boardId);
+        cardStorage.setBoardCards(boardId, cards);
+
+        callback(cards);
       },
-      selected: function (
+      selected: async (
         boardId: string,
         callback: (cards: CardData[]) => void,
-      ): void {
+      ) => {
         const boardSocket = cardStorage.getBoardSocket(boardId);
         invariant(boardSocket, "Board not connected");
-        promiseEmit(boardSocket, "selected", boardId).then(callback);
+        const selected = await promiseEmit(boardSocket, "selected", boardId);
+        cardStorage.selectedCards(selected);
+        callback(selected);
       },
-      newCards: function (
+      newCards: async (
         boardId: string,
         data: CardData[],
         options: { connect?: string[] },
         callback: (success: boolean) => void,
-      ): void {
+      ) => {
         const boardSocket = cardStorage.getBoardSocket(boardId);
         invariant(boardSocket, "Board not connected");
-        promiseEmit(boardSocket, "newCards", boardId, data, options).then(
-          callback,
+        const success = await promiseEmit(
+          boardSocket,
+          "newCards",
+          boardId,
+          data,
+          options,
         );
+
+        callback(success);
       },
       hoverCard: function (
         boardId: string,
@@ -413,7 +442,7 @@ export class MiroServer {
       const event = k as keyof typeof miroOperations;
       const handler = miroOperations[event];
       socket.on(event, (...args: unknown[]) => {
-        logger.debug("Received workspace query", {
+        debug("Received workspace query", {
           event,
           args,
         });
@@ -427,7 +456,7 @@ export class MiroServer {
       const event = k as keyof typeof serverQueries;
       const handler = serverQueries[event];
       socket.on(event, (...args: unknown[]) => {
-        logger.debug("Received workspace query", {
+        debug("Received workspace query", {
           event,
           args,
         });
@@ -447,20 +476,20 @@ export class MiroServer {
       // Add a small delay to allow the client to set up its handlers
       await new Promise((resolve) => setTimeout(resolve, 100));
       socket.onAny((event, ...args) => {
-        logger.debug("Received miro event", socket.id, {
+        debug("Received miro event", socket.id, {
           event,
           args,
         });
       });
       socket.onAnyOutgoing((event, ...args) => {
-        logger.debug("Sending miro event", socket.id, {
+        debug("Sending miro event", socket.id, {
           event,
           args,
         });
       });
 
       const info = await promiseEmit(socket, "getBoardInfo", "");
-      logger.info("Miro board connected", info);
+      debug("Miro board connected", info);
 
       let boardInfo = this.cardStorage.getBoard(info.boardId);
       if (!boardInfo) {
@@ -468,19 +497,24 @@ export class MiroServer {
       } else if (boardInfo.name !== info.name) {
         this.cardStorage.setBoardName(info.boardId, info.name);
       }
+      debug("boardInfo retrieved", info);
 
       const cards = await promiseEmit(socket, "cards", info.boardId);
-      logger.info("Cards received from Miro board", {
+      debug("Cards received from Miro board", {
         boardId: info.boardId,
         cardCount: cards.length,
       });
       this.cardStorage.connectBoard(info.boardId, socket);
       this.cardStorage.setBoardCards(info.boardId, cards);
 
+      debug("boardInfo retrieved", info, {
+        cards: this.cardStorage.getCardsByBoard()[info.boardId],
+      });
+
       const miroToWorkspace: MiroToWorkspaceOperations = {
         navigateTo: (card) => {
           // Enhanced logging for navigation events from Miro
-          logger.info("🎯 MIRO EVENT: Navigate to card", {
+          debug("🎯 MIRO EVENT: Navigate to card", {
             timestamp: new Date().toISOString(),
             boardId: info.boardId,
             cardTitle: card.title,
@@ -492,7 +526,7 @@ export class MiroServer {
             willBroadcastTo: "assigned-workspaces",
           });
 
-          logger.debug("🔄 BROADCASTING TO BOARD WORKSPACES", {
+          debug("🔄 BROADCASTING TO BOARD WORKSPACES", {
             boardId: card.boardId,
           });
 
@@ -520,7 +554,7 @@ export class MiroServer {
         miroToWorkspace,
       );
     } catch (error) {
-      logger.error("Failed to handle Miro connection", {
+      debug("Failed to handle Miro connection", {
         error,
         socketId: socket.id,
       });

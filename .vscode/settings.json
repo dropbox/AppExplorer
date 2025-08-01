@@ -15,5 +15,5 @@
   // command that rebuilds this extension. It would not work in any other
   // workspace.
   "appExplorer.updateExtension": true,
-  "appExplorer.migration.debugMode": true
+  "appExplorer.debug": "app-explorer:*"
 }

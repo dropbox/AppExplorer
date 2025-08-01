@@ -107,8 +107,6 @@ export async function makeCardData(
     return null;
   }
 
-  const makeCardGroup = chosenSymbols.length > 1;
-
   const anchor = chosenSymbols[0];
   const lineAt = document.lineAt(position);
   const title = await vscode.window.showInputBox({
@@ -145,18 +143,7 @@ export async function makeCardData(
     }),
   );
 
-  if (makeCardGroup) {
-    const rootCard: CardData = {
-      type: "group",
-      boardId,
-      title,
-      path,
-      status: "connected",
-    };
-    cards.unshift(rootCard);
-  } else {
-    cards[0].title = title;
-  }
+  cards[0].title = title;
 
   return cards;
 }

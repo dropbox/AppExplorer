@@ -1,6 +1,7 @@
+import createDebug from "debug";
 import * as vscode from "vscode";
 import { AppExplorerLens } from "./app-explorer-lens";
-import { VSCodeAdapter } from "./card-storage";
+import { MemoryAdapter } from "./card-storage";
 import { makeAttachCardHandler } from "./commands/attach-card";
 import { makeBrowseHandler } from "./commands/browse";
 import { makeNewCardHandler } from "./commands/create-card";
@@ -13,7 +14,7 @@ import { registerUpdateCommand } from "./commands/update-extension";
 import { EditorDecorator } from "./editor-decorator";
 import { FeatureFlagManager } from "./feature-flag-manager";
 import { LocationFinder } from "./location-finder";
-import { logger as baseLogger, createLogger } from "./logger";
+import { logger as baseLogger } from "./logger";
 import { PortConfig } from "./port-config";
 import { ServerDiscovery } from "./server-discovery";
 import { ServerLauncher } from "./server-launcher";
@@ -23,7 +24,7 @@ import { WorkspaceCardStorage } from "./workspace-card-storage";
 import path = require("node:path");
 import fs = require("node:fs");
 
-const logger = createLogger("extension");
+const debug = createDebug("app-explorer:extension");
 export type HandlerContext = {
   cardStorage: WorkspaceCardStorage;
   waitForConnections: () => Promise<void>;
@@ -49,20 +50,21 @@ export async function activate(context: vscode.ExtensionContext) {
   // Initialize server discovery and launcher with configured port
   const serverPort = PortConfig.getServerPort();
   const featureFlagManager = new FeatureFlagManager(context);
-  baseLogger.initialize(featureFlagManager);
+  baseLogger.initialize();
 
   const locationFinder = new LocationFinder();
   const cardStorage = new WorkspaceCardStorage(
     workspaceId,
-    new VSCodeAdapter(context),
+    // new VSCodeAdapter(context),
+    new MemoryAdapter(),
     `http://localhost:${serverPort}`,
     locationFinder,
   );
   listenToAllEvents(cardStorage, (eventName, ...args) => {
-    logger.debug("Extension storage event", eventName, args);
+    debug("Extension storage event", eventName, args);
   });
   // Log port configuration for debugging
-  logger.info("Server port configuration", {
+  debug("Server port configuration", {
     port: serverPort,
   });
 
@@ -74,12 +76,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const serverResult = await serverLauncher.initializeServer();
   cardStorage.on("disconnect", () => {
-    logger.info("Server disconnected");
+    debug("Server disconnected");
     return serverLauncher.initializeServer();
   });
 
-  logger.info("AppExplorer extension activating");
-  logger.debug("Migration flags:", featureFlagManager.getFlags());
+  debug("AppExplorer extension activating");
+  debug("Migration flags:", featureFlagManager.getFlags());
 
   context.subscriptions.push(new StatusBarManager(cardStorage));
 
@@ -87,7 +89,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const handlerContext: HandlerContext = {
     cardStorage,
     async waitForConnections() {
-      logger.debug("Waiting for connections...");
+      debug("Waiting for connections...");
       if (handlerContext.cardStorage.getConnectedBoards().length > 0) {
         return;
       }
@@ -100,11 +102,11 @@ export async function activate(context: vscode.ExtensionContext) {
         },
         async (_progress, token) => {
           token.onCancellationRequested(() => {
-            logger.debug("User canceled the long running operation");
+            debug("User canceled the long running operation");
           });
 
           while (handlerContext.cardStorage.getConnectedBoards().length === 0) {
-            logger.debug(
+            debug(
               "Waiting for connections...",
               cardStorage.getConnectedBoards(),
             );
@@ -112,25 +114,25 @@ export async function activate(context: vscode.ExtensionContext) {
           }
         },
       );
-      logger.debug("Finished waiting for connections");
+      debug("Finished waiting for connections");
     },
   };
 
   // This workspace should connect as a client
-  logger.info("Running in client mode, connecting to server", {
+  debug("Running in client mode, connecting to server", {
     serverUrl: serverResult.serverUrl,
   });
 
   // Connect to server
   try {
     await cardStorage.socket.connect();
-    logger.info("Successfully connected to server as workspace client");
+    debug("Successfully connected to server as workspace client");
 
-    logger.info("WorkspaceCardStorageProxy client mode enabled", {
+    debug("WorkspaceCardStorageProxy client mode enabled", {
       hasWorkspaceClient: true,
     });
   } catch (error) {
-    logger.error("Failed to connect as workspace client", { error });
+    debug("Failed to connect as workspace client", { error });
 
     // Don't show error message during tests to avoid disrupting test execution
     if (!process.env.VSCODE_TEST_MODE) {
@@ -141,9 +143,7 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     // Don't throw error - continue with extension activation to ensure commands are registered
-    logger.warn(
-      "Continuing extension activation despite client connection failure",
-    );
+    debug("Continuing extension activation despite client connection failure");
   }
 
   context.subscriptions.push(
@@ -223,7 +223,7 @@ function setUpdateCommandContext(context: vscode.ExtensionContext) {
             break;
           }
         } catch (error) {
-          logger.error("Error parsing package.json:", error);
+          debug("Error parsing package.json:", error);
         }
       }
     }

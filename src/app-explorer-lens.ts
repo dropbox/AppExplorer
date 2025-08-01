@@ -1,11 +1,11 @@
+import createDebug from "debug";
 import * as vscode from "vscode";
 import { invariant } from "./commands/create-card";
 import { HandlerContext } from "./extension";
 import { getRelativePath } from "./get-relative-path";
 import { LocationFinder } from "./location-finder";
-import { createLogger } from "./logger";
 
-const logger = createLogger("app-explorer-lens");
+const debug = createDebug("app-explorer:lens");
 
 export class AppExplorerLens implements vscode.CodeLensProvider {
   #handlerContext: HandlerContext;
@@ -45,11 +45,11 @@ export class AppExplorerLens implements vscode.CodeLensProvider {
           const codeLens = new vscode.CodeLens(range, c);
           return [codeLens];
         } else {
-          // logger.warn(`Symbol ${card.symbol} not found in ${path}`);
-          // logger.warn("symbols", symbols);
+          // debug(`Symbol ${card.symbol} not found in ${path}`);
+          // debug("symbols", symbols);
         }
       } else {
-        logger.warn("Not a symbol card", card);
+        debug("Not a symbol card", card);
       }
       return [];
     });

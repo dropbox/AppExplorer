@@ -1,3 +1,4 @@
+import createDebug from "debug";
 import { Socket, io as socketIO } from "socket.io-client";
 import * as vscode from "vscode";
 import { BoardInfo, CardStorage, StorageAdapter } from "./card-storage";
@@ -12,11 +13,10 @@ import {
 } from "./EventTypes";
 import { getGitHubUrl } from "./get-github-url";
 import { LocationFinder } from "./location-finder";
-import { createLogger } from "./logger";
 import { bindHandlers } from "./utils/bindHandlers";
 import { promiseEmit } from "./utils/promise-emit";
 
-const logger = createLogger("workspace-card-storage");
+const debug = createDebug("app-explorer:workspace-card-storage");
 
 export class WorkspaceCardStorage
   extends CardStorage
@@ -48,19 +48,19 @@ export class WorkspaceCardStorage
       forceNew: true, // Force new connection on each attempt
     });
     this.socket.onAny((event, ...args) => {
-      logger.debug("Received server event", this.socket.id, {
+      debug("Received server event", this.socket.id, {
         event,
         args,
       });
     });
     this.socket.onAnyOutgoing((event, ...args) => {
-      logger.debug("Sending server event", this.socket.id, {
+      debug("Sending server event", this.socket.id, {
         event,
         args,
       });
     });
     this.socket.on("disconnect", () => {
-      logger.warn("Socket disconnected", { id: this.socket.id });
+      debug("Socket disconnected", { id: this.socket.id });
       this.emit("disconnect");
     });
 
@@ -80,7 +80,7 @@ export class WorkspaceCardStorage
 
     // Register with server when connected
     this.socket.on("connect", async () => {
-      logger.info("Connected to server, registering workspace");
+      debug("Connected to server, registering workspace");
       try {
         const registrationRequest: WorkspaceRegistrationRequest = {
           workspaceId,
@@ -95,9 +95,9 @@ export class WorkspaceCardStorage
         );
         this.setCardsByBoard(response.cardsByBoard);
 
-        logger.info("Workspace registration", { workspaceId });
+        debug("Workspace registration", { workspaceId });
       } catch (error) {
-        logger.error("Failed to register workspace", { error });
+        debug("Failed to register workspace", { error });
       }
     });
   }
@@ -113,11 +113,11 @@ export class WorkspaceCardStorage
   }
 
   selectedCards(data: CardData[]): void {
-    logger.debug("Received selected cards", { data });
+    debug("Received selected cards", { data });
     return super.selectedCards(data);
   }
   connectedBoards(boardIds: string[]) {
-    logger.debug("Received connected boards", { boardIds });
+    debug("Received connected boards", { boardIds });
     this.connectedBoardSet = new Set(boardIds);
     this.emit("connectedBoards", {
       type: "connectedBoards",
@@ -125,14 +125,14 @@ export class WorkspaceCardStorage
     });
   }
   boardUpdate(board: BoardInfo | null) {
-    logger.debug("Received board update", { board });
+    debug("Received board update", { board });
     if (board) {
       this.setBoardName(board.boardId, board.name);
       this.setBoardCards(board.boardId, Object.values(board.cards));
     }
   }
   async cardUpdate(url: string, card: CardData | null) {
-    logger.debug("Received card update", { url, card });
+    debug("Received card update", { url, card });
     try {
       if (card) {
         await this.setCard(card.boardId, card);
@@ -140,7 +140,7 @@ export class WorkspaceCardStorage
         this.deleteCardByLink(url);
       }
     } catch (error) {
-      logger.error("Error handling cardUpdate event", {
+      debug("Error handling cardUpdate event", {
         error: String(error),
         url,
         card,
@@ -149,7 +149,7 @@ export class WorkspaceCardStorage
   }
 
   async card({ url, card }: { url: string; card: CardData | null }) {
-    logger.debug("Received card event", { url, card });
+    debug("Received card event", { url, card });
     try {
       if (card) {
         await this.setCard(card.boardId, card);
@@ -157,7 +157,7 @@ export class WorkspaceCardStorage
         this.deleteCardByLink(url);
       }
     } catch (error) {
-      logger.error("Error handling card event", {
+      debug("Error handling card event", {
         error: String(error),
         url,
         card,
@@ -166,7 +166,7 @@ export class WorkspaceCardStorage
   }
 
   public navigateTo = async (card: CardData, preview = false) => {
-    logger.debug("Navigating to card", { card, preview });
+    debug("Navigating to card", { card, preview });
     const dest = await this.locationFinder.findCardDestination(card);
 
     // Only connect if it's able to reach the symbol
@@ -221,7 +221,7 @@ export class WorkspaceCardStorage
             error instanceof Error &&
             error.message.includes("Board not found")
           ) {
-            logger.info("Board not found in workspace, creating it", {
+            debug("Board not found in workspace, creating it", {
               boardId: card.boardId,
             });
             // Create the board with a default name
@@ -240,7 +240,7 @@ export class WorkspaceCardStorage
         codeLink,
       });
     }
-    logger.debug("🔍 Returning from navigateTo", {
+    debug("🔍 Returning from navigateTo", {
       connected: status === "connected",
     });
     return status === "connected";

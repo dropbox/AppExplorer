@@ -20,7 +20,7 @@ export type GroupCardData = Pick<
   type: "group";
 };
 
-export type CardData = SymbolCardData | GroupCardData;
+export type CardData = SymbolCardData;
 
 export const allColors = [
   "red",

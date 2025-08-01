@@ -1,14 +1,14 @@
+import createDebug from "debug";
 import * as vscode from "vscode";
 import { CardData } from "../EventTypes";
 import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
 import { getRelativePath } from "../get-relative-path";
 import { LocationFinder } from "../location-finder";
-import { createLogger } from "../logger";
 import { promiseEmit } from "../utils/promise-emit";
 import { SymbolAnchor } from "./create-card";
 
-const logger = createLogger("browse");
+const debug = createDebug("app-explorer:browse");
 
 export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
   const boards = cardStorage
@@ -40,7 +40,7 @@ export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
 export const makeBrowseHandler = (context: HandlerContext) =>
   async function () {
     const { cardStorage } = context;
-    logger.debug("Browsing cards...", {
+    debug("Browsing cards...", {
       connectedBoards: cardStorage.getConnectedBoards(),
       cardsByBoard: cardStorage.getCardsByBoard(),
     });
@@ -84,10 +84,8 @@ export const makeBrowseHandler = (context: HandlerContext) =>
           return a.path.localeCompare(b.path) || a.title.localeCompare(b.title);
         })
         .map((card): CardQuickPickItem => {
-          let description: string;
-          if (card.type === "group") {
-            description = "Group";
-          } else {
+          let description: string = "[ Missing card type ]";
+          if (card.type === "symbol") {
             description =
               card.symbol +
               (card.status === "disconnected"

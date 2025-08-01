@@ -1,7 +1,8 @@
 import createDebug from "debug";
 import { createWriteStream } from "fs";
+import { formatWithOptions } from "util";
 import * as vscode from "vscode";
-import { FeatureFlagManager } from "./feature-flag-manager";
+const debug = createDebug("app-explorer:logger");
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -15,17 +16,25 @@ export interface PrefixedLogger {
 export class Logger {
   private logFile?: string;
   private logStream?: import("fs").WriteStream;
-  private outputChannel: vscode.LogOutputChannel;
+  private outputChannel: vscode.OutputChannel;
   private static instance?: Logger;
 
   private constructor() {
-    this.outputChannel = vscode.window.createOutputChannel("AppExplorer", {
-      log: true,
-    });
+    this.outputChannel = vscode.window.createOutputChannel(
+      "AppExplorer",
+      "log",
+    );
+
+    this.outputChannel.appendLine("Logger initialized");
 
     createDebug.enable("app-explorer:*");
     createDebug.log = (message, ...args: unknown[]) => {
-      this.outputChannel.debug(message, ...args.map(cleanCardEvents));
+      const formatedMessage = formatWithOptions(
+        { colors: false, compact: true, maxArrayLength: 10, sorted: true },
+        message,
+        ...args.map(cleanCardEvents),
+      );
+      this.outputChannel.appendLine(formatedMessage);
     };
   }
 
@@ -42,11 +51,15 @@ export class Logger {
   /**
    * Initialize the logger with feature flag manager
    */
-  initialize(featureFlagManager: FeatureFlagManager): void {
+  initialize(): void {
     // Show the output channel if debug mode is enabled
-    if (featureFlagManager.isEnabled("debugMode")) {
+    const config = vscode.workspace.getConfiguration("appExplorer");
+    const debug = config.get<string>("debug");
+
+    if (debug) {
+      createDebug.enable(debug);
       this.outputChannel.show(true); // true = preserve focus
-      this.outputChannel.debug(
+      this.outputChannel.appendLine(
         "[logger] Debug mode enabled - AppExplorer output channel shown",
       );
     }
@@ -56,35 +69,12 @@ export class Logger {
    * Create a prefixed logger instance
    */
   withPrefix = (prefix: string): PrefixedLogger => {
+    const debug = createDebug(`app-explorer:${prefix}`);
     return {
-      debug: (message: string, ...args: unknown[]) => {
-        const cleanArgs = args.map(cleanCardEvents);
-        this.logStream?.write(
-          `[${prefix}] [DEBUG] ${message} ${JSON.stringify(cleanArgs)}\n`,
-        );
-        this.outputChannel.debug(`[${prefix}] ${message}`, cleanArgs);
-      },
-      info: (message: string, ...args: unknown[]) => {
-        const cleanArgs = args.map(cleanCardEvents);
-        this.logStream?.write(
-          `[${prefix}] [INFO ] ${message} ${JSON.stringify(cleanArgs)}\n`,
-        );
-        this.outputChannel.info(`[${prefix}] ${message}`, cleanArgs);
-      },
-      warn: (message: string, ...args: unknown[]) => {
-        const cleanArgs = args.map(cleanCardEvents);
-        this.logStream?.write(
-          `[${prefix}] [WARN ] ${message} ${JSON.stringify(cleanArgs)}\n`,
-        );
-        this.outputChannel.warn(`[${prefix}] ${message}`, cleanArgs);
-      },
-      error: (message: string, ...args: unknown[]) => {
-        const cleanArgs = args.map(cleanCardEvents);
-        this.logStream?.write(
-          `[${prefix}] [ERROR] ${message} ${JSON.stringify(cleanArgs)}\n`,
-        );
-        this.outputChannel.error(`[${prefix}] ${message}`, cleanArgs);
-      },
+      debug,
+      info: debug,
+      warn: debug,
+      error: debug,
     };
   };
 
@@ -97,13 +87,13 @@ export class Logger {
       this.logFile = vscode.Uri.joinPath(logUri, `AppExplorer.log`).fsPath;
       this.logStream = createWriteStream(this.logFile);
       this.logStream.on("error", (err) => {
-        this.outputChannel.error(
+        this.outputChannel.appendLine(
           `[logger] Failed to write to log file: ${err.message}`,
         );
       });
-      this.withPrefix("logs").info("Logging to " + this.logFile);
+      debug("Logging to " + this.logFile);
     } catch (err) {
-      this.outputChannel.error(
+      this.outputChannel.appendLine(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         `[logger] Failed to initialize log file: ${(err as any)?.message ?? err}`,
       );
@@ -121,11 +111,6 @@ export class Logger {
 
 // Export singleton instance for easy importing
 export const logger = Logger.getInstance();
-
-// Export a convenience function for creating prefixed loggers
-export function createLogger(prefix: string): PrefixedLogger {
-  return logger.withPrefix(prefix);
-}
 
 const cleanMap = new WeakMap<object, boolean>();
 function cleanCardEvents<T extends unknown>(eventFragment: T): T {
@@ -150,7 +135,6 @@ function cleanCardEvents<T extends unknown>(eventFragment: T): T {
         return [key, cleanCardEvents(value)];
       }),
     );
-    cleaned.__clean = true;
     cleanMap.delete(eventFragment);
     return cleaned as T;
   }

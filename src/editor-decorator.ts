@@ -1,13 +1,13 @@
+import createDebug from "debug";
 import * as vscode from "vscode";
 import { CardData } from "./EventTypes";
 import { HandlerContext } from "./extension";
 import { getRelativePath } from "./get-relative-path";
 import { LocationFinder } from "./location-finder";
-import { createLogger } from "./logger";
 import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
 import { WorkspaceCardStorage } from "./workspace-card-storage";
 
-const logger = createLogger("decorator");
+const debug = createDebug("app-explorer:decorator");
 
 interface CardDecoration extends vscode.DecorationOptions {
   card: CardData;
@@ -146,7 +146,7 @@ export class EditorDecorator {
       }
 
       this.selectedIds = this.#cardStorage?.getSelectedCardIDs() ?? [];
-      logger.debug("Selected cards", this.selectedIds.length);
+      debug("Selected cards", this.selectedIds.length);
       this.decorateEditor();
     }
   }
@@ -190,7 +190,7 @@ export class EditorDecorator {
     const selected = ranges.filter((r) => r.selected);
     editor.setDecorations(this.#selectedDecorator, selected);
 
-    logger.debug(
+    debug(
       `Decorated editor with ${ranges.length} cards. (${selected.length} selected) ${document.uri}`,
     );
   };

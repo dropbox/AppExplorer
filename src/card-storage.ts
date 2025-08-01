@@ -4,6 +4,7 @@ import invariant from "tiny-invariant";
 import * as vscode from "vscode";
 import { CardData } from "./EventTypes";
 import { MiroServerSocket } from "./server";
+import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
 import { notEmpty } from "./utils/notEmpty";
 
 const debug = createDebug("app-explorer:card-storage");
@@ -86,6 +87,9 @@ export class CardStorage
   protected connectedBoardSet = new Set<string>();
   constructor(private storage: StorageAdapter) {
     super();
+    listenToAllEvents(this, (eventName) => {
+      debug("Event emitted:", { eventName });
+    });
     const boardIds = this.storage.get<string[]>("boardIds");
 
     boardIds?.forEach((boardId) => {
@@ -202,18 +206,26 @@ export class CardStorage
   }
 
   setBoardName(boardId: string, name: string) {
-    const board = this.getBoard(boardId);
+    let board: BoardInfo | undefined = this.getBoard(boardId);
     if (board) {
       board.name = name;
-      this.storage.set(`board-${boardId}`, board);
-      debug("Board name updated:", { boardId, name });
-      this.emit("boardUpdate", { type: "boardUpdate", board, boardId });
+    } else {
+      board = {
+        boardId,
+        name,
+        cards: {},
+      };
     }
+    this.storage.set(`board-${boardId}`, board);
+    debug("Board name updated:", { boardId, name });
+    this.emit("boardUpdate", { type: "boardUpdate", board, boardId });
     return board;
   }
 
   setBoardCards(boardId: string, cards: CardData[]) {
-    const board = this.storage.get<BoardInfo>(`board-${boardId}`);
+    let board = this.storage.get<BoardInfo>(`board-${boardId}`);
+    debug("setBoardCards", { boardId, cards, board: !!board });
+    invariant(board, `Board not found: ${boardId}`);
     if (board) {
       board.cards = cards.reduce(
         (acc, c) => {
@@ -222,10 +234,15 @@ export class CardStorage
         },
         {} as Record<string, CardData>,
       );
-      this.storage.set(`board-${boardId}`, board);
-      debug("Board cards updated:", { boardId, cards });
-      this.emit("boardUpdate", { type: "boardUpdate", board, boardId });
+    } else {
+      board = {
+        boardId,
+        name: boardId,
+        cards: {},
+      };
     }
+    this.storage.set(`board-${boardId}`, board);
+    this.emit("boardUpdate", { type: "boardUpdate", board, boardId });
   }
 
   getCardByLink(link: string): CardData | undefined {
