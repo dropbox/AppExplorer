@@ -73,11 +73,10 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(serverLauncher);
 
   const serverResult = await serverLauncher.initializeServer();
-  if (serverResult.mode === "server" && serverResult.server) {
-    const miroServer = serverResult.server;
-    context.subscriptions.push(miroServer);
-    logger.info("Launched MiroServer, now switching to client mode");
-  }
+  cardStorage.on("disconnect", () => {
+    logger.info("Server disconnected");
+    return serverLauncher.initializeServer();
+  });
 
   logger.info("AppExplorer extension activating");
   logger.debug("Migration flags:", featureFlagManager.getFlags());

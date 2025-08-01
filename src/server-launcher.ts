@@ -18,6 +18,7 @@ export interface ServerLaunchResult {
 export class ServerLauncher {
   private serverDiscovery: ServerDiscovery;
   private featureFlagManager: FeatureFlagManager;
+  subscriptions: { dispose: () => void }[] = [];
 
   constructor(
     featureFlagManager: FeatureFlagManager,
@@ -159,6 +160,7 @@ export class ServerLauncher {
         mode: "server",
       });
 
+      this.subscriptions.push(server);
       return {
         mode: "server",
         server,
@@ -204,6 +206,7 @@ export class ServerLauncher {
   dispose(): void {
     logger.debug("Disposing ServerLauncher resources");
     this.serverDiscovery.dispose();
+    this.subscriptions.forEach((subscription) => subscription.dispose());
     logger.debug("ServerLauncher disposed");
   }
 }

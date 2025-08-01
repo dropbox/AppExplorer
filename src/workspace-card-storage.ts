@@ -59,6 +59,10 @@ export class WorkspaceCardStorage
         args,
       });
     });
+    this.socket.on("disconnect", () => {
+      logger.warn("Socket disconnected", { id: this.socket.id });
+      this.emit("disconnect");
+    });
 
     const ServerToWorkspaceEvents: ServerToWorkspaceEvents = {
       connectedBoards: this.connectedBoards.bind(this),
@@ -84,16 +88,13 @@ export class WorkspaceCardStorage
           rootPath: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
         };
 
-        await promiseEmit(
+        const response = await promiseEmit(
           this.socket,
           "workspaceRegistration",
           registrationRequest,
         );
+        this.setCardsByBoard(response.cardsByBoard);
 
-        this.emit("connectedBoards", {
-          type: "connectedBoards",
-          boardIds: [...this.connectedBoardIds],
-        });
         logger.info("Workspace registration", { workspaceId });
       } catch (error) {
         logger.error("Failed to register workspace", { error });

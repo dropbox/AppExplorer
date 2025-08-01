@@ -11,5 +11,9 @@
   // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
   "typescript.tsc.autoDetect": "off",
 
+  // I'm not actually registering appExplorer.updateExtension, because its only used for a
+  // command that rebuilds this extension. It would not work in any other
+  // workspace.
+  "appExplorer.updateExtension": true,
   "appExplorer.migration.debugMode": true
 }

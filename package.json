@@ -11,7 +11,9 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./dist/extension.js",
   "scripts": {
     "vscode:prepublish": "npm run package",
@@ -36,8 +38,7 @@
       },
       {
         "command": "app-explorer.internal.logFile",
-        "title": "AppExplorer: [INTERNAL] Get Log File Path",
-        "when": "app-explorer.never"
+        "title": "AppExplorer: [INTERNAL] Get Log File Path"
       },
       {
         "command": "app-explorer.attachCard",
@@ -65,8 +66,7 @@
       },
       {
         "command": "app-explorer.updateExtension",
-        "title": "AppExplorer: Update Extension",
-        "when": "app-explorer.enableUpdate"
+        "title": "AppExplorer: Update Extension"
       },
       {
         "command": "app-explorer.launchMockMiroClient",
@@ -135,7 +135,7 @@
         },
         {
           "command": "app-explorer.updateExtension",
-          "when": "app-explorer.enableUpdate"
+          "when": "config.appExplorer.updateExtension"
         },
         {
           "command": "app-explorer.launchMockMiroClient",

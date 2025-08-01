@@ -1,5 +1,5 @@
 import { AppCard, TagColor } from "@mirohq/websdk-types";
-import { BoardInfo } from "./card-storage";
+import { BoardInfo, CardStorage } from "./card-storage";
 import { WorkspaceServerSocket } from "./server";
 
 export type SymbolCardData = {
@@ -172,4 +172,5 @@ export interface WorkspaceRegistrationResponse {
   success: boolean;
   workspaceId: string;
   error?: string;
+  cardsByBoard: ReturnType<CardStorage["getCardsByBoard"]>;
 }

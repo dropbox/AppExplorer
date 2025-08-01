@@ -51,6 +51,7 @@ export type BoardInfo = {
 };
 
 type StorageEvent = {
+  disconnect: [];
   workspaceBoards: [{ type: "workspaceBoards"; boardIds: string[] }];
   boardUpdate: [
     {
@@ -99,9 +100,36 @@ export class CardStorage
     return Array.from(this.connectedBoardIds);
   }
 
+  getCardsByBoard(): Record<string, CardData[]> {
+    return [...this.boards.values()].reduce(
+      (acc, board) => {
+        acc[board.boardId] = Object.values(board.cards);
+        return acc;
+      },
+      {} as Record<string, CardData[]>,
+    );
+  }
+
+  setCardsByBoard(cardsByBoard: ReturnType<CardStorage["getCardsByBoard"]>) {
+    this.boards.clear();
+    this.connectedBoardIds = new Set([...Object.keys(cardsByBoard)]);
+    Object.entries(cardsByBoard).forEach(([boardId, cards]) => {
+      const board: BoardInfo = { boardId, name: `Board ${boardId}`, cards: {} };
+      cards.forEach((card) => {
+        board.cards[card.miroLink!] = card;
+      });
+      this.boards.set(boardId, board);
+    });
+    this.emitConnectedBoards();
+  }
+
   async disconnectBoard(boardId: string) {
     this.sockets.delete(boardId);
     this.connectedBoardIds.delete(boardId);
+    this.emitConnectedBoards();
+  }
+
+  private emitConnectedBoards() {
     this.emit("connectedBoards", {
       type: "connectedBoards",
       boardIds: this.getConnectedBoards(),
@@ -111,10 +139,7 @@ export class CardStorage
   async connectBoard(boardId: string, socket: MiroServerSocket) {
     this.sockets.set(boardId, socket);
     this.connectedBoardIds.add(boardId);
-    this.emit("connectedBoards", {
-      type: "connectedBoards",
-      boardIds: this.getConnectedBoards(),
-    });
+    this.emitConnectedBoards();
 
     socket.on("disconnect", () => {
       this.disconnectBoard(boardId);

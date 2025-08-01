@@ -115,8 +115,7 @@ export class MiroServer {
 
     app.get("/storage", (_req, res) => {
       res.json({
-        connectedBoards: this.cardStorage.getConnectedBoards(),
-        cards: this.cardStorage.listAllCards(),
+        cardsByBoard: this.cardStorage.getCardsByBoard(),
       });
     });
 
@@ -193,6 +192,9 @@ export class MiroServer {
         args,
       });
     });
+    socket.on("disconnect", () => {
+      logger.warn("Workspace socket disconnected", { id: socket.id });
+    });
 
     const connectedWorkspaces = this.connectedWorkspaces;
     const cardStorage = this.cardStorage;
@@ -217,10 +219,10 @@ export class MiroServer {
       /**
        * Handle workspace registration request
        */
-      workspaceRegistration(
+      workspaceRegistration: (
         request: WorkspaceRegistrationRequest,
         callback: (response: WorkspaceRegistrationResponse) => void,
-      ): void {
+      ): void => {
         logger.info("Workspace registration request", request);
 
         try {
@@ -244,26 +246,23 @@ export class MiroServer {
           const response: WorkspaceRegistrationResponse = {
             success: true,
             workspaceId: request.workspaceId,
+            cardsByBoard: this.cardStorage.getCardsByBoard(),
           };
 
           logger.info("Workspace registered successfully", {
             workspaceId: request.workspaceId,
           });
           callback(response);
-
-          // Send current connected boards to the newly registered workspace
-          const currentConnectedBoards = cardStorage.getConnectedBoards();
-          socket.emit("connectedBoards", currentConnectedBoards);
         } catch (error) {
           logger.error("Workspace registration failed", {
             workspaceId: request.workspaceId,
             error,
           });
-
           const response: WorkspaceRegistrationResponse = {
             success: false,
             workspaceId: request.workspaceId,
             error: String(error),
+            cardsByBoard: this.cardStorage.getCardsByBoard(),
           };
           callback(response);
         }
@@ -457,6 +456,9 @@ export class MiroServer {
           event,
           args,
         });
+      });
+      socket.on("disconnect", () => {
+        logger.warn("Miro socket disconnected", { id: socket.id });
       });
 
       const info = await promiseEmit(socket, "getBoardInfo", "");
