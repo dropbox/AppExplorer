@@ -42,7 +42,7 @@ export class LocationFinder {
       return (vscode.workspace.workspaceFolders ?? []).reduce(
         async (result: Promise<SymbolAnchor | vscode.Uri | null>, folder) => {
           const dest = await result;
-          if (dest != null) {
+          if (dest !== null) {
             return dest;
           }
 

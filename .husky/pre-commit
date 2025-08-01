@@ -1,3 +1,4 @@
 npm test
 prettier $(git diff --cached --name-only --diff-filter=ACMR | sed 's| |\\ |g') --write --ignore-unknown
+npm run lint -- --max-warnings=0
 git update-index --again
