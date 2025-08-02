@@ -32,7 +32,6 @@ export type HandlerContext = {
 
 export async function activate(context: vscode.ExtensionContext) {
   logger.storeLogs(context.logUri);
-  // baseLogger.storeLogs(context.logUri);
   vscode.commands.executeCommand("setContext", "appExplorer.enabled", true);
   vscode.commands.executeCommand(
     "setContext",
