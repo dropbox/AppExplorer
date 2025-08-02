@@ -42,7 +42,6 @@ export class ServerHealthMonitor {
   private consecutiveSuccesses = 0;
   private isMonitoring = false;
   private eventHandlers: HealthEventHandler[] = [];
-  private debug = createDebug("app-explorer:health-monitor");
 
   constructor(
     serverDiscovery: ServerDiscovery,
@@ -67,7 +66,7 @@ export class ServerHealthMonitor {
     }
 
     this.isMonitoring = true;
-    this.debug("Starting server health monitoring", {
+    debug("Starting server health monitoring", {
       interval: this.options.checkInterval,
       failureThreshold: this.options.failureThreshold,
     });
@@ -89,7 +88,7 @@ export class ServerHealthMonitor {
       this.monitorInterval = undefined;
     }
     this.isMonitoring = false;
-    this.debug("Stopped server health monitoring");
+    debug("Stopped server health monitoring");
   }
 
   /**
@@ -125,7 +124,7 @@ export class ServerHealthMonitor {
         }
       }
     } catch (error) {
-      this.debug("Health check error", { error });
+      debug("Health check error", { error });
       this.consecutiveSuccesses = 0;
       this.consecutiveFailures++;
 

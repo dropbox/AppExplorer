@@ -1,4 +1,3 @@
-import createDebug from "debug";
 import { Socket, io as socketIO } from "socket.io-client";
 import * as vscode from "vscode";
 import { BoardInfo, CardStorage, StorageAdapter } from "./card-storage";
@@ -15,8 +14,6 @@ import { getGitHubUrl } from "./get-github-url";
 import { LocationFinder } from "./location-finder";
 import { bindHandlers } from "./utils/bindHandlers";
 import { promiseEmit } from "./utils/promise-emit";
-
-const debug = createDebug("app-explorer:workspace-card-storage");
 
 export class WorkspaceCardStorage
   extends CardStorage
@@ -37,6 +34,7 @@ export class WorkspaceCardStorage
     private locationFinder: LocationFinder,
   ) {
     super(storageAdapter);
+    this.debug = this.debug.extend("workspace");
 
     const wsUrl = `${serverUrl}/workspace`;
     const connectionTimeout = 10000; // 10 second connection timeout
@@ -48,19 +46,13 @@ export class WorkspaceCardStorage
       forceNew: true, // Force new connection on each attempt
     });
     this.socket.onAny((event, ...args) => {
-      debug("Received server event", this.socket.id, {
-        event,
-        args,
-      });
+      this.debug(`Received server event ${event}`, this.socket.id, args);
     });
     this.socket.onAnyOutgoing((event, ...args) => {
-      debug("Sending server event", this.socket.id, {
-        event,
-        args,
-      });
+      this.debug(`Sending server event ${event}`, this.socket.id, args);
     });
     this.socket.on("disconnect", () => {
-      debug("Socket disconnected", { id: this.socket.id });
+      this.debug("Socket disconnected", { id: this.socket.id });
       this.emit("disconnect");
     });
 
@@ -75,12 +67,13 @@ export class WorkspaceCardStorage
       card: this.card.bind(this),
       navigateTo: this.navigateTo.bind(this),
       selectedCards: this.selectedCards.bind(this),
+      log: this.log.bind(this),
     };
     bindHandlers(this.socket, miroToWorkspace);
 
     // Register with server when connected
     this.socket.on("connect", async () => {
-      debug("Connected to server, registering workspace");
+      this.debug("Connected to server, registering workspace");
       try {
         const registrationRequest: WorkspaceRegistrationRequest = {
           workspaceId,
@@ -95,9 +88,9 @@ export class WorkspaceCardStorage
         );
         this.setCardsByBoard(response.cardsByBoard);
 
-        debug("Workspace registration", { workspaceId });
+        this.debug("Workspace registration", { workspaceId });
       } catch (error) {
-        debug("Failed to register workspace", { error });
+        this.debug("Failed to register workspace", { error });
       }
     });
   }
@@ -112,12 +105,15 @@ export class WorkspaceCardStorage
     );
   }
 
+  log() {
+    // The server is going to log the events to the same logger the workspace-card-storage is using
+  }
   selectedCards(data: CardData[]): void {
-    debug("Received selected cards", { data });
+    this.debug("Received selected cards", { data });
     return super.selectedCards(data);
   }
   connectedBoards(boardIds: string[]) {
-    debug("Received connected boards", { boardIds });
+    this.debug("Received connected boards", { boardIds });
     this.connectedBoardSet = new Set(boardIds);
     this.emit("connectedBoards", {
       type: "connectedBoards",
@@ -125,14 +121,14 @@ export class WorkspaceCardStorage
     });
   }
   boardUpdate(board: BoardInfo | null) {
-    debug("Received board update", { board });
+    this.debug(`Received server event boardUpdate: `, board);
     if (board) {
       this.setBoardName(board.boardId, board.name);
       this.setBoardCards(board.boardId, Object.values(board.cards));
     }
   }
   async cardUpdate(url: string, card: CardData | null) {
-    debug("Received card update", { url, card });
+    this.debug("Received card update", { url, card });
     try {
       if (card) {
         await this.setCard(card.boardId, card);
@@ -140,7 +136,7 @@ export class WorkspaceCardStorage
         this.deleteCardByLink(url);
       }
     } catch (error) {
-      debug("Error handling cardUpdate event", {
+      this.debug("Error handling cardUpdate event", {
         error: String(error),
         url,
         card,
@@ -149,7 +145,7 @@ export class WorkspaceCardStorage
   }
 
   async card({ url, card }: { url: string; card: CardData | null }) {
-    debug("Received card event", { url, card });
+    this.debug("Received card event", { url, card });
     try {
       if (card) {
         await this.setCard(card.boardId, card);
@@ -157,7 +153,7 @@ export class WorkspaceCardStorage
         this.deleteCardByLink(url);
       }
     } catch (error) {
-      debug("Error handling card event", {
+      this.debug("Error handling card event", {
         error: String(error),
         url,
         card,
@@ -166,7 +162,7 @@ export class WorkspaceCardStorage
   }
 
   public navigateTo = async (card: CardData, preview = false) => {
-    debug("Navigating to card", { card, preview });
+    this.debug("Navigating to card", { card, preview });
     const dest = await this.locationFinder.findCardDestination(card);
 
     // Only connect if it's able to reach the symbol
@@ -221,7 +217,7 @@ export class WorkspaceCardStorage
             error instanceof Error &&
             error.message.includes("Board not found")
           ) {
-            debug("Board not found in workspace, creating it", {
+            this.debug("Board not found in workspace, creating it", {
               boardId: card.boardId,
             });
             // Create the board with a default name
@@ -240,7 +236,7 @@ export class WorkspaceCardStorage
         codeLink,
       });
     }
-    debug("🔍 Returning from navigateTo", {
+    this.debug("🔍 Returning from navigateTo", {
       connected: status === "connected",
     });
     return status === "connected";

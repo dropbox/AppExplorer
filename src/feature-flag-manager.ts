@@ -1,5 +1,6 @@
 import createDebug from "debug";
 import * as vscode from "vscode";
+const debug = createDebug("app-explorer:feature-flags");
 
 export interface MigrationFlags {
   // Development/Debug
@@ -8,16 +9,15 @@ export interface MigrationFlags {
 
 export class FeatureFlagManager {
   private flags: MigrationFlags;
-  private debug = createDebug("app-explorer:feature-flags");
 
   constructor(_context: vscode.ExtensionContext) {
-    this.debug("Initializing FeatureFlagManager");
+    debug("Initializing FeatureFlagManager");
     this.flags = this.loadConfiguration();
   }
 
   // Load configuration from VSCode settings
   private loadConfiguration(): MigrationFlags {
-    this.debug("Loading feature flag configuration");
+    debug("Loading feature flag configuration");
 
     const vscodeConfig = vscode.workspace.getConfiguration(
       "appExplorer.migration",
@@ -31,7 +31,7 @@ export class FeatureFlagManager {
     // Validate flag dependencies
     this.validateFlagDependencies(flags);
 
-    this.debug("Feature flags loaded", {
+    debug("Feature flags loaded", {
       debugMode: flags.debugMode,
     });
 
@@ -80,7 +80,7 @@ export class FeatureFlagManager {
 
   // Reload configuration from VSCode settings
   reloadConfiguration(): void {
-    this.debug("Reloading feature flag configuration");
+    debug("Reloading feature flag configuration");
     const oldFlags = { ...this.flags };
     this.flags = this.loadConfiguration();
 
@@ -93,9 +93,9 @@ export class FeatureFlagManager {
     }
 
     if (changes.length > 0) {
-      this.debug("Feature flag changes detected", { changes });
+      debug("Feature flag changes detected", { changes });
     } else {
-      this.debug("No feature flag changes detected");
+      debug("No feature flag changes detected");
     }
   }
 }

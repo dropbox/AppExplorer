@@ -19,6 +19,7 @@ export class StatusBarManager {
       100,
     );
     this.statusBar.command = "app-explorer.browseCards";
+    debug("Setup status bar");
 
     // Create event listener functions that can be removed later
     this.eventListeners = {
@@ -56,23 +57,25 @@ export class StatusBarManager {
     const connectedBoards = this.cardStorage.getConnectedBoards();
     if (connectedBoards.length === 0) {
       this.statusBar.text = "$(app-explorer) (No Miro connections)";
-      this.statusBar.show();
       return;
-    }
-    const boardIds = this.cardStorage.listBoardIds();
-    const allCards = this.cardStorage.listAllCards();
-    const totalCards = allCards.length;
-    if (connectedBoards.length > 0) {
-      const disconnected = allCards.filter(
-        (card) => card.status === "disconnected",
-      ).length;
-
-      this.statusBar.text = `$(app-explorer) (${totalCards} $(preview) ${boardIds.length} $(window)${
-        disconnected > 0 ? `, ${disconnected} $(debug-disconnect)` : ""
-      })`;
     } else {
-      this.statusBar.text = `$(app-explorer)  (${connectedBoards.length} Miro connections)`;
+      const boardIds = this.cardStorage.listBoardIds();
+      const allCards = this.cardStorage.listAllCards();
+      const totalCards = allCards.length;
+      if (connectedBoards.length > 0) {
+        const disconnected = allCards.filter(
+          (card) => card.status === "disconnected",
+        ).length;
+
+        this.statusBar.text = `$(app-explorer) (${totalCards} $(preview) ${boardIds.length} $(window)${
+          disconnected > 0 ? `, ${disconnected} $(debug-disconnect)` : ""
+        })`;
+      } else {
+        this.statusBar.text = `$(app-explorer)  (${connectedBoards.length} Miro connections)`;
+      }
     }
+
+    debug(this.statusBar.text);
     this.statusBar.show();
   }
 }

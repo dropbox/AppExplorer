@@ -19,6 +19,7 @@ import {
   WorkspaceToServerOperations,
 } from "./EventTypes";
 import { FeatureFlagManager } from "./feature-flag-manager";
+import { logger } from "./logger";
 import { PortConfig } from "./port-config";
 import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
 import { bindHandlers } from "./utils/bindHandlers";
@@ -28,6 +29,7 @@ import express = require("express");
 import morgan = require("morgan");
 import packageJson = require("../package.json");
 const debug = createDebug("app-explorer:server");
+const debugEvents = debug.extend("events");
 
 /**
  * Error class for exhaustive switch statement checking
@@ -95,7 +97,7 @@ export class MiroServer {
       this.workspaceNamespace.emit("cardUpdate", event.miroLink, event.card);
     });
     this.cardStorage.on("selectedCards", (event) => {
-      this.workspaceNamespace.emit("selectedCards", event);
+      this.workspaceNamespace.emit("selectedCards", event.cards);
     });
 
     app.use(compression());
@@ -182,13 +184,13 @@ export class MiroServer {
   ): Promise<void> {
     debug("New workspace connection", { socketId: socket.id });
     socket.onAny((event, ...args) => {
-      debug("Received workspace event", socket.id, {
+      debugEvents("Received workspace event", socket.id, {
         event,
         args,
       });
     });
     socket.onAnyOutgoing((event, ...args) => {
-      debug("Sending workspace event", socket.id, {
+      debugEvents("Sending workspace event", socket.id, {
         event,
         args,
       });
@@ -202,6 +204,9 @@ export class MiroServer {
 
     cardStorage
       .on("connectedBoards", (event) => {
+        debug("Card storage connected boards updated", {
+          boardIds: event.boardIds,
+        });
         socket.emit("connectedBoards", event.boardIds);
       })
       .on("boardUpdate", (event) => {
@@ -213,7 +218,7 @@ export class MiroServer {
         socket.emit("cardUpdate", event.miroLink, event.card);
       })
       .on("selectedCards", (event) => {
-        socket.emit("selectedCards", event);
+        socket.emit("selectedCards", event.cards);
       });
 
     const serverQueries: WorkspaceToServerOperations = {
@@ -476,13 +481,13 @@ export class MiroServer {
       // Add a small delay to allow the client to set up its handlers
       await new Promise((resolve) => setTimeout(resolve, 100));
       socket.onAny((event, ...args) => {
-        debug("Received miro event", socket.id, {
+        debugEvents("Received miro event", socket.id, {
           event,
           args,
         });
       });
       socket.onAnyOutgoing((event, ...args) => {
-        debug("Sending miro event", socket.id, {
+        debugEvents("Sending miro event", socket.id, {
           event,
           args,
         });
@@ -512,6 +517,9 @@ export class MiroServer {
       });
 
       const miroToWorkspace: MiroToWorkspaceOperations = {
+        log: ([message, ...args]: unknown[]) => {
+          logger.log(message, ...args);
+        },
         navigateTo: (card) => {
           // Enhanced logging for navigation events from Miro
           debug("🎯 MIRO EVENT: Navigate to card", {

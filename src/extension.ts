@@ -14,7 +14,7 @@ import { registerUpdateCommand } from "./commands/update-extension";
 import { EditorDecorator } from "./editor-decorator";
 import { FeatureFlagManager } from "./feature-flag-manager";
 import { LocationFinder } from "./location-finder";
-import { logger as baseLogger } from "./logger";
+import { logger as baseLogger, logger } from "./logger";
 import { PortConfig } from "./port-config";
 import { ServerDiscovery } from "./server-discovery";
 import { ServerLauncher } from "./server-launcher";
@@ -31,6 +31,7 @@ export type HandlerContext = {
 };
 
 export async function activate(context: vscode.ExtensionContext) {
+  logger.storeLogs(context.logUri);
   // baseLogger.storeLogs(context.logUri);
   vscode.commands.executeCommand("setContext", "appExplorer.enabled", true);
   vscode.commands.executeCommand(
@@ -61,7 +62,7 @@ export async function activate(context: vscode.ExtensionContext) {
     locationFinder,
   );
   listenToAllEvents(cardStorage, (eventName, ...args) => {
-    debug("Extension storage event", eventName, args);
+    debug("storage event", eventName, args);
   });
   // Log port configuration for debugging
   debug("Server port configuration", {
@@ -154,9 +155,12 @@ export async function activate(context: vscode.ExtensionContext) {
       // This is useful for connecting the board for navigation purposes
       // instead of creating new cards.
     }),
-    vscode.commands.registerCommand("app-explorer.internal.logFile", () => {
-      return baseLogger.getLogFile();
-    }),
+    vscode.commands.registerCommand(
+      "app-explorer.internal.logFile",
+      (DEBUG: string) => {
+        return baseLogger.getLogFile(DEBUG);
+      },
+    ),
     new EditorDecorator(handlerContext),
     vscode.languages.registerCodeLensProvider(
       { scheme: "file" },

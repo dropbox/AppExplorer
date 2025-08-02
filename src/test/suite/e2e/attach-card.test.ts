@@ -1,5 +1,5 @@
-import * as assert from "assert";
-import * as createDebug from "debug";
+import assert from "assert";
+import createDebug from "debug";
 import * as vscode from "vscode";
 import { CardData } from "../../../EventTypes";
 import { TEST_CARDS, getTestCardsBySymbol } from "../../fixtures/card-data";
@@ -93,18 +93,6 @@ suite("E2E Attach Card Tests", () => {
     try {
       document = await vscode.workspace.openTextDocument(filePath);
       editor = await vscode.window.showTextDocument(document);
-
-      debug(
-        "File opened successfully, document has",
-        document.lineCount,
-        "lines",
-      );
-
-      // Let's also check the file content to make sure it's the right file
-      const firstFewLines = document.getText(
-        new vscode.Range(0, 0, Math.min(5, document.lineCount), 0),
-      );
-      debug("First few lines of file:", firstFewLines);
     } catch (error) {
       debug("Error opening file:", error);
       throw error;
@@ -212,6 +200,10 @@ suite("E2E Attach Card Tests", () => {
     // ===== Step 3: Command Execution - Execute attach card command =====
     debug("Step 3: Executing app-explorer.attachCard command");
 
+    assert(
+      notificationCapture.getCapturedNotifications().length === 0,
+      "No notifications should be captured yet",
+    );
     const attachPromise = vscode.commands.executeCommand<CardData[]>(
       "app-explorer.attachCard",
     );
@@ -243,6 +235,10 @@ suite("E2E Attach Card Tests", () => {
     // ===== Step 6: Verification - Check that card was updated correctly =====
     debug("Step 6: Verifying card attachment and correction");
 
+    assert(
+      notificationCapture.getCapturedNotifications().length === 0,
+      "No notifications should be captured yet",
+    );
     // Wait for command completion
     const result = await attachPromise;
     debug("Attach command completed with result: %O", result);

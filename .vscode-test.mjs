@@ -2,9 +2,7 @@ import { defineConfig } from "@vscode/test-cli";
 
 // Avoid port 9042
 const APP_EXPLORER_PORT = 9043 + Math.floor(Math.random() * (9099 - 9043));
-// I haven't been able to get the environment variable to work. I have had to
-// use createDebug.enable() instead
-const DEBUG = "app-explorer:test:*";
+const DEBUG = "app-explorer:*";
 
 export default defineConfig({
   files: "out/test/**/*.test.js",

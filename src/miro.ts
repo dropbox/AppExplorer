@@ -20,7 +20,7 @@ import {
 import { bindHandlers } from "./utils/bindHandlers";
 import { notEmpty } from "./utils/notEmpty";
 
-const debug = createDebug("app-explorer:miro");
+let debug = createDebug("app-explorer:miro");
 
 function decode(str: string) {
   return str.replaceAll(/&#([0-9A-F]{2});/g, (_, charCode) =>
@@ -244,6 +244,14 @@ export async function attachToSocket() {
     WorkspaceToMiroOperations,
     MiroToWorkspaceOperations
   >;
+  debug = debug.extend(
+    socket.id || Math.random().toString(36).substring(2, 15),
+  );
+  const originalLog = debug.log;
+  debug.log = (...args) => {
+    originalLog(...args);
+    socket.emit("log", args);
+  };
 
   const boardId = await miro.board.getInfo().then((info) => info.id);
   const queryImplementations: WorkspaceToMiroOperations = {

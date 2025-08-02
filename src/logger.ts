@@ -1,8 +1,14 @@
 import createDebug from "debug";
-import { createWriteStream } from "fs";
+import invariant from "tiny-invariant";
 import { formatWithOptions } from "util";
 import * as vscode from "vscode";
+import { LogPipe } from "./log-pipe";
+
+createDebug.inspectOpts ??= {};
+createDebug.inspectOpts.hideDate = true;
 const debug = createDebug("app-explorer:logger");
+
+createDebug.enable("app-explorer:*");
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -14,10 +20,11 @@ export interface PrefixedLogger {
 }
 
 export class Logger {
-  private logFile?: string;
-  private logStream?: import("fs").WriteStream;
   private outputChannel: vscode.OutputChannel;
   private static instance?: Logger;
+  logWrite: ((line: string) => Promise<void>) | undefined;
+  logUri: vscode.Uri | undefined;
+  logPipe: LogPipe | undefined;
 
   private constructor() {
     this.outputChannel = vscode.window.createOutputChannel(
@@ -27,16 +34,18 @@ export class Logger {
 
     this.outputChannel.appendLine("Logger initialized");
 
-    createDebug.enable("app-explorer:*");
-    createDebug.log = (message, ...args: unknown[]) => {
-      const formatedMessage = formatWithOptions(
-        { colors: false, compact: true, maxArrayLength: 10, sorted: true },
-        message,
-        ...args.map(cleanCardEvents),
-      );
-      this.outputChannel.appendLine(formatedMessage);
-    };
+    createDebug.log = this.log;
   }
+
+  log = (message: unknown, ...args: unknown[]) => {
+    const formatedMessage = formatWithOptions(
+      { colors: false, compact: true, maxArrayLength: 10, sorted: true },
+      message,
+      ...args.map(cleanCardEvents),
+    );
+    this.outputChannel.appendLine(formatedMessage);
+    this.logWrite?.(formatedMessage + "\n");
+  };
 
   /**
    * Get the singleton logger instance
@@ -57,7 +66,7 @@ export class Logger {
     const debug = config.get<string>("debug");
 
     if (debug) {
-      createDebug.enable(debug);
+      // createDebug.enable(debug);
       this.outputChannel.show(true); // true = preserve focus
       this.outputChannel.appendLine(
         "[logger] Debug mode enabled - AppExplorer output channel shown",
@@ -65,39 +74,29 @@ export class Logger {
     }
   }
 
-  /**
-   * Create a prefixed logger instance
-   */
-  withPrefix = (prefix: string): PrefixedLogger => {
-    const debug = createDebug(`app-explorer:${prefix}`);
-    return {
-      debug,
-      info: debug,
-      warn: debug,
-      error: debug,
-    };
-  };
-
-  getLogFile() {
-    return this.logStream ? this.logFile : null;
+  getLogFile(DEBUG: string = "app-explorer:*"): [string, string] | undefined {
+    createDebug.enable(DEBUG);
+    return this.logUri
+      ? ([this.logUri.fsPath, `AppExplorer.pipe`] as const)
+      : undefined;
   }
 
-  storeLogs = (logUri: vscode.Uri) => {
+  storeLogs = async (logUri: vscode.Uri): Promise<LogPipe | undefined> => {
     try {
-      this.logFile = vscode.Uri.joinPath(logUri, `AppExplorer.log`).fsPath;
-      this.logStream = createWriteStream(this.logFile);
-      this.logStream.on("error", (err) => {
-        this.outputChannel.appendLine(
-          `[logger] Failed to write to log file: ${err.message}`,
-        );
-      });
-      debug("Logging to " + this.logFile);
+      this.logUri = logUri;
+      const [logPath, logFile] = this.getLogFile() ?? [];
+      invariant(logPath, "Log path must be set");
+      invariant(logFile, "Log file must be set");
+
+      this.logPipe = new LogPipe(logPath, logFile);
+      this.logWrite = await this.logPipe.getWriter();
     } catch (err) {
       this.outputChannel.appendLine(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         `[logger] Failed to initialize log file: ${(err as any)?.message ?? err}`,
       );
     }
+    return undefined;
   };
 
   /**
@@ -105,7 +104,7 @@ export class Logger {
    */
   dispose(): void {
     this.outputChannel.dispose();
-    this.logStream?.close();
+    this.logPipe?.dispose();
   }
 }
 
@@ -124,6 +123,9 @@ function cleanCardEvents<T extends unknown>(eventFragment: T): T {
     cleanMap.set(eventFragment, true);
     const cleaned = Object.fromEntries(
       Object.entries(eventFragment).map(([key, value]) => {
+        if (typeof value === "function") {
+          return [key, value.toString()];
+        }
         if (value && key === "cards") {
           if (Array.isArray(value)) {
             return [key, `(${value.length} cards)`];

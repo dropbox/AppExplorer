@@ -1,60 +1,20 @@
 import * as assert from "assert";
 import createDebug from "debug";
-import * as fs from "fs";
-import * as readline from "readline";
 import * as vscode from "vscode";
 import { CardData, SymbolCardData } from "../../EventTypes";
 import { LocationFinder } from "../../location-finder";
+import { LogPipe } from "../../log-pipe";
 import { TEST_CARDS } from "../fixtures/card-data";
 import { MockMiroClient } from "../mocks/mock-miro-client";
 import { waitFor } from "../suite/test-utils";
 
+createDebug.inspectOpts ??= {};
+createDebug.inspectOpts.hideDate = true;
+let DEBUG = "app-explorer:*";
+// DEBUG = "app-explorer:card-storage:*,app-explorer:extension";
+
+createDebug.enable(DEBUG);
 const debug = createDebug("app-explorer:test:e2e");
-// Ensure process.env.DEBUG respects existing configuration or defaults to test-specific namespace.
-process.env.DEBUG = process.env.DEBUG || "app-explorer:test:e2e";
-createDebug.enable(process.env.DEBUG);
-
-const tail = (file: string | null, callback: (data: string) => void) => {
-  if (!file) {
-    return;
-  }
-  try {
-    const readStream = fs.createReadStream(file);
-
-    // Handle stream errors gracefully
-    readStream.on("error", (error) => {
-      debug(`Warning: Could not read log file ${file}:`, error.message);
-      return; // Exit gracefully without throwing
-    });
-
-    const rl = readline.createInterface({
-      input: readStream,
-      crlfDelay: Infinity,
-    });
-
-    // Handle readline errors gracefully
-    rl.on("error", (error) => {
-      debug(`Warning: Error reading log file ${file}:`, error.message);
-      rl.close();
-      return;
-    });
-
-    rl.on("line", (line: string) => {
-      try {
-        callback(line);
-      } catch (error) {
-        debug(`Warning: Error processing log line:`, error);
-      }
-    });
-
-    // Clean up on close
-    rl.on("close", () => {
-      readStream.destroy();
-    });
-  } catch (error) {
-    debug(`Warning: Could not set up log file tailing for ${file}:`, error);
-  }
-};
 
 /**
  * Type guard to check if a card is a symbol card
@@ -377,14 +337,17 @@ export class E2ETestUtils {
     const testPort = E2ETestUtils.getTestPort();
     debug(`E2E Test Suite will use port: ${testPort}`);
 
-    const logFile = await vscode.commands.executeCommand<string | null>(
-      "app-explorer.internal.logFile",
-    );
-    const logDebugger = createDebug("app-explorer:logs");
-
-    tail(logFile, (line) => {
-      logDebugger(line);
-    });
+    const [folder, file] =
+      (await vscode.commands.executeCommand<[string, string] | null>(
+        "app-explorer.internal.logFile",
+        DEBUG,
+      )) ?? [];
+    if (file && folder) {
+      const logPipe = new LogPipe(folder, file);
+      logPipe.getReader((line) => {
+        createDebug.log("[LOG]", line);
+      });
+    }
 
     // Start the test MiroServer on the allocated port
     await this.startRealServerOnTestPort();

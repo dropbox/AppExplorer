@@ -124,6 +124,7 @@ export type MiroToWorkspaceOperations = {
   selectedCards: (data: CardData[]) => void;
   navigateTo: (card: CardData) => void;
   card: (data: { url: string; card: CardData | null }) => void;
+  log: (args: unknown[]) => void;
 };
 
 // Operations callable on server from workspaces
