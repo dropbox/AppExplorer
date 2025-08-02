@@ -85,8 +85,7 @@ export class LocationFinder {
               );
             }
 
-            if (symbol) {
-            } else {
+            if (!symbol) {
               debug("❌ Symbol not found, returning URI only");
             }
 
