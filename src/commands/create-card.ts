@@ -1,9 +1,12 @@
+import createDebug from "debug";
 import * as vscode from "vscode";
 import { CardData } from "../EventTypes";
 import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
 import { getRelativePath } from "../get-relative-path";
 import { LocationFinder } from "../location-finder";
+
+const debug = createDebug("app-explorer:create-card");
 
 export class UnreachableError extends Error {
   constructor(item: never) {
@@ -21,6 +24,7 @@ export function invariant(condition: unknown, message: string) {
 const cancel = Symbol("cancel");
 
 type CreateCardOptions = {
+  boardId?: string;
   connect?: string[];
 };
 
@@ -53,7 +57,8 @@ export async function selectConnectedBoard({ cardStorage }: HandlerContext) {
 }
 
 export const makeNewCardHandler = (context: HandlerContext) =>
-  async function (options: CreateCardOptions = {}) {
+  async function (options: CreateCardOptions = {}, ...args: unknown[]) {
+    debug("Creating new card...", { options, args });
     const editor = vscode.window.activeTextEditor;
     if (editor) {
       const uri = getRelativePath(editor.document.uri);
@@ -62,7 +67,7 @@ export const makeNewCardHandler = (context: HandlerContext) =>
       }
       await context.waitForConnections();
 
-      const boardId = await selectConnectedBoard(context);
+      const boardId = options.boardId ?? (await selectConnectedBoard(context));
       if (boardId) {
         const cardData = await makeCardData(editor, boardId, {
           canPickMany: false,

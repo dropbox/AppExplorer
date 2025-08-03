@@ -1,7 +1,8 @@
 import { defineConfig } from "@vscode/test-cli";
 
 // Avoid port 9042
-const APP_EXPLORER_PORT = 9043 + Math.floor(Math.random() * (9099 - 9043));
+const APP_EXPLORER_PORT =
+  process.env.PORT ?? 9043 + Math.floor(Math.random() * (9099 - 9043));
 const DEBUG = "app-explorer:*";
 
 export default defineConfig({

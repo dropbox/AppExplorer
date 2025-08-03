@@ -114,7 +114,11 @@ suite("E2E Card Lifecycle Tests", () => {
     debug("Step 3: Testing card creation logic");
     const cardsPromise = vscode.commands.executeCommand<CardData[]>(
       "app-explorer.createCard",
+      {
+        boardId: "mock-board-test-123",
+      },
     );
+
     await delay(1000);
     debug("select next");
     await vscode.commands.executeCommand(
