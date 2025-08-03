@@ -1,26 +1,23 @@
 import { TagColor } from "@mirohq/websdk-types";
 import * as vscode from "vscode";
-import { CardData, allColors } from "../EventTypes";
+import { AppExplorerTag, CardData, allColors } from "../EventTypes";
 import { HandlerContext } from "../extension";
 import { notEmpty } from "../utils/notEmpty";
-import { promiseEmit } from "../utils/promise-emit";
 
 export const makeTagCardHandler = (context: HandlerContext) => {
   return async function () {
     await context.waitForConnections();
 
-    const selectedCards = await context.cardStorage.getConnectedBoards().reduce(
-      async (p, boardId) => {
+    const selectedCards = await context.cardStorage
+      .getConnectedBoards()
+      .reduce(async (p, boardId) => {
         const selected: CardData[] = await p;
-        const selectedCards = await promiseEmit(
-          context.cardStorage.socket,
+        const selectedCards = await context.cardStorage.socket.emitWithAck(
           "selected",
           boardId,
         );
         return selected.concat(selectedCards).filter(notEmpty);
-      },
-      Promise.resolve([] as CardData[]),
-    );
+      }, Promise.resolve<CardData[]>([]));
 
     if (selectedCards.length > 0) {
       const links = selectedCards.map((c) => c.miroLink).filter(notEmpty);
@@ -43,11 +40,10 @@ export const makeTagCardHandler = (context: HandlerContext) => {
         id: "NEW_TAG",
       };
       const quickPicks: TagSelection[] = [newCard];
-      const tags = await promiseEmit(
-        context.cardStorage.socket,
+      const tags = (await context.cardStorage.socket.emitWithAck(
         "tags",
         boardId,
-      );
+      )) as AppExplorerTag[];
       quickPicks.push(
         ...tags.map((tag) => ({
           label: tag.title,
@@ -74,7 +70,7 @@ export const makeTagCardHandler = (context: HandlerContext) => {
             title: "Tag Color",
           });
           if (color) {
-            await promiseEmit(context.cardStorage.socket, "tagCards", boardId, {
+            await context.cardStorage.socket.emitWithAck("tagCards", boardId, {
               miroLink: links,
               tag: {
                 title,
@@ -83,7 +79,7 @@ export const makeTagCardHandler = (context: HandlerContext) => {
             });
           }
         } else {
-          await promiseEmit(context.cardStorage.socket, "tagCards", boardId, {
+          await context.cardStorage.socket.emitWithAck("tagCards", boardId, {
             miroLink: links,
             tag: tag.id,
           });

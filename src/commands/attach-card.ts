@@ -3,7 +3,6 @@ import { CardData } from "../EventTypes";
 import { HandlerContext } from "../extension";
 import { getRelativePath } from "../get-relative-path";
 import { notEmpty } from "../utils/notEmpty";
-import { promiseEmit } from "../utils/promise-emit";
 import { makeCardData } from "./create-card";
 
 export const makeAttachCardHandler = (context: HandlerContext) => {
@@ -17,18 +16,14 @@ export const makeAttachCardHandler = (context: HandlerContext) => {
       await context.waitForConnections();
       const selectedCards = await context.cardStorage
         .getConnectedBoards()
-        .reduce(
-          async (p, boardId) => {
-            const selected: CardData[] = await p;
-            const selectedCards = await promiseEmit(
-              context.cardStorage.socket,
-              "selected",
-              boardId,
-            );
-            return selected.concat(selectedCards).filter(notEmpty);
-          },
-          Promise.resolve([] as CardData[]),
-        );
+        .reduce(async (p, boardId) => {
+          const selected: CardData[] = await p;
+          const selectedCards = await context.cardStorage.socket.emitWithAck(
+            "selected",
+            boardId,
+          );
+          return selected.concat(selectedCards).filter(notEmpty);
+        }, Promise.resolve<CardData[]>([]));
 
       if (selectedCards.length === 1) {
         const boardId = selectedCards[0].boardId;
@@ -38,8 +33,7 @@ export const makeAttachCardHandler = (context: HandlerContext) => {
         });
         const cardData = result?.[0];
         if (cardData) {
-          await promiseEmit(
-            context.cardStorage.socket,
+          await context.cardStorage.socket.emitWithAck(
             "attachCard",
             cardData.boardId,
             cardData,

@@ -267,12 +267,12 @@ export async function attachToSocket() {
         "Board ID mismatch",
       );
       const name = (await miro.board.getAppData("name")) as string;
-      queryImplementations.cards(boardId, (cards) => {
+      queryImplementations.cards(boardId, (cardArray) => {
         done({
           boardId,
           name,
-          cards: cards.reduce(
-            (acc, c) => {
+          cards: cardArray.reduce(
+            (acc: Record<string, CardData>, c: CardData) => {
               acc[c.miroLink!] = c;
               return acc;
             },
@@ -301,7 +301,7 @@ export async function attachToSocket() {
     },
     getIdToken: (routedBoardId, done) => {
       invariant(routedBoardId === boardId, "Board ID mismatch");
-      return miro.board.getIdToken().then(done);
+      return miro.board.getIdToken().then((id) => done(id));
     },
     attachCard: async (routedBoardId, cardData, done) => {
       try {
@@ -443,10 +443,12 @@ export async function attachToSocket() {
           }
           await card.sync();
         }, Promise.resolve());
+
+        done(true);
       } catch (error) {
         debug("AppExplorer: Error tagging cards", error);
+        done(false);
       }
-      done(true);
     },
     selected: async (routedBoardId, done) => {
       invariant(routedBoardId === boardId, "Board ID mismatch");

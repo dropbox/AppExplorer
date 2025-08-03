@@ -13,7 +13,6 @@ import {
 import { getGitHubUrl } from "./get-github-url";
 import { LocationFinder } from "./location-finder";
 import { bindHandlers } from "./utils/bindHandlers";
-import { promiseEmit } from "./utils/promise-emit";
 
 export class WorkspaceCardStorage
   extends CardStorage
@@ -81,8 +80,7 @@ export class WorkspaceCardStorage
           rootPath: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
         };
 
-        const response = await promiseEmit(
-          this.socket,
+        const response = await this.socket.emitWithAck(
           "workspaceRegistration",
           registrationRequest,
         );
@@ -230,7 +228,7 @@ export class WorkspaceCardStorage
         }
       }
 
-      await promiseEmit(this.socket, "cardStatus", card.boardId, {
+      await this.socket.emitWithAck("cardStatus", card.boardId, {
         miroLink: card.miroLink,
         status,
         codeLink,

@@ -2,7 +2,6 @@ import createDebug from "debug";
 import * as vscode from "vscode";
 import type { HandlerContext } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
-import { promiseEmit } from "../utils/promise-emit";
 
 const debug = createDebug("app-explorer:navigate");
 
@@ -14,14 +13,13 @@ export const makeNavigationHandler = (context: HandlerContext) => {
       const boardId = card.boardId;
       const codeLink = await getGitHubUrl(locationLink);
 
-      await promiseEmit(context.cardStorage.socket, "cardStatus", boardId, {
+      await context.cardStorage.socket.emitWithAck("cardStatus", boardId, {
         codeLink,
         miroLink,
         status: "connected",
       });
 
-      const success = await promiseEmit(
-        context.cardStorage.socket,
+      const success = await context.cardStorage.socket.emitWithAck(
         "selectCard",
         boardId,
         miroLink,

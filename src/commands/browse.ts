@@ -5,7 +5,6 @@ import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
 import { getRelativePath } from "../get-relative-path";
 import { LocationFinder } from "../location-finder";
-import { promiseEmit } from "../utils/promise-emit";
 import { SymbolAnchor } from "./create-card";
 
 const debug = createDebug("app-explorer:browse");
@@ -108,8 +107,7 @@ export const makeBrowseHandler = (context: HandlerContext) =>
       onDidSelectItem: async (item: CardQuickPickItem) => {
         const card = cardStorage.getCardByLink(item.miroLink);
         if (card && card.miroLink) {
-          await promiseEmit(
-            cardStorage.socket,
+          await cardStorage.socket.emitWithAck(
             "hoverCard",
             card.boardId,
             card.miroLink!,
@@ -126,8 +124,7 @@ export const makeBrowseHandler = (context: HandlerContext) =>
     } else if (selected) {
       const card = cardStorage.getCardByLink(selected.miroLink);
       if (card) {
-        await promiseEmit(
-          context.cardStorage.socket,
+        await context.cardStorage.socket.emitWithAck(
           "selectCard",
           card.boardId,
           card.miroLink!,
@@ -161,8 +158,7 @@ export const makeBrowseHandler = (context: HandlerContext) =>
             }
           }
 
-          await promiseEmit(
-            context.cardStorage.socket,
+          await context.cardStorage.socket.emitWithAck(
             "cardStatus",
             card.boardId,
             {

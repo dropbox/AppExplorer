@@ -23,7 +23,6 @@ import { logger } from "./logger";
 import { PortConfig } from "./port-config";
 import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
 import { bindHandlers } from "./utils/bindHandlers";
-import { promiseEmit } from "./utils/promise-emit";
 import compression = require("compression");
 import express = require("express");
 import morgan = require("morgan");
@@ -299,8 +298,7 @@ export class MiroServer {
           });
 
           // Route the cardStatus event to the Miro board
-          const success = await promiseEmit(
-            boardSocket,
+          const success = await boardSocket.emitWithAck(
             "cardStatus",
             boardId,
             data,
@@ -324,7 +322,10 @@ export class MiroServer {
       ): void {
         const boardSocket = cardStorage.getBoardSocket(boardId);
         invariant(boardSocket, "Board not connected");
-        promiseEmit(boardSocket, "getIdToken", boardId).then(callback);
+        boardSocket
+          .emitWithAck("getIdToken", boardId)
+          .then((id) => callback(id as string))
+          .catch(() => callback("" as string));
       },
       setBoardName: (
         boardId: string,
@@ -334,7 +335,10 @@ export class MiroServer {
         const boardSocket = cardStorage.getBoardSocket(boardId);
         invariant(boardSocket, "Board not connected");
         cardStorage.setBoardName(boardId, name);
-        promiseEmit(boardSocket, "setBoardName", boardId, name).then(callback);
+        boardSocket
+          .emitWithAck("setBoardName", boardId, name)
+          .then((success) => callback(success as boolean))
+          .catch(() => callback(false));
       },
       getBoardInfo: async function (
         boardId: string,
@@ -342,17 +346,21 @@ export class MiroServer {
       ) {
         const boardSocket = cardStorage.getBoardSocket(boardId);
         invariant(boardSocket, "Board not connected");
-        const info = await promiseEmit(boardSocket, "getBoardInfo", boardId);
+        try {
+          const info = await boardSocket.emitWithAck("getBoardInfo", boardId);
 
-        let boardInfo = cardStorage.getBoard(info.boardId);
-        if (!boardInfo) {
-          boardInfo = await cardStorage.addBoard(info.boardId, info.name);
-        } else if (boardInfo.name !== info.name) {
-          cardStorage.setBoardName(info.boardId, info.name);
+          let boardInfo = cardStorage.getBoard(info.boardId);
+          if (!boardInfo) {
+            boardInfo = await cardStorage.addBoard(info.boardId, info.name);
+          } else if (boardInfo.name !== info.name) {
+            cardStorage.setBoardName(info.boardId, info.name);
+          }
+          debug("boardInfo retrieved", { boardId, info });
+
+          callback(info);
+        } catch (_err) {
+          callback(undefined as unknown as BoardInfo);
         }
-        debug("boardInfo retrieved", { boardId, info });
-
-        callback(info);
       },
       tags: function (
         boardId: string,
@@ -360,7 +368,10 @@ export class MiroServer {
       ): void {
         const boardSocket = cardStorage.getBoardSocket(boardId);
         invariant(boardSocket, "Board not connected");
-        promiseEmit(boardSocket, "tags", boardId).then(callback);
+        boardSocket
+          .emitWithAck("tags", boardId)
+          .then((tags) => callback(tags as AppExplorerTag[]))
+          .catch(() => callback([]));
       },
       attachCard: function (
         boardId: string,
@@ -369,7 +380,10 @@ export class MiroServer {
       ): void {
         const boardSocket = cardStorage.getBoardSocket(boardId);
         invariant(boardSocket, "Board not connected");
-        promiseEmit(boardSocket, "attachCard", boardId, data).then(callback);
+        boardSocket
+          .emitWithAck("attachCard", boardId, data)
+          .then((success) => callback(success as boolean))
+          .catch(() => callback(false));
       },
       tagCards: function (
         boardId: string,
@@ -381,7 +395,10 @@ export class MiroServer {
       ): void {
         const boardSocket = cardStorage.getBoardSocket(boardId);
         invariant(boardSocket, "Board not connected");
-        promiseEmit(boardSocket, "tagCards", boardId, data).then(callback);
+        boardSocket
+          .emitWithAck("tagCards", boardId, data)
+          .then((success) => callback(success as boolean))
+          .catch(() => callback(false));
       },
       selectCard: (
         boardId: string,
@@ -392,17 +409,22 @@ export class MiroServer {
         invariant(boardSocket, "Board not connected");
         cardStorage.selectedCards([cardStorage.getCardByLink(miroLink)!]);
 
-        promiseEmit(boardSocket, "selectCard", boardId, miroLink).then(
-          callback,
-        );
+        boardSocket
+          .emitWithAck("selectCard", boardId, miroLink)
+          .then((success) => callback(success as boolean))
+          .catch(() => callback(false));
       },
       cards: async (boardId: string, callback: (cards: CardData[]) => void) => {
         const boardSocket = cardStorage.getBoardSocket(boardId);
         invariant(boardSocket, "Board not connected");
-        const cards = await promiseEmit(boardSocket, "cards", boardId);
-        cardStorage.setBoardCards(boardId, cards);
+        try {
+          const cards = await boardSocket.emitWithAck("cards", boardId);
+          cardStorage.setBoardCards(boardId, cards);
 
-        callback(cards);
+          callback(cards);
+        } catch (_err) {
+          callback([]);
+        }
       },
       selected: async (
         boardId: string,
@@ -410,9 +432,13 @@ export class MiroServer {
       ) => {
         const boardSocket = cardStorage.getBoardSocket(boardId);
         invariant(boardSocket, "Board not connected");
-        const selected = await promiseEmit(boardSocket, "selected", boardId);
-        cardStorage.selectedCards(selected);
-        callback(selected);
+        try {
+          const selected = await boardSocket.emitWithAck("selected", boardId);
+          cardStorage.selectedCards(selected);
+          callback(selected);
+        } catch (_err) {
+          callback([]);
+        }
       },
       newCards: async (
         boardId: string,
@@ -422,15 +448,18 @@ export class MiroServer {
       ) => {
         const boardSocket = cardStorage.getBoardSocket(boardId);
         invariant(boardSocket, "Board not connected");
-        const success = await promiseEmit(
-          boardSocket,
-          "newCards",
-          boardId,
-          data,
-          options,
-        );
+        try {
+          const success = await boardSocket.emitWithAck(
+            "newCards",
+            boardId,
+            data,
+            options,
+          );
 
-        callback(success);
+          callback(success);
+        } catch (_err) {
+          callback(false);
+        }
       },
       hoverCard: function (
         boardId: string,
@@ -439,7 +468,10 @@ export class MiroServer {
       ): void {
         const boardSocket = cardStorage.getBoardSocket(boardId);
         invariant(boardSocket, "Board not connected");
-        promiseEmit(boardSocket, "hoverCard", boardId, miroLink).then(callback);
+        boardSocket
+          .emitWithAck("hoverCard", boardId, miroLink)
+          .then((success) => callback(success as boolean))
+          .catch(() => callback(false));
       },
     };
 
@@ -493,7 +525,7 @@ export class MiroServer {
         });
       });
 
-      const info = await promiseEmit(socket, "getBoardInfo", "");
+      const info = await socket.emitWithAck("getBoardInfo", "");
       debug("Miro board connected", info);
 
       let boardInfo = this.cardStorage.getBoard(info.boardId);
@@ -504,7 +536,7 @@ export class MiroServer {
       }
       debug("boardInfo retrieved", info);
 
-      const cards = await promiseEmit(socket, "cards", info.boardId);
+      const cards = await socket.emitWithAck("cards", info.boardId);
       debug("Cards received from Miro board", {
         boardId: info.boardId,
         cardCount: cards.length,

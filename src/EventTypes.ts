@@ -43,13 +43,6 @@ export type AppExplorerTag = {
   color: TagColor;
 };
 
-/**
- * This type is used in callbacks to represent whatever error might return.
- * Anything can be thrown and any promise can be rejected with anything. So a named type means I don't have to disable the lint rule everywhere.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type AnyError = any;
-
 // Operations callable on Miro boards from workspaces (via server)
 // Data flow: Workspace → Server → Miro Board
 export type WorkspaceToMiroOperations = {

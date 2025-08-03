@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
 import type { HandlerContext } from "../extension";
-import { promiseEmit } from "../utils/promise-emit";
 
 export function makeRenameHandler(context: HandlerContext) {
   return async function renameHandler(boardId?: string) {
@@ -36,8 +35,7 @@ export function makeRenameHandler(context: HandlerContext) {
     if (!newName) {
       return;
     }
-    await promiseEmit(
-      context.cardStorage.socket,
+    await context.cardStorage.socket.emitWithAck(
       "setBoardName",
       boardId,
       newName,

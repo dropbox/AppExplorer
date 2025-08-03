@@ -4,7 +4,6 @@ import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
 import { getRelativePath } from "../get-relative-path";
 import { LocationFinder } from "../location-finder";
-import { promiseEmit } from "../utils/promise-emit";
 
 export class UnreachableError extends Error {
   constructor(item: never) {
@@ -69,8 +68,7 @@ export const makeNewCardHandler = (context: HandlerContext) =>
           canPickMany: false,
         });
         if (cardData) {
-          await promiseEmit(
-            context.cardStorage.socket,
+          await context.cardStorage.socket.emitWithAck(
             "newCards",
             boardId,
             cardData,

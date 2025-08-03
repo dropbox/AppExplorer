@@ -303,11 +303,11 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
       },
       getBoardInfo: async (_routedBoardId, done) => {
         const boardInfo = this.cardStorage.getBoard(this.boardId)!;
-        queryHandlers.cards(_routedBoardId, (cards) => {
+        queryHandlers.cards(_routedBoardId, (cardArray) => {
           done({
             boardId: boardInfo.boardId,
             name: boardInfo.name,
-            cards: cards.reduce(
+            cards: cardArray.reduce(
               (acc, c) => {
                 acc[c.miroLink!] = c;
                 return acc;
