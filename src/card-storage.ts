@@ -337,7 +337,6 @@ export class CardStorage
   }
   listBoardIds() {
     const ids = this.storage.get<string[]>("boardIds") || [];
-    this.debug("listBoardIds", ids);
     return ids;
   }
   listAllCards(): CardData[] {
@@ -350,6 +349,7 @@ export class CardStorage
 
   selectedCards(data: CardData[]) {
     this.selectedIds = data.map((c) => c.miroLink!);
+    this.debug("emit selectedCards", { cards: data });
     this.emit("selectedCards", { type: "selectedCards", cards: data });
   }
 

@@ -7,7 +7,7 @@ import { LocationFinder } from "./location-finder";
 import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
 import { WorkspaceCardStorage } from "./workspace-card-storage";
 
-const debug = createDebug("app-explorer:decorator");
+const debug = createDebug("app-explorer:editor-decorator");
 
 interface CardDecoration extends vscode.DecorationOptions {
   card: CardData;
@@ -20,55 +20,24 @@ export class EditorDecorator {
   #activeEdtior: vscode.TextEditor | undefined;
   timeout: NodeJS.Timeout | undefined;
   #cardStorage: WorkspaceCardStorage | undefined;
-  #eventListeners:
-    | {
-        boardUpdate: () => void;
-        cardUpdate: () => void;
-        connectedBoards: () => void;
-        selectedCards: () => void;
-        workspaceBoards: () => void;
-      }
-    | undefined;
   subscriptions: vscode.Disposable[] = [];
-  selectedIds: string[] = [];
 
   constructor(private handlerContext: HandlerContext) {
     this.#decorator = vscode.window.createTextEditorDecorationType({
-      backgroundColor: new vscode.ThemeColor("appExplorer.backgroundHighlight"),
+      backgroundColor: new vscode.ThemeColor("appExplorer.background"),
       overviewRulerColor: new vscode.ThemeColor("appExplorer.rulerColor"),
       overviewRulerLane: vscode.OverviewRulerLane.Right,
     });
     this.#selectedDecorator = vscode.window.createTextEditorDecorationType({
+      border: "1px solid",
       backgroundColor: new vscode.ThemeColor("appExplorer.selectedBackground"),
+      borderColor: new vscode.ThemeColor("appExplorer.selectedBorder"),
       overviewRulerColor: new vscode.ThemeColor("appExplorer.rulerColor"),
       overviewRulerLane: vscode.OverviewRulerLane.Right,
     });
+    this.subscriptions.push(this.#decorator, this.#selectedDecorator);
     this.#activeEdtior = vscode.window.activeTextEditor;
 
-    let lastPosition: vscode.Position | undefined;
-    let lastEditor: vscode.TextEditor | undefined;
-
-    this.subscriptions.push(
-      vscode.window.onDidChangeActiveTextEditor(
-        (editor) => {
-          if (this.#activeEdtior && !editor) {
-            lastPosition = this.#activeEdtior.selection.active;
-            lastEditor = this.#activeEdtior;
-            setTimeout(() => {
-              lastPosition = undefined;
-              lastEditor = undefined;
-            }, 500);
-          }
-
-          this.#activeEdtior = editor;
-          if (this.#activeEdtior) {
-            this.triggerUpdate();
-          }
-        },
-        null,
-        this.subscriptions,
-      ),
-    );
     this.subscriptions.push(
       vscode.workspace.onDidChangeTextDocument(
         (event) => {
@@ -93,41 +62,20 @@ export class EditorDecorator {
 
     // Listen to all storage events that might affect card display
     this.subscriptions.push({
-      dispose: listenToAllEvents(this.#cardStorage, () => {
+      dispose: listenToAllEvents(this.#cardStorage, (eventName) => {
+        debug(`Card storage event: ${eventName}`);
         this.triggerUpdate(true);
       }),
     });
   }
 
   dispose() {
-    // Remove event listeners to prevent memory leaks
-    if (this.#cardStorage && this.#eventListeners) {
-      this.#cardStorage.off("boardUpdate", this.#eventListeners.boardUpdate);
-      this.#cardStorage.off("cardUpdate", this.#eventListeners.cardUpdate);
-      this.#cardStorage.off(
-        "selectedCards",
-        this.#eventListeners.selectedCards,
-      );
-      this.#cardStorage.off(
-        "connectedBoards",
-        this.#eventListeners.connectedBoards,
-      );
-      this.#cardStorage.off(
-        "workspaceBoards",
-        this.#eventListeners.workspaceBoards,
-      );
-    }
-
-    // Clear references
     this.#cardStorage = undefined;
-    this.#eventListeners = undefined;
-
-    // Dispose of other resources
-    this.#decorator.dispose();
     this.subscriptions.forEach((s) => s.dispose());
   }
 
   triggerUpdate(throttle = false) {
+    debug("triggerUpdate", !!this.timeout, throttle);
     if (this.timeout) {
       clearTimeout(this.timeout);
       this.timeout = undefined;
@@ -145,8 +93,6 @@ export class EditorDecorator {
         return;
       }
 
-      this.selectedIds = this.#cardStorage?.getSelectedCardIDs() ?? [];
-      debug("Selected cards", this.selectedIds.length);
       this.decorateEditor();
     }
   }
@@ -160,9 +106,12 @@ export class EditorDecorator {
 
   decorateEditor = async () => {
     const editor = this.#activeEdtior;
+    debug("Decorating editor", !!editor);
     if (!editor) {
       return;
     }
+    const selectedIds = this.#cardStorage?.getSelectedCardIDs() ?? [];
+    debug("Selected cards", selectedIds);
     const document = editor.document;
     const cards = this.getCardsInEditor(editor);
     const locationFinder = new LocationFinder();
@@ -177,7 +126,7 @@ export class EditorDecorator {
               range: symbol.range,
               hoverMessage: `AppExplorer: ${card.title}`,
               card,
-              selected: this.selectedIds.includes(card.miroLink!),
+              selected: selectedIds.includes(card.miroLink!),
             },
           ];
         }
@@ -185,13 +134,12 @@ export class EditorDecorator {
       return [];
     });
 
-    const notSelected = ranges.filter((r) => !r.selected);
-    editor.setDecorations(this.#decorator, notSelected);
+    editor.setDecorations(this.#decorator, ranges);
     const selected = ranges.filter((r) => r.selected);
     editor.setDecorations(this.#selectedDecorator, selected);
 
     debug(
-      `Decorated editor with ${ranges.length} cards. (${selected.length} selected) ${document.uri}`,
+      `Decorated editor with ${ranges.length} cards. (${selected.length} selected) ${document.uri} (${selectedIds.join(", ")})`,
     );
   };
 }

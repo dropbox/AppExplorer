@@ -12,7 +12,6 @@ import {
 } from "./EventTypes";
 import { getGitHubUrl } from "./get-github-url";
 import { LocationFinder } from "./location-finder";
-import { bindHandlers } from "./utils/bindHandlers";
 
 export class WorkspaceCardStorage
   extends CardStorage
@@ -44,31 +43,25 @@ export class WorkspaceCardStorage
       reconnection: true,
       forceNew: true, // Force new connection on each attempt
     });
+
     this.socket.onAny((event, ...args) => {
-      this.debug(`Received server event ${event}`, this.socket.id, args);
+      this.debug("onAny()", event, args);
     });
     this.socket.onAnyOutgoing((event, ...args) => {
-      this.debug(`Sending server event ${event}`, this.socket.id, args);
+      this.debug("onAnyOutgoing()", event, args);
     });
     this.socket.on("disconnect", () => {
-      this.debug("Socket disconnected", { id: this.socket.id });
+      this.debug("on disconnect", { id: this.socket.id });
       this.emit("disconnect");
     });
 
-    const ServerToWorkspaceEvents: ServerToWorkspaceEvents = {
-      connectedBoards: this.connectedBoards.bind(this),
-      boardUpdate: this.boardUpdate.bind(this),
-      cardUpdate: this.cardUpdate.bind(this),
-    };
-    bindHandlers(this.socket, ServerToWorkspaceEvents);
-
-    const miroToWorkspace: MiroToWorkspaceOperations = {
-      card: this.card.bind(this),
-      navigateTo: this.navigateTo.bind(this),
-      selectedCards: this.selectedCards.bind(this),
-      log: this.log.bind(this),
-    };
-    bindHandlers(this.socket, miroToWorkspace);
+    this.socket.on("connectedBoards", this.connectedBoards.bind(this));
+    this.socket.on("boardUpdate", this.boardUpdate.bind(this));
+    this.socket.on("cardUpdate", this.cardUpdate.bind(this));
+    this.socket.on("card", this.card.bind(this));
+    this.socket.on("navigateTo", this.navigateTo.bind(this));
+    this.socket.on("selectedCards", this.selectedCards.bind(this));
+    this.socket.on("log", this.log.bind(this));
 
     // Register with server when connected
     this.socket.on("connect", async () => {
@@ -106,12 +99,12 @@ export class WorkspaceCardStorage
   log() {
     // The server is going to log the events to the same logger the workspace-card-storage is using
   }
-  selectedCards(data: CardData[]): void {
-    this.debug("Received selected cards", { data });
-    return super.selectedCards(data);
+  selectedCards(cards: CardData[]): void {
+    this.debug("selectedCards()", { cards });
+    return super.selectedCards(cards);
   }
   connectedBoards(boardIds: string[]) {
-    this.debug("Received connected boards", { boardIds });
+    this.debug("connectedBoards())", { boardIds });
     this.connectedBoardSet = new Set(boardIds);
     this.emit("connectedBoards", {
       type: "connectedBoards",

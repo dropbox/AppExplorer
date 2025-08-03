@@ -133,6 +133,9 @@ function cleanCardEvents<T extends unknown>(eventFragment: T): T {
 
           return [key, `(${Object.keys(value).length} cards)`];
         }
+        if (value && key === "card") {
+          return [key, `(${value.miroLink})`];
+        }
 
         return [key, cleanCardEvents(value)];
       }),

@@ -167,9 +167,6 @@ export class MiroServer {
       // Start listening on the port
       this.httpServer.listen(port, () => {
         debug("Server started successfully", { port });
-        vscode.window.showInformationMessage(
-          `AppExplorer - Server started. Open a Miro board to connect.`,
-        );
         resolve();
       });
     });
