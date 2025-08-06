@@ -16,12 +16,14 @@ export interface StorageAdapter {
 
 // VSCode adapter that uses ExtensionContext.workspaceState
 export class VSCodeAdapter implements StorageAdapter {
-  constructor(private context: vscode.ExtensionContext) {
+  #context: vscode.ExtensionContext;
+  constructor(context: vscode.ExtensionContext) {
+    this.#context = context;
     // this.reset();
   }
 
   reset() {
-    this.context.workspaceState.keys().forEach((key) => {
+    this.#context.workspaceState.keys().forEach((key) => {
       if (key.startsWith("board-")) {
         this.delete(key);
       }
@@ -31,32 +33,32 @@ export class VSCodeAdapter implements StorageAdapter {
   }
 
   get<T>(key: string): T | undefined {
-    return this.context.workspaceState.get<T>(key);
+    return this.#context.workspaceState.get<T>(key);
   }
 
   async set(key: string, value: unknown): Promise<void> {
-    await this.context.workspaceState.update(key, value);
+    await this.#context.workspaceState.update(key, value);
   }
 
   async delete(key: string): Promise<void> {
-    await this.context.workspaceState.update(key, undefined);
+    await this.#context.workspaceState.update(key, undefined);
   }
 }
 
 // Memory adapter that uses Map for in-memory storage
 export class MemoryAdapter implements StorageAdapter {
-  private storage = new Map<string, unknown>();
+  #storage = new Map<string, unknown>();
 
   get<T>(key: string): T | undefined {
-    return this.storage.get(key) as T | undefined;
+    return this.#storage.get(key) as T | undefined;
   }
 
   async set(key: string, value: unknown): Promise<void> {
-    this.storage.set(key, value);
+    this.#storage.set(key, value);
   }
 
   async delete(key: string): Promise<void> {
-    this.storage.delete(key);
+    this.#storage.delete(key);
   }
 }
 
@@ -92,22 +94,23 @@ export class CardStorage
   implements vscode.Disposable
 {
   protected debug = createDebug("app-explorer:card-storage");
-  private sockets = new Map<string, MiroServerSocket>();
-  private selectedIds: string[] = [];
-
+  #storage: StorageAdapter;
+  #sockets = new Map<string, MiroServerSocket>();
+  #selectedIds: string[] = [];
   protected connectedBoardSet = new Set<string>();
-  constructor(private storage: StorageAdapter) {
+  constructor(storage: StorageAdapter) {
     super();
+    this.#storage = storage;
     listenToAllEvents(this, (eventName, ...args) => {
       this.debug("Event emitted:", JSON.stringify(eventName), { args }, ";");
     });
-    const boardIds = this.storage.get<string[]>("boardIds");
-    this.storage.set("boardIds", [...new Set(boardIds)]);
+    const boardIds = this.#storage.get<string[]>("boardIds");
+    this.#storage.set("boardIds", [...new Set(boardIds)]);
 
     boardIds?.forEach((boardId) => {
-      const board = this.storage.get<BoardInfo>(`board-${boardId}`);
+      const board = this.#storage.get<BoardInfo>(`board-${boardId}`);
       if (!board) {
-        this.storage.set<BoardInfo>(`board-${boardId}`, {
+        this.#storage.set<BoardInfo>(`board-${boardId}`, {
           boardId,
           cards: {},
           name: boardId,
@@ -143,14 +146,14 @@ export class CardStorage
       cards.forEach((card) => {
         board.cards[card.miroLink!] = card;
       });
-      this.storage.set(`board-${boardId}`, board);
-      const boardIds = this.storage.get<string[]>("boardIds") || [];
+      this.#storage.set(`board-${boardId}`, board);
+      const boardIds = this.#storage.get<string[]>("boardIds") || [];
       if (!boardIds.includes(boardId)) {
         boardIds.push(boardId);
       }
       this.debug("Board IDs updated:", { boardIds });
       this.connectedBoardSet = new Set(boardIds);
-      this.storage.set("boardIds", boardIds);
+      this.#storage.set("boardIds", boardIds);
     });
     this.emitConnectedBoards();
   }
@@ -158,13 +161,13 @@ export class CardStorage
   async disconnectBoard(boardId: string, deleteCards = true) {
     this.debug("Disconnecting board:", { boardId });
     this.connectedBoardSet.delete(boardId);
-    this.sockets.delete(boardId);
+    this.#sockets.delete(boardId);
     if (deleteCards) {
-      const boardIds = this.storage
+      const boardIds = this.#storage
         .get<string[]>("boardIds")
         ?.filter((b) => b !== boardId);
-      this.storage.delete(`board-${boardId}`);
-      this.storage.set("boardIds", boardIds);
+      this.#storage.delete(`board-${boardId}`);
+      this.#storage.set("boardIds", boardIds);
     }
     this.emitConnectedBoards();
   }
@@ -178,7 +181,7 @@ export class CardStorage
 
   async connectBoard(boardId: string, socket: MiroServerSocket) {
     this.debug("Connecting board:", { boardId });
-    this.sockets.set(boardId, socket);
+    this.#sockets.set(boardId, socket);
     this.connectedBoardSet.add(boardId);
     const board = this.getBoard(boardId);
     invariant(board, `Board not found: ${boardId}`);
@@ -191,28 +194,28 @@ export class CardStorage
   }
 
   getBoardSocket(boardId: string) {
-    return this.sockets.get(boardId);
+    return this.#sockets.get(boardId);
   }
 
   async addBoard(boardId: string, name: string) {
     const board: BoardInfo = { boardId: boardId, name, cards: {} };
-    this.storage.set(`board-${boardId}`, board);
-    const boardIds = this.storage.get<string[]>("boardIds") || [];
+    this.#storage.set(`board-${boardId}`, board);
+    const boardIds = this.#storage.get<string[]>("boardIds") || [];
     if (!boardIds.includes(boardId)) {
       boardIds.push(boardId);
     }
-    await this.storage.set("boardIds", boardIds);
-    await this.storage.set(`board-${boardId}`, board);
+    await this.#storage.set("boardIds", boardIds);
+    await this.#storage.set(`board-${boardId}`, board);
     this.debug("Board added:", { boardId, name });
     this.emit("boardUpdate", { type: "boardUpdate", board, boardId });
     return board;
   }
 
   async setCard(boardId: string, card: CardData) {
-    const board = this.storage.get<BoardInfo>(`board-${boardId}`);
+    const board = this.#storage.get<BoardInfo>(`board-${boardId}`);
     if (board) {
       board.cards[card.miroLink!] = card;
-      await this.storage.set(`board-${boardId}`, board);
+      await this.#storage.set(`board-${boardId}`, board);
       this.emit("cardUpdate", {
         type: "cardUpdate",
         card,
@@ -224,7 +227,7 @@ export class CardStorage
   }
 
   getBoard(boardId: string) {
-    return this.storage.get<BoardInfo>(`board-${boardId}`);
+    return this.#storage.get<BoardInfo>(`board-${boardId}`);
   }
 
   setBoardName(boardId: string, name: string) {
@@ -238,24 +241,24 @@ export class CardStorage
         cards: {},
       };
     }
-    this.storage.set(`board-${boardId}`, board);
-    const boardIds = this.storage.get<string[]>("boardIds") || [];
+    this.#storage.set(`board-${boardId}`, board);
+    const boardIds = this.#storage.get<string[]>("boardIds") || [];
     if (!boardIds.includes(boardId)) {
       boardIds.push(boardId);
     }
-    this.storage.set("boardIds", boardIds);
+    this.#storage.set("boardIds", boardIds);
     this.debug("Board name updated:", { boardId, name });
     this.emit("boardUpdate", { type: "boardUpdate", board, boardId });
     return board;
   }
 
   setBoardCards(boardId: string, cards: CardData[]) {
-    let board = this.storage.get<BoardInfo>(`board-${boardId}`);
+    let board = this.#storage.get<BoardInfo>(`board-${boardId}`);
     this.debug("setBoardCards", { boardId, cards, board: !!board });
     invariant(board, `Board not found: ${boardId}`);
     if (board) {
       board.cards = cards.reduce(
-        (acc, c) => {
+        (acc: Record<string, CardData>, c: CardData) => {
           acc[c.miroLink!] = c;
           return acc;
         },
@@ -268,29 +271,31 @@ export class CardStorage
         cards: {},
       };
     }
-    this.storage.set(`board-${boardId}`, board);
-    const boardIds = this.storage.get<string[]>("boardIds") || [];
+    this.#storage.set(`board-${boardId}`, board);
+    const boardIds = this.#storage.get<string[]>("boardIds") || [];
     if (!boardIds.includes(boardId)) {
       boardIds.push(boardId);
     }
-    this.storage.set("boardIds", boardIds);
+    this.#storage.set("boardIds", boardIds);
     this.emit("boardUpdate", { type: "boardUpdate", board, boardId });
   }
 
   getCardByLink(link: string): CardData | undefined {
     return this.listBoardIds()
       .map(this.getBoard.bind(this))
-      .flatMap((board) => Object.values(board?.cards ?? {}))
-      .find((c) => c.miroLink === link);
+      .flatMap((board: BoardInfo | undefined) =>
+        Object.values(board?.cards ?? {}),
+      )
+      .find((c: CardData) => c.miroLink === link);
   }
 
   deleteCardByLink(link: string) {
     this.listBoardIds()
       .map(this.getBoard.bind(this))
-      .map((b) => {
+      .map((b: BoardInfo | undefined) => {
         if (b?.cards[link]) {
           delete b.cards[link];
-          this.storage.set(`board-${b.boardId}`, b);
+          this.#storage.set(`board-${b.boardId}`, b);
           this.emit("cardUpdate", {
             type: "cardUpdate",
             miroLink: link,
@@ -302,15 +307,15 @@ export class CardStorage
 
   clear() {
     this.debug("Clearing all boards and cards");
-    this.listBoardIds().forEach((boardId) => {
-      this.storage.delete(`board-${boardId}`);
+    this.listBoardIds().forEach((boardId: string) => {
+      this.#storage.delete(`board-${boardId}`);
       this.emit("boardUpdate", {
         type: "boardUpdate",
         board: null,
         boardId: boardId,
       });
     });
-    this.storage.set("boardIds", []);
+    this.#storage.set("boardIds", []);
   }
 
   set(miroLink: string, card: CardData) {
@@ -321,7 +326,7 @@ export class CardStorage
       const board = this.getBoard(boardId);
       if (board) {
         board.cards[miroLink] = card;
-        this.storage.set(`board-${boardId}`, board);
+        this.#storage.set(`board-${boardId}`, board);
         this.emit("cardUpdate", { type: "cardUpdate", miroLink, card });
       }
     }
@@ -329,31 +334,31 @@ export class CardStorage
 
   setWorkspaceBoards(boardIds: string[]) {
     if (this.listBoardIds().length === boardIds.length) {
-      this.storage.delete(`board-filter`);
+      this.#storage.delete(`board-filter`);
     } else {
-      this.storage.set(`board-filter`, boardIds);
+      this.#storage.set(`board-filter`, boardIds);
     }
     this.emit("workspaceBoards", { type: "workspaceBoards", boardIds });
   }
   listBoardIds() {
-    const ids = this.storage.get<string[]>("boardIds") || [];
+    const ids = this.#storage.get<string[]>("boardIds") || [];
     return ids;
   }
   listAllCards(): CardData[] {
-    return this.listBoardIds().flatMap((boardId) =>
+    return this.listBoardIds().flatMap((boardId: string) =>
       Object.values(
-        this.storage.get<BoardInfo>(`board-${boardId}`)?.cards || {},
+        this.#storage.get<BoardInfo>(`board-${boardId}`)?.cards || {},
       ),
     );
   }
 
   selectedCards(data: CardData[]) {
-    this.selectedIds = data.map((c) => c.miroLink!);
+    this.#selectedIds = data.map((c: CardData) => c.miroLink!);
     this.debug("emit selectedCards", { cards: data });
     this.emit("selectedCards", { type: "selectedCards", cards: data });
   }
 
   getSelectedCardIDs(): string[] {
-    return this.selectedIds;
+    return this.#selectedIds;
   }
 }

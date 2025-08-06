@@ -25,13 +25,15 @@ export class WorkspaceCardStorage
     WorkspaceToMiroOperations & WorkspaceToServerOperations
   >;
 
+  #locationFinder: LocationFinder;
   constructor(
     workspaceId: string,
     storageAdapter: StorageAdapter,
     serverUrl: string,
-    private locationFinder: LocationFinder,
+    locationFinder: LocationFinder,
   ) {
     super(storageAdapter);
+    this.#locationFinder = locationFinder;
     this.debug = this.debug.extend("workspace");
 
     const wsUrl = `${serverUrl}/workspace`;
@@ -154,7 +156,7 @@ export class WorkspaceCardStorage
 
   public navigateTo = async (card: CardData, preview = false) => {
     this.debug("Navigating to card", { card, preview });
-    const dest = await this.locationFinder.findCardDestination(card);
+    const dest = await this.#locationFinder.findCardDestination(card);
 
     // Only connect if it's able to reach the symbol
     const success = await goToCardCode(card, preview);

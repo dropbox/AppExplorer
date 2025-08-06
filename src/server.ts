@@ -23,10 +23,10 @@ import { logger } from "./logger";
 import { PortConfig } from "./port-config";
 import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
 import { bindHandlers } from "./utils/bindHandlers";
-import compression = require("compression");
-import express = require("express");
-import morgan = require("morgan");
-import packageJson = require("../package.json");
+import compression from "compression";
+import express from "express";
+import morgan from "morgan";
+import packageJson from "../package.json";
 const debug = createDebug("app-explorer:server");
 const debugEvents = debug.extend("events");
 
@@ -60,13 +60,14 @@ export class MiroServer {
   private connectedWorkspaces = new Map<string, WorkspaceInfo>();
 
   private cardStorage = new CardStorage(new MemoryAdapter());
-
-  private constructor(
-    private featureFlagManager: FeatureFlagManager,
-    // Port configuration: Uses PortConfig for centralized port management
-    // Defaults to 9042 for production, but can be overridden for E2E testing
-    private port: number = PortConfig.getServerPort(),
+  #featureFlagManager: FeatureFlagManager;
+  #port: number;
+  constructor(
+    featureFlagManager: FeatureFlagManager,
+    port: number = PortConfig.getServerPort(),
   ) {
+    this.#featureFlagManager = featureFlagManager;
+    this.#port = port;
     listenToAllEvents(this.cardStorage, (eventName, ...args) => {
       debug("Server storage event", eventName, ...args);
     });
@@ -76,10 +77,12 @@ export class MiroServer {
       this.httpServer,
     );
     io.on("connection", this.onMiroConnection.bind(this));
-
     // Create workspace namespace
     this.workspaceNamespace = io.of("/workspace");
+    this.setupWorkspaceNamespace(app);
+  }
 
+  private setupWorkspaceNamespace(app: ReturnType<typeof express>) {
     // Handle workspace connections
     this.workspaceNamespace.on("connection", (socket) => {
       this.onWorkspaceConnection(socket);
@@ -143,7 +146,7 @@ export class MiroServer {
    * Start the HTTP server with proper error handling
    */
   private async startServer(): Promise<void> {
-    const port = this.port;
+    const port = this.#port;
 
     return new Promise((resolve, reject) => {
       // Set up error handling for port binding failures

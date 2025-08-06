@@ -22,7 +22,9 @@ export class EditorDecorator {
   #cardStorage: WorkspaceCardStorage | undefined;
   subscriptions: vscode.Disposable[] = [];
 
-  constructor(private handlerContext: HandlerContext) {
+  #handlerContext: HandlerContext;
+  constructor(handlerContext: HandlerContext) {
+    this.#handlerContext = handlerContext;
     this.#decorator = vscode.window.createTextEditorDecorationType({
       backgroundColor: new vscode.ThemeColor("appExplorer.background"),
       overviewRulerColor: new vscode.ThemeColor("appExplorer.rulerColor"),
@@ -99,7 +101,7 @@ export class EditorDecorator {
 
   getCardsInEditor(editor: vscode.TextEditor) {
     const path = getRelativePath(editor.document.uri);
-    return [...this.handlerContext.cardStorage.listAllCards()].filter(
+    return [...this.#handlerContext.cardStorage.listAllCards()].filter(
       (card) => card.path === path,
     );
   }

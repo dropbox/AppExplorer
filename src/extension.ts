@@ -21,8 +21,8 @@ import { ServerLauncher } from "./server-launcher";
 import { StatusBarManager } from "./status-bar-manager";
 import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
 import { WorkspaceCardStorage } from "./workspace-card-storage";
-import path = require("node:path");
-import fs = require("node:fs");
+import path from "node:path";
+import fs from "node:fs";
 
 const debug = createDebug("app-explorer:extension");
 export type HandlerContext = {
