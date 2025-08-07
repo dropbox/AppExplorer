@@ -5,6 +5,7 @@ import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
 import { getRelativePath } from "../get-relative-path";
 import { LocationFinder } from "../location-finder";
+import { CHECKPOINT } from "../utils/log-checkpoint";
 
 const debug = createDebug("app-explorer:create-card");
 
@@ -45,9 +46,14 @@ export async function selectConnectedBoard({ cardStorage }: HandlerContext) {
       };
     });
 
+    debug(CHECKPOINT.quickPick("Choose a board"));
     const selected = await vscode.window.showQuickPick(items, {
       title: "Choose a board",
+      onDidSelectItem: (item) => {
+        debug(CHECKPOINT.selected(item));
+      },
     });
+    debug("accepted value", CHECKPOINT.selected(selected || "(null)"));
     if (!selected) {
       return;
     }
@@ -58,7 +64,7 @@ export async function selectConnectedBoard({ cardStorage }: HandlerContext) {
 
 export const makeNewCardHandler = (context: HandlerContext) =>
   async function (options: CreateCardOptions = {}, ...args: unknown[]) {
-    debug("Creating new card...", { options, args });
+    debug(CHECKPOINT.createCard, { options, args });
     const editor = vscode.window.activeTextEditor;
     if (editor) {
       const uri = getRelativePath(editor.document.uri);
@@ -112,6 +118,7 @@ export async function makeCardData(
 
   const anchor = chosenSymbols[0];
   const lineAt = document.lineAt(position);
+  debug(CHECKPOINT.quickPick("Card Title 2/2"));
   const title = await vscode.window.showInputBox({
     title: "Card Title 2/2",
     prompt: `Card title (${anchor.label})`,
@@ -204,12 +211,14 @@ async function showSymbolPicker(
       .reverse(),
   ];
 
+  debug(CHECKPOINT.quickPick("Choose a symbol step 1/2"));
   const tmp = await vscode.window.showQuickPick(items, {
     title: "Choose a symbol step 1/2",
     placeHolder: `Choose a symbol to anchor the card to`,
     canPickMany: options?.canPickMany ?? true,
     matchOnDescription: true,
     onDidSelectItem: (item: OptionType) => {
+      debug(CHECKPOINT.selected(item));
       if (item.target) {
         selectRangeInEditor(item.target.range, editor);
       }

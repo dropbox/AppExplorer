@@ -1,5 +1,9 @@
+import createDebug from "debug";
 import * as vscode from "vscode";
 import type { HandlerContext } from "../extension";
+import { CHECKPOINT } from "../utils/log-checkpoint";
+
+const debug = createDebug("app-explorer:rename-board");
 
 export function makeRenameHandler(context: HandlerContext) {
   return async function renameHandler(boardId?: string) {
@@ -16,8 +20,12 @@ export function makeRenameHandler(context: HandlerContext) {
         };
       });
 
+      debug(CHECKPOINT.quickPick("Which board would you like to rename?"));
       const selected = await vscode.window.showQuickPick(items, {
         title: "Which board would you like to rename?",
+        onDidSelectItem: (item) => {
+          debug(CHECKPOINT.selected(item));
+        },
       });
       if (!selected) {
         return;

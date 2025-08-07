@@ -1,5 +1,9 @@
+import createDebug from "debug";
 import * as vscode from "vscode";
 import type { HandlerContext } from "../extension";
+import { CHECKPOINT } from "../utils/log-checkpoint";
+
+const debug = createDebug("app-explorer:manage-workspace-boards");
 
 export function makeWorkspaceBoardHandler(context: HandlerContext) {
   return async () => {
@@ -15,9 +19,17 @@ export function makeWorkspaceBoardHandler(context: HandlerContext) {
       };
     });
 
+    debug(
+      CHECKPOINT.quickPick(
+        "Which boards should be associated with this workspace?",
+      ),
+    );
     const selected = await vscode.window.showQuickPick(items, {
       title: "Which boards should be associated with this workspace?",
       canPickMany: true,
+      onDidSelectItem: (item) => {
+        debug(CHECKPOINT.selected(item));
+      },
     });
 
     if (selected) {

@@ -5,6 +5,7 @@ import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
 import { getRelativePath } from "../get-relative-path";
 import { LocationFinder } from "../location-finder";
+import { CHECKPOINT } from "../utils/log-checkpoint";
 import { SymbolAnchor } from "./create-card";
 
 const debug = createDebug("app-explorer:browse");
@@ -25,8 +26,12 @@ export async function selectBoard(cardStorage: HandlerContext["cardStorage"]) {
   if (items.length === 1) {
     return boards[0];
   } else {
+    debug(CHECKPOINT.quickPick("Choose a board"));
     const selected = await vscode.window.showQuickPick(items, {
       title: "Choose a board",
+      onDidSelectItem: (item) => {
+        debug(CHECKPOINT.selected(item));
+      },
     });
     if (selected) {
       const index = items.indexOf(selected);
@@ -100,11 +105,13 @@ export const makeBrowseHandler = (context: HandlerContext) =>
         }),
     );
 
+    debug(CHECKPOINT.quickPick("Browse Cards"));
     const selected = await vscode.window.showQuickPick(items, {
       title: "Browse Cards",
       ignoreFocusOut: true,
       // placeHolder: `Choose a symbol to anchor the card to`,
       onDidSelectItem: async (item: CardQuickPickItem) => {
+        debug(CHECKPOINT.selected(item.miroLink));
         const card = cardStorage.getCardByLink(item.miroLink);
         if (card && card.miroLink) {
           await cardStorage.socket.emitWithAck(

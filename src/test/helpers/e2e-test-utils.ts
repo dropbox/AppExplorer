@@ -1,9 +1,11 @@
 import * as assert from "assert";
 import createDebug from "debug";
+import invariant from "tiny-invariant";
 import * as vscode from "vscode";
 import { CardData, SymbolCardData } from "../../EventTypes";
 import { LocationFinder } from "../../location-finder";
 import { LogPipe } from "../../log-pipe";
+import { checkpointRegex } from "../../utils/log-checkpoint";
 import { TEST_CARDS } from "../fixtures/card-data";
 import { MockMiroClient } from "../mocks/mock-miro-client";
 import { waitFor } from "../suite/test-utils";
@@ -15,6 +17,11 @@ let DEBUG = "app-explorer:*";
 
 createDebug.enable(DEBUG);
 const debug = createDebug("app-explorer:test:e2e");
+
+export type LogCapture = {
+  dispose: () => void;
+  getCapturedLogs: () => string[];
+};
 
 /**
  * Type guard to check if a card is a symbol card
@@ -29,6 +36,8 @@ export function isSymbolCard(card: CardData): card is SymbolCardData {
 export class E2ETestUtils {
   private static mockClient: MockMiroClient | null = null;
   private static locationFinder: LocationFinder = new LocationFinder();
+  static #logPipe: LogPipe | null = null;
+  static #logCapture: { getCapturedLogs: () => string[]; dispose: () => void };
 
   /**
    * Get the test port from environment variable
@@ -329,7 +338,7 @@ export class E2ETestUtils {
     }
   }
 
-  static async setupWorkspace(): Promise<void> {
+  static async setupWorkspace() {
     debug("Setting up E2E Navigation Test Suite...");
     await this.enableAllFeatureFlags();
 
@@ -342,12 +351,13 @@ export class E2ETestUtils {
         "app-explorer.internal.logFile",
         DEBUG,
       )) ?? [];
-    if (file && folder) {
-      const logPipe = new LogPipe(folder, file);
-      logPipe.getReader((line) => {
+    if (file && folder && !this.#logPipe) {
+      this.#logPipe = new LogPipe(folder, file);
+      await this.#logPipe.getReader((line) => {
         createDebug.log("[LOG]", line);
       });
     }
+    invariant(E2ETestUtils.#logPipe, "LogPipe not initialized");
 
     // Start the test MiroServer on the allocated port
     await this.startRealServerOnTestPort();
@@ -358,6 +368,13 @@ export class E2ETestUtils {
       workspaceFolders && workspaceFolders.length === 1,
       "No workspace folders found",
     );
+
+    this.#logCapture?.dispose();
+    this.#logCapture = await E2ETestUtils.#logPipe.capture();
+  }
+
+  static getCapturedLogs(): string[] {
+    return this.#logCapture?.getCapturedLogs() ?? [];
   }
 
   /**
@@ -502,6 +519,65 @@ export class E2ETestUtils {
     if (this.mockClient) {
       this.mockClient.disconnect();
       this.mockClient = null;
+    }
+  }
+
+  static async findQuickPickItem(label: string): Promise<string> {
+    const seen = new Set<string>();
+
+    // Grab the initial log buffer
+    let previousLogs = this.#logCapture.getCapturedLogs();
+
+    debug("findQuickPick", label);
+    while (true) {
+      // Move to the next QuickPick item
+      await vscode.commands.executeCommand(
+        "workbench.action.quickOpenSelectNext",
+      );
+
+      // Re-read logs and diff out only the new entries
+      const allLogs = this.#logCapture.getCapturedLogs();
+      const newLogs = allLogs.slice(previousLogs.length);
+      previousLogs = allLogs;
+      debug("New logs:", newLogs);
+
+      // Extract any selected-item checkpoints from the new logs
+      const selections = newLogs
+        .map((entry) => {
+          // const match = entry.match(checkpointRegex);
+          const match = checkpointRegex.exec(entry);
+          debug("Found checkpoint:", [...(match ?? [])]);
+          return match?.[2];
+        })
+        .filter((s): s is string => Boolean(s));
+
+      debug("Current selections:", selections);
+      if (!selections.length) {
+        // no selection log this cycle—just continue
+        continue;
+      }
+
+      // look at the last one (in case there were multiple)
+      const picked = selections[selections.length - 1];
+
+      // if it's our target, accept and return
+      if (picked === label) {
+        debug("Accepting item", picked);
+        await vscode.commands.executeCommand(
+          "workbench.action.acceptSelectedQuickOpenItem",
+        );
+        return picked;
+      }
+
+      // if we’ve seen it before, we’ve looped—bail out
+      if (seen.has(picked)) {
+        throw new Error(
+          `QuickPick item "${label}" not found after a full loop.`,
+        );
+      }
+
+      // otherwise mark it and continue
+      seen.add(picked);
     }
   }
 }

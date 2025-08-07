@@ -14,7 +14,6 @@ export default defineConfig({
   },
   coverage: {
     enabled: true,
-    reporter: "html",
   },
   mocha: {
     timeout: 30000, // 30 seconds timeout for all tests

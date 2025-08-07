@@ -25,7 +25,7 @@ export default [
         },
       ],
       "@typescript-eslint/no-explicit-any": "error",
-      "no-console": "error",
+      "no-console": "warn",
       curly: "warn",
       eqeqeq: "warn",
       "no-throw-literal": "warn",

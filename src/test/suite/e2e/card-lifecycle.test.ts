@@ -1,11 +1,13 @@
 import * as assert from "assert";
 import createDebug from "debug";
+import invariant from "tiny-invariant";
 import * as vscode from "vscode";
 import { CardData } from "../../../EventTypes";
+import { CHECKPOINT } from "../../../utils/log-checkpoint";
 import { TEST_CARDS } from "../../fixtures/card-data";
 import { E2ETestUtils, isSymbolCard } from "../../helpers/e2e-test-utils";
 import { MockMiroClient } from "../../mocks/mock-miro-client";
-import { delay, waitForValue } from "../test-utils";
+import { waitForLog, waitForValue } from "../test-utils";
 
 const debug = createDebug("app-explorer:test:card-lifecycle");
 
@@ -98,37 +100,30 @@ suite("E2E Card Lifecycle Tests", () => {
     const renderSymbol = allSymbols.find(
       (s) => s.label === "render" || s.label === "UserProfile/render",
     );
-    if (renderSymbol) {
-      // Navigate to the render symbol using its exact label
-      await E2ETestUtils.navigateToSymbol(editor, renderSymbol.label);
-      await E2ETestUtils.waitForCursorAtSymbol(renderSymbol.label, editor);
-      debug("✓ Cursor positioned at render function");
-    } else {
-      // Fallback to UserProfile class if render symbol not found
-      await E2ETestUtils.navigateToSymbol(editor, "UserProfile");
-      await E2ETestUtils.waitForCursorAtSymbol("UserProfile", editor);
-      debug("✓ Cursor positioned at UserProfile class");
-    }
+    invariant(renderSymbol, "Render symbol should be found");
+    // Navigate to the render symbol using its exact label
+    await E2ETestUtils.navigateToSymbol(editor, renderSymbol.label);
+    await E2ETestUtils.waitForCursorAtSymbol(renderSymbol.label, editor);
+    debug("✓ Cursor positioned at render function");
 
     // ===== Trigger the Create Card menu =====
     debug("Step 3: Testing card creation logic");
     const cardsPromise = vscode.commands.executeCommand<CardData[]>(
       "app-explorer.createCard",
-      {
-        boardId: "mock-board-test-123",
-      },
     );
 
-    await delay(1000);
-    debug("select next");
-    await vscode.commands.executeCommand(
-      "workbench.action.quickOpenSelectNext",
-    );
-    await delay(1000);
-    debug("accept selected");
-    await vscode.commands.executeCommand(
-      "workbench.action.acceptSelectedQuickOpenItem",
-    );
+    const boardOrSymbol = await waitForLog([
+      CHECKPOINT.quickPick("Choose a board"),
+      CHECKPOINT.quickPick("Choose a symbol step 1/2"),
+    ]);
+
+    if (boardOrSymbol === CHECKPOINT.quickPick("Choose a board")) {
+      await E2ETestUtils.findQuickPickItem("Mock Test Board");
+    }
+
+    await waitForLog([CHECKPOINT.quickPick("Choose a symbol step 1/2")]);
+    await E2ETestUtils.findQuickPickItem("UserProfile");
+    await waitForLog([CHECKPOINT.quickPick("Card Title 2/2")]);
     await vscode.commands.executeCommand(
       "workbench.action.acceptSelectedQuickOpenItem",
     );
@@ -150,10 +145,8 @@ suite("E2E Card Lifecycle Tests", () => {
     debug("createdCard", card);
     assert.ok(card, "Card should be created");
     await E2ETestUtils.resetEditorState();
-    await delay(1000);
 
     await E2ETestUtils.navigateTo(card);
     await E2ETestUtils.waitForFileToOpen(card.path.split("/").pop()!);
-    await delay(1000);
   });
 });

@@ -5,6 +5,7 @@ import * as net from "net";
 import * as path from "path";
 import * as readline from "readline";
 import invariant from "tiny-invariant";
+import { checkpointRegex } from "./utils/log-checkpoint";
 
 type ReaderDisposer = {
   dispose: () => void;
@@ -30,6 +31,11 @@ export class LogPipe {
   // Central teardown
   private subscriptions: (() => void)[] = [];
   private disposed = false;
+
+  // multiplex readers
+  private readers: Set<(line: string) => void> = new Set();
+  private unixReaderCleanup?: () => void;
+  private winReaderCleanup?: () => void;
 
   constructor(folder: string, filename: string) {
     this.folder = folder;
@@ -182,17 +188,34 @@ export class LogPipe {
    */
   async getReader(callback: (line: string) => void): Promise<ReaderDisposer> {
     invariant(!this.disposed, "LogPipe is disposed");
-    if (this.isWindows) {
-      return this.initWindowsReader(callback);
-    } else {
-      return this.initUnixReader(callback);
-    }
-  }
+    this.readers.add(callback);
 
-  private async initUnixReader(
-    callback: (line: string) => void,
-  ): Promise<ReaderDisposer> {
+    if (this.isWindows) {
+      await this.initWindowsReader();
+    } else {
+      await this.initUnixReader();
+    }
+
+    return {
+      dispose: () => {
+        this.readers.delete(callback);
+        if (this.readers.size === 0) {
+          if (this.isWindows) {
+            this.winReaderCleanup?.();
+            this.winReaderCleanup = undefined;
+          } else {
+            this.unixReaderCleanup?.();
+            this.unixReaderCleanup = undefined;
+          }
+        }
+      },
+    };
+  }
+  private async initUnixReader(): Promise<void> {
     invariant(this.pipePath, "pipePath must be set for unix reader");
+    if (this.unixReaderRl) {
+      return;
+    }
     await this.ensureUnixPipe("read");
 
     const stream = fs.createReadStream(this.pipePath, {
@@ -206,7 +229,11 @@ export class LogPipe {
     this.unixReaderRl = rl;
 
     const onLine = (line: string) => {
-      callback(line);
+      for (const cb of this.readers) {
+        try {
+          cb(line);
+        } catch {}
+      }
     };
     rl.on("line", onLine);
 
@@ -225,15 +252,10 @@ export class LogPipe {
     };
 
     this.subscriptions.push(disposeReader);
-
-    return {
-      dispose: disposeReader,
-    };
+    this.unixReaderCleanup = disposeReader;
   }
 
-  private async initWindowsReader(
-    callback: (line: string) => void,
-  ): Promise<ReaderDisposer> {
+  private async initWindowsReader(): Promise<void> {
     invariant(this.pipeName, "pipeName must be set for windows reader");
 
     if (!this.winServer) {
@@ -248,7 +270,11 @@ export class LogPipe {
           while ((idx = buffered.indexOf("\n")) !== -1) {
             const line = buffered.slice(0, idx);
             buffered = buffered.slice(idx + 1);
-            callback(line);
+            for (const cb of this.readers) {
+              try {
+                cb(line);
+              } catch {}
+            }
           }
         };
         socket.on("data", dataHandler);
@@ -266,26 +292,36 @@ export class LogPipe {
         this.winServer!.on("error", (e) => reject(e));
       });
 
-      // teardown for server
-      this.subscriptions.push(() => {
+      const disposeServer = () => {
         for (const s of this.winReaderSockets) {
           s.destroy();
         }
         this.winServer?.close();
         this.winServer = undefined;
-      });
+      };
+
+      this.subscriptions.push(disposeServer);
+      this.winReaderCleanup = disposeServer;
     }
+  }
+
+  /**
+   * Capture logs starting after an optional precondition is met.
+   */
+  async capture(): Promise<{
+    getCapturedLogs: () => string[];
+    dispose: () => void;
+  }> {
+    const captured: string[] = [];
+    const disposer = await this.getReader((line) => {
+      if (line.match(checkpointRegex)) {
+        captured.push(line);
+      }
+    });
 
     return {
-      dispose: () => {
-        if (this.winServer) {
-          for (const s of this.winReaderSockets) {
-            s.destroy();
-          }
-          this.winServer.close();
-          this.winServer = undefined;
-        }
-      },
+      getCapturedLogs: () => [...captured],
+      dispose: () => disposer.dispose(),
     };
   }
 
@@ -323,6 +359,7 @@ export class LogPipe {
       this.winServer = undefined;
     }
     this.winReaderSockets.clear();
+    this.readers.clear();
     this.unixWriterHandle = undefined;
   }
 }

@@ -5,6 +5,7 @@ import { HandlerContext } from "../extension";
 import { TEST_CARDS } from "../test/fixtures/card-data";
 import { isSymbolCard } from "../test/helpers/e2e-test-utils";
 import { MockMiroClient } from "../test/mocks/mock-miro-client";
+import { CHECKPOINT } from "../utils/log-checkpoint";
 
 const debug = createDebug("app-explorer:debug-mock-client");
 
@@ -39,6 +40,9 @@ export const registerMockMiroDebugCommands = (
           placeHolder: "Select a card to simulate opening",
           matchOnDescription: true,
           matchOnDetail: true,
+          onDidSelectItem: (item) => {
+            debug(CHECKPOINT.selected(item));
+          },
         });
 
         if (selected) {
@@ -109,10 +113,18 @@ export const registerMockMiroDebugCommands = (
           card: card,
         }));
 
+        debug(
+          CHECKPOINT.quickPick(
+            "Select cards to simulate selection (multi-select)",
+          ),
+        );
         const selected = await vscode.window.showQuickPick(quickPickItems, {
           placeHolder: "Select cards to simulate selection (multi-select)",
           canPickMany: true,
           matchOnDescription: true,
+          onDidSelectItem: (item) => {
+            debug(CHECKPOINT.selected(item));
+          },
         });
 
         if (selected && selected.length > 0) {
@@ -160,10 +172,14 @@ export const registerMockMiroDebugCommands = (
           card: card,
         }));
 
+        debug(CHECKPOINT.quickPick("Select a card to simulate update"));
         const selected = await vscode.window.showQuickPick(quickPickItems, {
           placeHolder: "Select a card to simulate update",
           matchOnDescription: true,
           matchOnDetail: true,
+          onDidSelectItem: (item) => {
+            debug(CHECKPOINT.selected(item));
+          },
         });
 
         if (selected) {

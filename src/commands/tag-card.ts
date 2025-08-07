@@ -1,8 +1,12 @@
 import { TagColor } from "@mirohq/websdk-types";
+import createDebug from "debug";
 import * as vscode from "vscode";
 import { AppExplorerTag, CardData, allColors } from "../EventTypes";
 import { HandlerContext } from "../extension";
+import { CHECKPOINT } from "../utils/log-checkpoint";
 import { notEmpty } from "../utils/notEmpty";
+
+const debug = createDebug("app-explorer:tag-card");
 
 export const makeTagCardHandler = (context: HandlerContext) => {
   return async function () {
@@ -52,10 +56,14 @@ export const makeTagCardHandler = (context: HandlerContext) => {
         })),
       );
 
+      debug(CHECKPOINT.quickPick("Select a tag to apply"));
       const tag = await vscode.window.showQuickPick(quickPicks, {
         title: `Tag ${selectedCards[0].title}${
           selectedCards.length > 1 ? ` and ${selectedCards.length} others` : ""
         }`,
+        onDidSelectItem: (item) => {
+          debug(CHECKPOINT.selected(item));
+        },
       });
 
       if (tag) {
@@ -66,8 +74,12 @@ export const makeTagCardHandler = (context: HandlerContext) => {
           if (!title) {
             return;
           }
+          debug(CHECKPOINT.quickPick("Select a color for the new tag"));
           const color = await vscode.window.showQuickPick(allColors, {
-            title: "Tag Color",
+            title: "Select a color for the new tag",
+            onDidSelectItem: (item) => {
+              debug(CHECKPOINT.selected(item));
+            },
           });
           if (color) {
             await context.cardStorage.socket.emitWithAck("tagCards", boardId, {
