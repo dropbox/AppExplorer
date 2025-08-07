@@ -195,7 +195,7 @@ suite("E2E Attach Card Tests", () => {
     // This simulates the user selecting the card in Miro before running attach command
     debug("Simulating card selection in MockMiroClient");
 
-    mockClient.sendSelectionUpdateEvent([formatDateCard]);
+    mockClient.selectCards([formatDateCard]);
 
     // ===== Step 3: Command Execution - Execute attach card command =====
     debug("Step 3: Executing app-explorer.attachCard command");
@@ -339,7 +339,7 @@ suite("E2E Attach Card Tests", () => {
 
     // Mock multiple card selection
     const multipleCards = TEST_CARDS.slice(0, 2);
-    mockClient.sendSelectionUpdateEvent(multipleCards);
+    mockClient.selectCards(multipleCards);
 
     debug("Executing attach card command with multiple selected cards");
 

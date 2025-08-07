@@ -131,7 +131,7 @@ export const registerMockMiroDebugCommands = (
           const selectedCards = selected.map((item) => item.card);
 
           // Send selection event to local server
-          mockClient.sendSelectionUpdateEvent(selectedCards);
+          mockClient.selectCards(selectedCards);
 
           vscode.window.showInformationMessage(
             `MockMiroClient: Simulated selecting ${selectedCards.length} cards`,

@@ -10,6 +10,7 @@ const debug = createDebug("app-explorer:tag-card");
 
 export const makeTagCardHandler = (context: HandlerContext) => {
   return async function () {
+    debug(CHECKPOINT.start("tagCard"));
     await context.waitForConnections();
 
     const selectedCards = await context.cardStorage

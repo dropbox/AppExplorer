@@ -11,3 +11,5 @@ public/miro.js
 public/miro.js.map
 coverage/
 compiled-tests/
+*.log
+*.mp4

@@ -1,4 +1,6 @@
 import createDebug from "debug";
+import fs from "node:fs";
+import path from "node:path";
 import * as vscode from "vscode";
 import { AppExplorerLens } from "./app-explorer-lens";
 import { MemoryAdapter } from "./card-storage";
@@ -20,9 +22,8 @@ import { ServerDiscovery } from "./server-discovery";
 import { ServerLauncher } from "./server-launcher";
 import { StatusBarManager } from "./status-bar-manager";
 import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
+import { CHECKPOINT } from "./utils/log-checkpoint";
 import { WorkspaceCardStorage } from "./workspace-card-storage";
-import path from "node:path";
-import fs from "node:fs";
 
 const debug = createDebug("app-explorer:extension");
 export type HandlerContext = {
@@ -32,6 +33,7 @@ export type HandlerContext = {
 
 export async function activate(context: vscode.ExtensionContext) {
   logger.storeLogs(context.logUri);
+  debug(CHECKPOINT.start("activate"));
   vscode.commands.executeCommand("setContext", "appExplorer.enabled", true);
   vscode.commands.executeCommand(
     "setContext",
@@ -205,6 +207,7 @@ export async function activate(context: vscode.ExtensionContext) {
     setUpdateCommandContext(context);
   });
 
+  debug(CHECKPOINT.done("activate"));
   return {
     // IDK what to use this for, I just want to verify it works.
     appExplorer: true,

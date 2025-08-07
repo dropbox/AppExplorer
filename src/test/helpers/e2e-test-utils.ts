@@ -5,10 +5,10 @@ import * as vscode from "vscode";
 import { CardData, SymbolCardData } from "../../EventTypes";
 import { LocationFinder } from "../../location-finder";
 import { LogPipe } from "../../log-pipe";
-import { checkpointRegex } from "../../utils/log-checkpoint";
+import { CHECKPOINT, checkpointRegex } from "../../utils/log-checkpoint";
 import { TEST_CARDS } from "../fixtures/card-data";
 import { MockMiroClient } from "../mocks/mock-miro-client";
-import { waitFor } from "../suite/test-utils";
+import { waitFor, waitForLog } from "../suite/test-utils";
 
 createDebug.inspectOpts ??= {};
 createDebug.inspectOpts.hideDate = true;
@@ -341,11 +341,6 @@ export class E2ETestUtils {
   static async setupWorkspace() {
     debug("Setting up E2E Navigation Test Suite...");
     await this.enableAllFeatureFlags();
-
-    // Get test port from environment variable
-    const testPort = E2ETestUtils.getTestPort();
-    debug(`E2E Test Suite will use port: ${testPort}`);
-
     const [folder, file] =
       (await vscode.commands.executeCommand<[string, string] | null>(
         "app-explorer.internal.logFile",
@@ -358,6 +353,13 @@ export class E2ETestUtils {
       });
     }
     invariant(E2ETestUtils.#logPipe, "LogPipe not initialized");
+
+    // Get test port from environment variable
+    const testPort = E2ETestUtils.getTestPort();
+    debug(`E2E Test Suite will use port: ${testPort}`);
+
+    waitForLog([CHECKPOINT.start("activate")]);
+    waitForLog([CHECKPOINT.done("activate")]);
 
     // Start the test MiroServer on the allocated port
     await this.startRealServerOnTestPort();

@@ -221,7 +221,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
   /**
    * Send card selection events to the server (same as src/miro.ts line 488)
    */
-  sendSelectionUpdateEvent(cards: CardData[]): void {
+  selectCards(cards: CardData[]): void {
     if (!this.socket?.connected) {
       const errorMsg = "MockMiroClient: Not connected to server";
       vscode.window.showErrorMessage(errorMsg);
@@ -330,7 +330,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
         const cards = this.cardStorage.listAllCards().filter((card) => {
           return card.miroLink === miroLink;
         });
-        this.sendSelectionUpdateEvent(cards);
+        this.selectCards(cards);
         return true;
       },
       getIdToken: async (_routedBoardId): Promise<string> => {
