@@ -2,7 +2,7 @@ import * as assert from "assert";
 import * as path from "path";
 import * as vscode from "vscode";
 import { checkpointRegex } from "../../utils/log-checkpoint";
-import { E2ETestUtils } from "../helpers/e2e-test-utils";
+import { E2ETestUtils, videoDelay } from "../helpers/e2e-test-utils";
 
 export const delay = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
@@ -69,6 +69,7 @@ export async function waitFor<T>(
   while (true) {
     try {
       const result = await assertion();
+      await videoDelay();
       return result;
     } catch (e) {
       if (Date.now() - start >= timeout) {

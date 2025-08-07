@@ -5,7 +5,7 @@ export ELECTRON_DISABLE_GPU=1
 XVFB_VIDEO_RESOLUTION="1024x768"
 
 # Internal variable to store ffmpeg PID
-XVFB_FFMPEG_PID=""
+export XVFB_FFMPEG_PID=""
 
 # Usage: recordVideo output.mp4
 recordVideo() {
@@ -36,3 +36,16 @@ stopVideo() {
 
 Xvfb :99 -screen 0 "${XVFB_VIDEO_RESOLUTION}x24" > /dev/null 2>&1 &
 
+
+recordTests() {
+  rm tests.mp4
+  recordVideo "tests.mp4"
+  npm test
+  stopVideo
+}
+
+extractScreenshots() {
+  mkdir test_screenshots
+  rm test_screenshots/*.png
+  ffmpeg -i tests.mp4 -vf "select='gt(scene,0.003)',showinfo" -vsync vfr test_screenshots/%03d.png
+}

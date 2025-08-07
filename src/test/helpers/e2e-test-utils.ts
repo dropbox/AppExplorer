@@ -8,7 +8,7 @@ import { LogPipe } from "../../log-pipe";
 import { CHECKPOINT, checkpointRegex } from "../../utils/log-checkpoint";
 import { TEST_CARDS } from "../fixtures/card-data";
 import { MockMiroClient } from "../mocks/mock-miro-client";
-import { waitFor, waitForLog } from "../suite/test-utils";
+import { delay, waitFor, waitForLog } from "../suite/test-utils";
 
 createDebug.inspectOpts ??= {};
 createDebug.inspectOpts.hideDate = true;
@@ -17,6 +17,14 @@ let DEBUG = "app-explorer:*";
 
 createDebug.enable(DEBUG);
 const debug = createDebug("app-explorer:test:e2e");
+
+const isRecordingVideo = !!process.env.XVFB_FFMPEG_PID;
+
+export const videoDelay = async () => {
+  if (isRecordingVideo) {
+    await delay(500);
+  }
+};
 
 export type LogCapture = {
   dispose: () => void;
@@ -152,6 +160,7 @@ export class E2ETestUtils {
       { timeout: 10000, message: "MockMiroClient failed to connect" },
     );
 
+    await videoDelay();
     return this.mockClient;
   }
 
@@ -197,6 +206,7 @@ export class E2ETestUtils {
       document.uri,
     );
     const symbol = symbols.find((s) => s.label === symbolName);
+    await videoDelay();
     return symbol?.range || null;
   }
 
@@ -221,6 +231,7 @@ export class E2ETestUtils {
           `Expected file path to contain "${expectedPath}", but got "${actualPath}"`,
         );
 
+        await videoDelay();
         return activeEditor;
       },
       {
@@ -252,6 +263,7 @@ export class E2ETestUtils {
           `Cursor not positioned at symbol "${symbolName}". Expected within ${symbolRange.start.line}-${symbolRange.end.line}, got line ${cursorPosition.line}`,
         );
 
+        await videoDelay();
         return cursorPosition;
       },
       {
@@ -280,6 +292,7 @@ export class E2ETestUtils {
     assert.ok(storedCard, "Card not found in mock client storage");
 
     await mockClient.sendNavigateToEvent(card);
+    await videoDelay();
   }
 
   /**
@@ -353,6 +366,7 @@ export class E2ETestUtils {
       });
     }
     invariant(E2ETestUtils.#logPipe, "LogPipe not initialized");
+    await videoDelay();
 
     // Get test port from environment variable
     const testPort = E2ETestUtils.getTestPort();
@@ -373,6 +387,7 @@ export class E2ETestUtils {
 
     this.#logCapture?.dispose();
     this.#logCapture = await E2ETestUtils.#logPipe.capture();
+    await videoDelay();
   }
 
   static getCapturedLogs(): string[] {
@@ -391,6 +406,7 @@ export class E2ETestUtils {
     if (activeEditor) {
       activeEditor.selection = new vscode.Selection(0, 0, 0, 0);
     }
+    await videoDelay();
   }
 
   /**
@@ -469,6 +485,7 @@ export class E2ETestUtils {
       editor.selection = new vscode.Selection(symbolPosition, symbolPosition);
       editor.revealRange(new vscode.Range(symbolPosition, symbolPosition));
     }
+    await videoDelay();
   }
 
   /**
@@ -512,6 +529,7 @@ export class E2ETestUtils {
     } else {
       throw new Error(`Symbol ${symbolName} not found in document`);
     }
+    await videoDelay();
   }
 
   /**
@@ -531,11 +549,13 @@ export class E2ETestUtils {
     let previousLogs = this.#logCapture.getCapturedLogs();
 
     debug("findQuickPick", label);
+    await videoDelay();
     while (true) {
       // Move to the next QuickPick item
       await vscode.commands.executeCommand(
         "workbench.action.quickOpenSelectNext",
       );
+      await videoDelay();
 
       // Re-read logs and diff out only the new entries
       const allLogs = this.#logCapture.getCapturedLogs();
@@ -568,6 +588,7 @@ export class E2ETestUtils {
         await vscode.commands.executeCommand(
           "workbench.action.acceptSelectedQuickOpenItem",
         );
+        await videoDelay();
         return picked;
       }
 
