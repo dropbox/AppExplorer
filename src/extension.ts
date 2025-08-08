@@ -72,6 +72,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const serverLauncher = new ServerLauncher(
     featureFlagManager,
+    workspaceId,
     new ServerDiscovery({ port: serverPort }),
   );
   context.subscriptions.push(serverLauncher);

@@ -19,11 +19,14 @@ export class ServerLauncher {
   private serverDiscovery: ServerDiscovery;
   private featureFlagManager: FeatureFlagManager;
   subscriptions: { dispose: () => void }[] = [];
+  #workspaceId: string;
 
   constructor(
     featureFlagManager: FeatureFlagManager,
+    workspaceId: string,
     serverDiscovery?: ServerDiscovery,
   ) {
+    this.#workspaceId = workspaceId;
     this.featureFlagManager = featureFlagManager;
     // If no ServerDiscovery provided, create one with configured port
     this.serverDiscovery =
@@ -71,7 +74,7 @@ export class ServerLauncher {
       });
 
       // Fallback to legacy mode on error
-      return this.launchServer();
+      return this.launchServer(this.#workspaceId);
     }
   }
 
@@ -83,7 +86,7 @@ export class ServerLauncher {
 
     try {
       // Try to launch server - if another workspace wins the race, this will fail
-      const server = await this.launchServer();
+      const server = await this.launchServer(this.#workspaceId);
 
       if (server.server) {
         debug("Successfully launched server in this workspace");
@@ -135,7 +138,7 @@ export class ServerLauncher {
   /**
    * Launch MiroServer in this workspace
    */
-  private async launchServer(): Promise<ServerLaunchResult> {
+  private async launchServer(workspaceId: string): Promise<ServerLaunchResult> {
     const startTime = Date.now();
     const serverUrl = this.serverDiscovery.getServerUrl();
 
@@ -147,6 +150,7 @@ export class ServerLauncher {
       const serverPort = PortConfig.getServerPort();
       const server = await MiroServer.create(
         this.featureFlagManager,
+        workspaceId,
         serverPort,
       );
 

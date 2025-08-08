@@ -1,6 +1,9 @@
 import { TagColor } from "@mirohq/websdk-types/stable/features/widgets/tag";
+import compression from "compression";
 import createDebug from "debug";
+import express from "express";
 import { createServer } from "http";
+import morgan from "morgan";
 import * as path from "path";
 import { Namespace, Server, Socket as ServerSocket } from "socket.io";
 import { Socket as ClientSocket } from "socket.io-client";
@@ -23,10 +26,6 @@ import { logger } from "./logger";
 import { PortConfig } from "./port-config";
 import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
 import { bindHandlers } from "./utils/bindHandlers";
-import compression from "compression";
-import express from "express";
-import morgan from "morgan";
-import packageJson from "../package.json";
 const debug = createDebug("app-explorer:server");
 const debugEvents = debug.extend("events");
 
@@ -62,12 +61,15 @@ export class MiroServer {
   private cardStorage = new CardStorage(new MemoryAdapter());
   #featureFlagManager: FeatureFlagManager;
   #port: number;
+  #workspaceHost: string;
   constructor(
     featureFlagManager: FeatureFlagManager,
+    workspaceHost: string,
     port: number = PortConfig.getServerPort(),
   ) {
     this.#featureFlagManager = featureFlagManager;
     this.#port = port;
+    this.#workspaceHost = workspaceHost;
     listenToAllEvents(this.cardStorage, (eventName, ...args) => {
       debug("Server storage event", eventName, ...args);
     });
@@ -119,6 +121,7 @@ export class MiroServer {
 
     app.get("/storage", (_req, res) => {
       res.json({
+        workspaceHost: this.#workspaceHost,
         connectedBoards: this.cardStorage.getConnectedBoards(),
         cardsByBoard: this.cardStorage.getCardsByBoard(),
       });
@@ -133,11 +136,12 @@ export class MiroServer {
    */
   static async create(
     featureFlagManager: FeatureFlagManager,
+    workspaceId: string,
     port?: number,
   ): Promise<MiroServer> {
     // Use provided port, or fall back to configured port
     const serverPort = port ?? PortConfig.getServerPort();
-    const server = new MiroServer(featureFlagManager, serverPort);
+    const server = new MiroServer(featureFlagManager, workspaceId, serverPort);
     await server.startServer();
     return server;
   }

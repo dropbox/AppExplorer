@@ -42,6 +42,7 @@ export class StatusBarManager {
       "workspaceBoards",
       this.eventListeners.workspaceBoards,
     );
+    this.renderStatusBar();
   }
 
   dispose() {
@@ -65,7 +66,6 @@ export class StatusBarManager {
     const connectedBoards = this.#cardStorage.getConnectedBoards();
     if (connectedBoards.length === 0) {
       this.statusBar.text = "$(app-explorer) (No Miro connections)";
-      return;
     } else {
       const boardIds = this.#cardStorage.listBoardIds();
       const allCards = this.#cardStorage.listAllCards();

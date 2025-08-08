@@ -69,7 +69,7 @@ export type BoardInfo = {
 };
 
 type StorageEvent = {
-  disconnect: [];
+  disconnect: [{ type: "disconnect" }];
   workspaceBoards: [{ type: "workspaceBoards"; boardIds: string[] }];
   boardUpdate: [
     {
@@ -141,19 +141,15 @@ export class CardStorage
   }
 
   setCardsByBoard(cardsByBoard: ReturnType<CardStorage["getCardsByBoard"]>) {
+    const boardIds = Object.keys(cardsByBoard);
+    this.connectedBoardSet = new Set(boardIds);
+    this.#storage.set("boardIds", boardIds);
     Object.entries(cardsByBoard).forEach(([boardId, cards]) => {
       const board: BoardInfo = { boardId, name: `Board ${boardId}`, cards: {} };
       cards.forEach((card) => {
         board.cards[card.miroLink!] = card;
       });
       this.#storage.set(`board-${boardId}`, board);
-      const boardIds = this.#storage.get<string[]>("boardIds") || [];
-      if (!boardIds.includes(boardId)) {
-        boardIds.push(boardId);
-      }
-      this.debug("Board IDs updated:", { boardIds });
-      this.connectedBoardSet = new Set(boardIds);
-      this.#storage.set("boardIds", boardIds);
     });
     this.emitConnectedBoards();
   }

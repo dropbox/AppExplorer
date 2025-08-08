@@ -26,6 +26,7 @@ export class WorkspaceCardStorage
   >;
 
   #locationFinder: LocationFinder;
+  #workspaceId: string;
   constructor(
     workspaceId: string,
     storageAdapter: StorageAdapter,
@@ -34,6 +35,7 @@ export class WorkspaceCardStorage
   ) {
     super(storageAdapter);
     this.#locationFinder = locationFinder;
+    this.#workspaceId = workspaceId;
     this.debug = this.debug.extend("workspace");
 
     const wsUrl = `${serverUrl}/workspace`;
@@ -43,7 +45,7 @@ export class WorkspaceCardStorage
       transports: ["websocket"],
       timeout: connectionTimeout,
       reconnection: true,
-      forceNew: true, // Force new connection on each attempt
+      forceNew: false, // Force new connection on each attempt
     });
 
     this.socket.onAny((event, ...args) => {
@@ -52,9 +54,49 @@ export class WorkspaceCardStorage
     this.socket.onAnyOutgoing((event, ...args) => {
       this.debug("onAnyOutgoing()", event, args);
     });
-    this.socket.on("disconnect", () => {
-      this.debug("on disconnect", { id: this.socket.id });
-      this.emit("disconnect");
+    this.socket.on("disconnect", (reason, description) => {
+      this.debug(
+        "on disconnect",
+        {
+          id: this.socket.id,
+          reason,
+          description,
+        },
+
+        this.socket.connected,
+        this.socket.disconnected,
+        this.socket.recovered,
+      );
+      try {
+        this.emit("disconnect", { type: "disconnect" });
+      } catch (e) {
+        this.debug("Error handling disconnect event", { error: String(e) });
+      }
+
+      if (reason === "transport close") {
+        this.debug("retry");
+        const i = setInterval(() => {
+          this.debug(
+            "Reconnecting socket...",
+            this.socket.connected,
+            this.socket.disconnected,
+            this.socket.recovered,
+          );
+          if (this.socket.connected) {
+            clearInterval(i);
+            this.onConnect();
+            return;
+          }
+          this.socket.connect();
+          this.socket.io.connect();
+        }, 1000);
+      } else {
+        this.debug("Socket disconnected");
+      }
+    });
+    // @ts-expect-error
+    this.socket.on("reconnect", (arg: unknown) => {
+      this.debug("on reconnect", { arg });
     });
 
     this.socket.on("connectedBoards", this.connectedBoards.bind(this));
@@ -66,27 +108,28 @@ export class WorkspaceCardStorage
     this.socket.on("log", this.log.bind(this));
 
     // Register with server when connected
-    this.socket.on("connect", async () => {
-      this.debug("Connected to server, registering workspace");
-      try {
-        const registrationRequest: WorkspaceRegistrationRequest = {
-          workspaceId,
-          workspaceName: vscode.workspace.name || "Unknown Workspace",
-          rootPath: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
-        };
-
-        const response = await this.socket.emitWithAck(
-          "workspaceRegistration",
-          registrationRequest,
-        );
-        this.setCardsByBoard(response.cardsByBoard);
-
-        this.debug("Workspace registration", { workspaceId });
-      } catch (error) {
-        this.debug("Failed to register workspace", { error });
-      }
-    });
+    this.socket.on("connect", this.onConnect);
   }
+  onConnect = async () => {
+    this.debug("Connected to server, registering workspace");
+    try {
+      const registrationRequest: WorkspaceRegistrationRequest = {
+        workspaceId: this.#workspaceId,
+        workspaceName: vscode.workspace.name || "Unknown Workspace",
+        rootPath: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+      };
+
+      const response = await this.socket.emitWithAck(
+        "workspaceRegistration",
+        registrationRequest,
+      );
+      this.setCardsByBoard(response.cardsByBoard);
+
+      this.debug("Workspace registration", { workspaceId: this.#workspaceId });
+    } catch (error) {
+      this.debug("Failed to register workspace", { error });
+    }
+  };
 
   async disconnectBoard(boardId: string) {
     return super.disconnectBoard(
