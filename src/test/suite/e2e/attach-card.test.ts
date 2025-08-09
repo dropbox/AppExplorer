@@ -255,7 +255,7 @@ suite("E2E Attach Card Tests", () => {
     // Verify the card points to the correct file and symbol
     assert.equal(
       updatedCard.path,
-      "src/utils/helpers.ts",
+      join("src", "utils", "helpers.ts"),
       "Card should point to helpers.ts",
     );
     if (isSymbolCard(updatedCard)) {

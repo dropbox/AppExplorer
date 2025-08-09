@@ -1,5 +1,6 @@
 import * as assert from "assert";
 import createDebug from "debug";
+import path from "path";
 import invariant from "tiny-invariant";
 import * as vscode from "vscode";
 import { CardData } from "../../../EventTypes";
@@ -147,6 +148,6 @@ suite("E2E Card Lifecycle Tests", () => {
     await E2ETestUtils.resetEditorState();
 
     await E2ETestUtils.navigateTo(card);
-    await E2ETestUtils.waitForFileToOpen(card.path.split("/").pop()!);
+    await E2ETestUtils.waitForFileToOpen(card.path.split(path.sep).pop()!);
   });
 });
