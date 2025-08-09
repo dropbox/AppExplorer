@@ -138,26 +138,66 @@ async function nextCardLocation() {
   const selection = (await miro.board.getSelection()).filter(isAppCard);
   const width = 300;
   const height = 200;
-
-  if (selection.length === 0) {
-    const viewport = await miro.board.viewport.get();
-
-    const x = viewport.x + viewport.width / 2;
-    const y = viewport.y + viewport.height / 2;
-    const box = { x, y, width, height };
-    return box;
-  }
-
-  const box = await makeRect(selection);
-
   const gap = 200;
 
-  return {
-    x: box.x + box.width / 2,
-    y: box.y + box.height + gap,
-    width,
-    height,
-  };
+  let centerX: number;
+  let centerY: number;
+  let radiusX: number;
+  let radiusY: number;
+  if (selection.length === 0) {
+    const viewport = await miro.board.viewport.get();
+    centerX = viewport.x + viewport.width / 2;
+    centerY = viewport.y + viewport.height / 2;
+    radiusX = 0;
+    radiusY = 0;
+  } else {
+    const box = await makeRect(selection);
+    centerX = box.x + box.width / 2;
+    centerY = box.y + box.height / 2;
+    // use separate radii to account for rectangular dimensions and keep
+    // the gap between card edges roughly constant
+    radiusX = box.width / 2 + width / 2 + gap;
+    radiusY = box.height / 2 + height / 2 + gap;
+  }
+
+  const startAngle = Math.PI / 2; // straight down
+  const angleStep = Math.PI / 4; // 45° increments
+  let angle = startAngle;
+  let x = centerX + radiusX * Math.cos(angle);
+  let y = centerY + radiusY * Math.sin(angle);
+
+  const selectionIds = new Set(selection.map((c) => c.id));
+  const cards = (
+    await miro.board.get({
+      type: ["app_card"],
+    })
+  )
+    .filter(isAppCard)
+    .filter((c) => !selectionIds.has(c.id));
+
+  const overlaps = (cx: number, cy: number) =>
+    cards.some(
+      (card) =>
+        Math.abs(cx - card.x) < (width + card.width) / 2 &&
+        Math.abs(cy - card.y) < (height + card.height) / 2,
+    );
+
+  let attempts = 0;
+  const fullCircle = Math.round((2 * Math.PI) / angleStep);
+  while (overlaps(x, y)) {
+    angle += angleStep;
+    attempts++;
+    if (attempts >= fullCircle) {
+      attempts = 0;
+      radiusX += width + gap;
+      radiusY += height + gap;
+      angle = startAngle;
+    }
+    x = centerX + radiusX * Math.cos(angle);
+    y = centerY + radiusY * Math.sin(angle);
+  }
+
+  return { x, y, width, height };
 }
 
 const newCard = async (cards: CardData[], options: { connect?: string[] }) => {
