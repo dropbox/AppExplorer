@@ -1,5 +1,6 @@
 import assert from "assert";
 import createDebug from "debug";
+import { join } from "path";
 import * as vscode from "vscode";
 import { CardData } from "../../../EventTypes";
 import { TEST_CARDS, getTestCardsBySymbol } from "../../fixtures/card-data";
@@ -83,7 +84,7 @@ suite("E2E Attach Card Tests", () => {
 
     const filePath = vscode.Uri.joinPath(
       workspaceFolder.uri,
-      "src/utils/helpers.ts",
+      join("src", "utils", "helpers.ts"),
     );
     debug("Attempting to open file:", filePath.toString());
 

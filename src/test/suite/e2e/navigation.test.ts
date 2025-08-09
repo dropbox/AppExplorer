@@ -132,7 +132,10 @@ suite("E2E Navigation Tests", () => {
       );
       debug("card", card);
       debug("invalidCard", invalidCard);
-      return storedCards.find((c) => c.miroLink === invalidCard.miroLink);
+      return storedCards.find(
+        (c) =>
+          c.miroLink === invalidCard.miroLink && c.status === "disconnected",
+      );
     });
     assert.equal(
       storedCard?.status,
