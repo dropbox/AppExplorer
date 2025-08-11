@@ -9,7 +9,7 @@ import {
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-let debug = createDebug("app-explorer:miro:sidebar");
+const debug = createDebug("app-explorer:miro:sidebar");
 
 export type SidebarSocket = Socket<
   ServerToSidebarOperations,
@@ -20,6 +20,7 @@ export const socketContext = createContext<SidebarSocket>(
   Symbol("socketContext"),
 );
 
+let instanceId: string | null = null;
 export async function connectSidebarSocket() {
   debug("connectSidebarSocket");
   await new Promise((resolve) => setTimeout(resolve, 100));
@@ -32,20 +33,30 @@ export async function connectSidebarSocket() {
     forceNew: false, // Force new connection on each attempt
   });
 
-  debug = debug.extend(
-    socket.id || Math.random().toString(36).substring(2, 15),
-  );
-
   let connected = false;
   const onConnect = async () => {
-    // debug("socket connected");
-    // try {
-    //   const serverStatus = await socket.emitWithAck("getServerStatus");
-    //   debug("getServerStatus response", { serverStatus });
-    // } catch (e) {
-    //   debug("getServerStatus error", e);
-    // }
-    connected = true;
+    debug("onConnect");
+    try {
+      const id = await socket.emitWithAck("getInstanceId").catch((error) => {
+        debug("Error getting instance ID:", error);
+        return null;
+      });
+
+      debug("onConnect", { id, instanceId });
+      if (instanceId === null) {
+        instanceId = id;
+      } else if (instanceId === id) {
+        debug("socket reconnected");
+      } else {
+        debug("New socket instance, refreshing...");
+        window.location.reload();
+        return;
+      }
+
+      connected = true;
+    } catch (e) {
+      debug("error", String(e));
+    }
   };
   socket.on("connect", onConnect);
   socket.on("disconnect", (reason) => {

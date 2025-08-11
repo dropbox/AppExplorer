@@ -50,7 +50,9 @@ export type ServerStatus = {
   connectedWorkspaces: Omit<WorkspaceInfo, "socket">[];
 };
 
-export type SidebarToServerOperations = {};
+export type SidebarToServerOperations = {
+  getInstanceId: (callback: (id: string) => void) => void;
+};
 export type ServerToSidebarOperations = {
   serverStatus: (status: ServerStatus) => void;
 };

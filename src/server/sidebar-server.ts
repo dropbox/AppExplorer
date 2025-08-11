@@ -19,21 +19,24 @@ export class SidebarServer {
   private cardStorage: CardStorage;
 
   private connectedWorkspaces: Map<string, WorkspaceInfo>;
+  #instanceId = `sidebar-${Math.random().toString(36).substring(2, 15)}`;
   constructor(
     namespace: SidebarNamespace,
     cardStorage: CardStorage,
-    workspaceInfo: Map<string, WorkspaceInfo>,
+    connectedWorkspaces: Map<string, WorkspaceInfo>,
   ) {
-    namespace.use((event, next) => {
-      debug("sidebar event", event);
+    this.sidebarNamespace = namespace.use((socket, next) => {
+      socket.onAny((event) => {
+        debug("sidebar event", { event });
+      });
+
       next();
     });
-    this.sidebarNamespace = namespace;
-
     this.cardStorage = cardStorage;
-    this.connectedWorkspaces = workspaceInfo;
+    this.connectedWorkspaces = connectedWorkspaces;
 
     this.sidebarNamespace.on("connection", this.onSidebarConnection);
+
     this.cardStorage.on("boardUpdate", this.emitServerStatus);
     this.cardStorage.on("connectedBoards", this.emitServerStatus);
     this.cardStorage.on("workspaceBoards", this.emitServerStatus);
@@ -50,8 +53,13 @@ export class SidebarServer {
     socket: Socket<SidebarToServerOperations, ServerToSidebarOperations>,
   ) => {
     debug("New sidebar connection", { socketId: socket.id });
+    socket.on("getInstanceId", (callback) => {
+      debug("getInstanceId", this.#instanceId);
+      return callback(this.#instanceId);
+    });
 
-    setTimeout(this.emitServerStatus, 1000);
+    debug("emit timer");
+    setTimeout(this.emitServerStatus, 500);
   };
 
   getServerStatus = () => {
