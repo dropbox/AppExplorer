@@ -1,4 +1,6 @@
+/* eslint-disable no-console */
 const esbuild = require("esbuild");
+const rawPlugin = require("esbuild-raw-plugin").raw({});
 
 const production = process.argv.includes("--production");
 const watch = process.argv.includes("--watch");
@@ -40,10 +42,7 @@ async function main() {
       outfile: "dist/extension.js",
       external: ["vscode"],
       logLevel: "silent",
-      plugins: [
-        /* add to the end of plugins array */
-        esbuildProblemMatcherPlugin,
-      ],
+      plugins: [rawPlugin, esbuildProblemMatcherPlugin],
     }),
   );
   context.push(
@@ -58,10 +57,7 @@ async function main() {
       outfile: "public/miro.js",
       external: [],
       logLevel: "silent",
-      plugins: [
-        /* add to the end of plugins array */
-        esbuildProblemMatcherPlugin,
-      ],
+      plugins: [rawPlugin, esbuildProblemMatcherPlugin],
     }),
   );
   context.push(
@@ -76,10 +72,7 @@ async function main() {
       outfile: "public/sidebar.js",
       external: [],
       logLevel: "silent",
-      plugins: [
-        /* add to the end of plugins array */
-        esbuildProblemMatcherPlugin,
-      ],
+      plugins: [rawPlugin, esbuildProblemMatcherPlugin],
     }),
   );
   if (watch) {

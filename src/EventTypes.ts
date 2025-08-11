@@ -1,6 +1,6 @@
 import { AppCard, TagColor } from "@mirohq/websdk-types";
 import { BoardInfo, CardStorage } from "./card-storage";
-import { WorkspaceServerSocket } from "./server";
+import { WorkspaceServerSocket } from "./server/server";
 
 export type SymbolCardData = {
   boardId: string;
@@ -43,17 +43,17 @@ export type AppExplorerTag = {
   color: TagColor;
 };
 
-export type SidebarToServerOperations = {
-  getServerStatus: (
-    callback: (status: {
-      allBoards: BoardInfo[];
-      connectedBoardIds: string[];
-      cardsPerBoard: Record<string, number>;
-      connectedWorkspaces: Omit<WorkspaceInfo, "socket">[];
-    }) => void,
-  ) => void;
+export type ServerStatus = {
+  allBoards: BoardInfo[];
+  connectedBoardIds: string[];
+  cardsPerBoard: Record<string, number>;
+  connectedWorkspaces: Omit<WorkspaceInfo, "socket">[];
 };
-export type ServerToSidebarOperations = {};
+
+export type SidebarToServerOperations = {};
+export type ServerToSidebarOperations = {
+  serverStatus: (status: ServerStatus) => void;
+};
 
 // Operations callable on Miro boards from workspaces (via server)
 // Data flow: Workspace → Server → Miro Board

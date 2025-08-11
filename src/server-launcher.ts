@@ -1,8 +1,8 @@
 import createDebug from "debug";
 import { FeatureFlagManager } from "./feature-flag-manager";
 import { PortConfig } from "./port-config";
-import { MiroServer } from "./server";
 import { ServerDiscovery } from "./server-discovery";
+import { MiroServer } from "./server/server";
 import { delay, waitForValue } from "./test/suite/test-utils";
 
 const debug = createDebug("app-explorer:server-launcher");

@@ -7,7 +7,7 @@
     "node_modules",
     "node_modules/path-scurry"
   ],
-  "include": ["src"],
+  "include": ["src", "src/types.d.ts"],
   "compilerOptions": {
     "module": "commonjs",
     "target": "ES2022",

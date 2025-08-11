@@ -3,7 +3,7 @@ import { EventEmitter } from "events";
 import invariant from "tiny-invariant";
 import * as vscode from "vscode";
 import { CardData } from "./EventTypes";
-import { MiroServerSocket } from "./server";
+import { MiroServerSocket } from "./server/server";
 import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
 import { notEmpty } from "./utils/notEmpty";
 

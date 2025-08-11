@@ -9,25 +9,24 @@ import { Namespace, Server, Socket as ServerSocket } from "socket.io";
 import { Socket as ClientSocket } from "socket.io-client";
 import invariant from "tiny-invariant";
 import * as vscode from "vscode";
-import { BoardInfo, CardStorage, MemoryAdapter } from "./card-storage";
+import { BoardInfo, CardStorage, MemoryAdapter } from "../card-storage";
 import {
   AppExplorerTag,
   CardData,
   MiroToWorkspaceOperations,
-  ServerToSidebarOperations,
   ServerToWorkspaceEvents,
-  SidebarToServerOperations,
   WorkspaceInfo,
   WorkspaceRegistrationRequest,
   WorkspaceRegistrationResponse,
   WorkspaceToMiroOperations,
   WorkspaceToServerOperations,
-} from "./EventTypes";
-import { FeatureFlagManager } from "./feature-flag-manager";
-import { logger } from "./logger";
-import { PortConfig } from "./port-config";
-import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
-import { bindHandlers } from "./utils/bindHandlers";
+} from "../EventTypes";
+import { FeatureFlagManager } from "../feature-flag-manager";
+import { logger } from "../logger";
+import { PortConfig } from "../port-config";
+import { listenToAllEvents } from "../test/helpers/listen-to-all-events";
+import { bindHandlers } from "../utils/bindHandlers";
+import { SidebarServer } from "./sidebar-server";
 const debug = createDebug("app-explorer:server");
 const debugEvents = debug.extend("events");
 
@@ -40,6 +39,8 @@ class UnreachableError extends Error {
     this.name = "UnreachableError";
   }
 }
+
+export function unreachable(_value: never) {}
 
 export type MiroServerSocket = ServerSocket<
   MiroToWorkspaceOperations,
@@ -57,10 +58,6 @@ export class MiroServer {
   private workspaceNamespace: Namespace<
     WorkspaceToMiroOperations & WorkspaceToServerOperations,
     MiroToWorkspaceOperations & ServerToWorkspaceEvents
-  >;
-  sidebarNamespace: Namespace<
-    SidebarToServerOperations,
-    ServerToSidebarOperations
   >;
   private connectedWorkspaces = new Map<string, WorkspaceInfo>();
 
@@ -111,59 +108,15 @@ export class MiroServer {
     );
     io.on("connection", this.onMiroConnection.bind(this));
     // Create workspace namespace
-    debug("io.of /workspace");
     this.workspaceNamespace = io.of("/workspace");
     this.setupWorkspaceNamespace();
 
-    debug("io.of /sidebar");
-    this.sidebarNamespace = io.of("/sidebar");
-    this.setupSidebarNamespace();
+    new SidebarServer(
+      io.of("/sidebar"),
+      this.cardStorage,
+      this.connectedWorkspaces,
+    );
   }
-  setupSidebarNamespace() {
-    // Handle sidebar connections
-    this.sidebarNamespace.on("connection", (socket) => {
-      this.onSidebarConnection(socket);
-    });
-  }
-  onSidebarConnection(
-    socket: ServerSocket<SidebarToServerOperations, ServerToSidebarOperations>,
-  ) {
-    debug("New sidebar connection", { socketId: socket.id });
-    const cardsByBoard = this.cardStorage.getCardsByBoard();
-    const allBoards = Object.keys(cardsByBoard)
-      .map((id) => this.cardStorage.getBoard(id))
-      .filter((board): board is BoardInfo => board !== null);
-
-    socket.use((event, next) => {
-      debug("sidebar event", event);
-      next();
-    });
-    debug("on getServerStatus");
-    socket.on("getServerStatus", (callback) => {
-      debug("getServerStatus", callback);
-      try {
-        callback({
-          allBoards,
-          connectedWorkspaces: Array.from(
-            this.connectedWorkspaces.values(),
-          ).map((workspace) => ({
-            ...workspace,
-            socket: undefined,
-          })),
-          connectedBoardIds: this.cardStorage.getConnectedBoards(),
-          cardsPerBoard: Object.fromEntries(
-            Object.entries(cardsByBoard).map(([boardId, cards]) => [
-              boardId,
-              cards.length,
-            ]),
-          ),
-        });
-      } catch (e) {
-        debug("Error", String(e));
-      }
-    });
-  }
-
   private setupWorkspaceNamespace() {
     // Handle workspace connections
     this.workspaceNamespace.on("connection", (socket) => {
@@ -299,6 +252,13 @@ export class MiroServer {
 
           // Store workspace connection
           connectedWorkspaces.set(request.workspaceId, workspaceInfo);
+          socket.once("disconnect", () => {
+            connectedWorkspaces.delete(request.workspaceId);
+            this.cardStorage.emit("connectedBoards", {
+              type: "connectedBoards",
+              boardIds: Array.from(connectedWorkspaces.keys()),
+            });
+          });
 
           // Join the workspace room so the client can receive events sent to this workspace
           // socket.join(request.workspaceId);
@@ -316,6 +276,11 @@ export class MiroServer {
 
           debug("Workspace registered successfully", {
             workspaceId: request.workspaceId,
+          });
+
+          this.cardStorage.emit("connectedBoards", {
+            type: "connectedBoards",
+            boardIds: Array.from(connectedWorkspaces.keys()),
           });
           callback(response);
         } catch (error) {

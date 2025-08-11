@@ -6,6 +6,11 @@ body {
   margin: 0;
   font-family: Arial, sans-serif;
 }
+
+body.sidebar {
+  align-items: baseline;
+}
+
 .container {
   max-width: 800px;
   width: 100%;
@@ -14,40 +19,50 @@ body {
   border-radius: 8px;
   background-color: #fff;
 }
+
 .container.full {
   height: 100%;
 }
-.sidebar {
+
+.container.sidebar {
   width: 368px;
 }
 
 h1 {
   text-align: center;
 }
+
 .content {
   margin: 20px 0;
 }
+
 .content h2 {
   font-size: 1.5em;
   margin-bottom: 10px;
 }
+
 .content ul {
   list-style-type: none;
   padding: 0;
 }
+
 .content li {
   margin: 5px 0;
 }
+
 .content li input[type="checkbox"] {
   margin-right: 10px;
 }
+
 p {
   margin: 20px 0;
 }
+
 a {
   color: #007bff;
   text-decoration: none;
 }
+
 a:hover {
   text-decoration: underline;
 }
