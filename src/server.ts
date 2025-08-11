@@ -14,7 +14,9 @@ import {
   AppExplorerTag,
   CardData,
   MiroToWorkspaceOperations,
+  ServerToSidebarOperations,
   ServerToWorkspaceEvents,
+  SidebarToServerOperations,
   WorkspaceInfo,
   WorkspaceRegistrationRequest,
   WorkspaceRegistrationResponse,
@@ -56,12 +58,18 @@ export class MiroServer {
     WorkspaceToMiroOperations & WorkspaceToServerOperations,
     MiroToWorkspaceOperations & ServerToWorkspaceEvents
   >;
+  sidebarNamespace: Namespace<
+    SidebarToServerOperations,
+    ServerToSidebarOperations
+  >;
   private connectedWorkspaces = new Map<string, WorkspaceInfo>();
 
   private cardStorage = new CardStorage(new MemoryAdapter());
   #featureFlagManager: FeatureFlagManager;
   #port: number;
   #workspaceHost: string;
+
+  public static publicPath = path.join(__dirname, "../public");
   constructor(
     featureFlagManager: FeatureFlagManager,
     workspaceHost: string,
@@ -75,39 +83,10 @@ export class MiroServer {
     });
     const app = express();
     this.httpServer = createServer(app);
-    const io = new Server<MiroToWorkspaceOperations, WorkspaceToMiroOperations>(
-      this.httpServer,
-    );
-    io.on("connection", this.onMiroConnection.bind(this));
-    // Create workspace namespace
-    this.workspaceNamespace = io.of("/workspace");
-    this.setupWorkspaceNamespace(app);
-  }
-
-  private setupWorkspaceNamespace(app: ReturnType<typeof express>) {
-    // Handle workspace connections
-    this.workspaceNamespace.on("connection", (socket) => {
-      this.onWorkspaceConnection(socket);
-    });
-
-    // Set up global event listeners to broadcast to all workspaces
-    this.cardStorage.on("connectedBoards", (event) => {
-      this.workspaceNamespace.emit("connectedBoards", event.boardIds);
-    });
-    this.cardStorage.on("boardUpdate", (event) => {
-      this.workspaceNamespace.emit("boardUpdate", event.board);
-    });
-    this.cardStorage.on("cardUpdate", (event) => {
-      this.workspaceNamespace.emit("cardUpdate", event.miroLink, event.card);
-    });
-    this.cardStorage.on("selectedCards", (event) => {
-      this.workspaceNamespace.emit("selectedCards", event.cards);
-    });
-
     app.use(compression());
     app.use(
       "/",
-      express.static(path.join(__dirname, "../public"), {
+      express.static(MiroServer.publicPath, {
         index: "index.html",
       }),
     );
@@ -127,8 +106,83 @@ export class MiroServer {
       });
     });
 
-    // Server startup is now handled by the startServer() method
-    // called from the static create() factory method
+    const io = new Server<MiroToWorkspaceOperations, WorkspaceToMiroOperations>(
+      this.httpServer,
+    );
+    io.on("connection", this.onMiroConnection.bind(this));
+    // Create workspace namespace
+    debug("io.of /workspace");
+    this.workspaceNamespace = io.of("/workspace");
+    this.setupWorkspaceNamespace();
+
+    debug("io.of /sidebar");
+    this.sidebarNamespace = io.of("/sidebar");
+    this.setupSidebarNamespace();
+  }
+  setupSidebarNamespace() {
+    // Handle sidebar connections
+    this.sidebarNamespace.on("connection", (socket) => {
+      this.onSidebarConnection(socket);
+    });
+  }
+  onSidebarConnection(
+    socket: ServerSocket<SidebarToServerOperations, ServerToSidebarOperations>,
+  ) {
+    debug("New sidebar connection", { socketId: socket.id });
+    const cardsByBoard = this.cardStorage.getCardsByBoard();
+    const allBoards = Object.keys(cardsByBoard)
+      .map((id) => this.cardStorage.getBoard(id))
+      .filter((board): board is BoardInfo => board !== null);
+
+    socket.use((event, next) => {
+      debug("sidebar event", event);
+      next();
+    });
+    debug("on getServerStatus");
+    socket.on("getServerStatus", (callback) => {
+      debug("getServerStatus", callback);
+      try {
+        callback({
+          allBoards,
+          connectedWorkspaces: Array.from(
+            this.connectedWorkspaces.values(),
+          ).map((workspace) => ({
+            ...workspace,
+            socket: undefined,
+          })),
+          connectedBoardIds: this.cardStorage.getConnectedBoards(),
+          cardsPerBoard: Object.fromEntries(
+            Object.entries(cardsByBoard).map(([boardId, cards]) => [
+              boardId,
+              cards.length,
+            ]),
+          ),
+        });
+      } catch (e) {
+        debug("Error", String(e));
+      }
+    });
+  }
+
+  private setupWorkspaceNamespace() {
+    // Handle workspace connections
+    this.workspaceNamespace.on("connection", (socket) => {
+      this.onWorkspaceConnection(socket);
+    });
+
+    // Set up global event listeners to broadcast to all workspaces
+    this.cardStorage.on("connectedBoards", (event) => {
+      this.workspaceNamespace.emit("connectedBoards", event.boardIds);
+    });
+    this.cardStorage.on("boardUpdate", (event) => {
+      this.workspaceNamespace.emit("boardUpdate", event.board);
+    });
+    this.cardStorage.on("cardUpdate", (event) => {
+      this.workspaceNamespace.emit("cardUpdate", event.miroLink, event.card);
+    });
+    this.cardStorage.on("selectedCards", (event) => {
+      this.workspaceNamespace.emit("selectedCards", event.cards);
+    });
   }
 
   /**
@@ -239,6 +293,8 @@ export class MiroServer {
           const workspaceInfo: WorkspaceInfo = {
             id: request.workspaceId,
             socket,
+            rootPath: request.rootPath,
+            workspaceName: request.workspaceName,
           };
 
           // Store workspace connection

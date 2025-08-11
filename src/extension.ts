@@ -18,6 +18,7 @@ import { FeatureFlagManager } from "./feature-flag-manager";
 import { LocationFinder } from "./location-finder";
 import { logger as baseLogger, logger } from "./logger";
 import { PortConfig } from "./port-config";
+import { MiroServer } from "./server";
 import { ServerDiscovery } from "./server-discovery";
 import { ServerLauncher } from "./server-launcher";
 import { StatusBarManager } from "./status-bar-manager";
@@ -34,6 +35,7 @@ export type HandlerContext = {
 export async function activate(context: vscode.ExtensionContext) {
   logger.storeLogs(context.logUri);
   debug(CHECKPOINT.start("activate"));
+  setUpdateCommandContext(context);
   vscode.commands.executeCommand("setContext", "appExplorer.enabled", true);
   vscode.commands.executeCommand(
     "setContext",
@@ -203,7 +205,6 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   registerUpdateCommand(context);
-  setUpdateCommandContext(context);
   vscode.workspace.onDidChangeWorkspaceFolders(() => {
     setUpdateCommandContext(context);
   });
@@ -227,8 +228,13 @@ function setUpdateCommandContext(context: vscode.ExtensionContext) {
           );
           if (packageJson.name === "app-explorer") {
             updateWorkspacePath = folder.uri.fsPath;
+            MiroServer.publicPath = path.join(
+              path.dirname(packageJsonPath),
+              "public",
+            );
             break;
           }
+          debug("public path", MiroServer.publicPath);
         } catch (error) {
           debug("Error parsing package.json:", error);
         }

@@ -14,6 +14,13 @@ body {
   border-radius: 8px;
   background-color: #fff;
 }
+.container.full {
+  height: 100%;
+}
+.sidebar {
+  width: 368px;
+}
+
 h1 {
   text-align: center;
 }

@@ -9,7 +9,7 @@ import type {
   Tag,
 } from "@mirohq/websdk-types";
 import createDebug from "debug";
-import { type Socket } from "socket.io-client";
+import { type Socket, io as socketIO } from "socket.io-client";
 import invariant from "tiny-invariant";
 import {
   type AppExplorerTag,
@@ -274,13 +274,7 @@ async function zoomIntoCards(cards: AppCard[]) {
 }
 
 export async function attachToSocket() {
-  const { io } = await import(
-    // @ts-ignore I need to use a dynamic import to avoid importing from
-    // index-{hash}.js
-    "https://cdn.socket.io/4.3.2/socket.io.esm.min.js"
-  );
-
-  const socket = io() as Socket<
+  const socket = socketIO() as Socket<
     WorkspaceToMiroOperations,
     MiroToWorkspaceOperations
   >;
@@ -292,6 +286,10 @@ export async function attachToSocket() {
     originalLog(...args);
     socket.emit("log", args);
   };
+
+  miro.board.ui.on("icon:click", async () => {
+    await miro.board.ui.openPanel({ url: "/sidebar.html" });
+  });
 
   const boardId = await miro.board.getInfo().then((info) => info.id);
   const queryImplementations: WorkspaceToMiroOperations = {

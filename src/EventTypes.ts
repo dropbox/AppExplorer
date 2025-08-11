@@ -43,6 +43,18 @@ export type AppExplorerTag = {
   color: TagColor;
 };
 
+export type SidebarToServerOperations = {
+  getServerStatus: (
+    callback: (status: {
+      allBoards: BoardInfo[];
+      connectedBoardIds: string[];
+      cardsPerBoard: Record<string, number>;
+      connectedWorkspaces: Omit<WorkspaceInfo, "socket">[];
+    }) => void,
+  ) => void;
+};
+export type ServerToSidebarOperations = {};
+
 // Operations callable on Miro boards from workspaces (via server)
 // Data flow: Workspace → Server → Miro Board
 export type WorkspaceToMiroOperations = {
@@ -154,6 +166,8 @@ export const DEFAULT_HEALTH_CHECK_CONFIG: ServerHealthCheck = {
 export interface WorkspaceInfo {
   id: string; // Unique workspace identifier
   socket: WorkspaceServerSocket;
+  workspaceName?: string;
+  rootPath?: string;
 }
 
 export interface WorkspaceRegistrationRequest {

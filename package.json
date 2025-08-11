@@ -21,7 +21,7 @@
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.cjs --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "package": "npm run type-check && npm run lint && node esbuild.cjs --production",
+    "package": "npm run type-check && npm run lint && node esbuild.cjs",
     "compile-tests": "tsc -p .  --noEmit false --outDir out",
     "watch-tests": "tsc -p .  -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
@@ -264,9 +264,13 @@
     "vite": "^5.4.11"
   },
   "dependencies": {
+    "@lit/context": "^1.1.6",
+    "@lit/task": "^1.0.3",
     "@mirohq/websdk-types": "^2.9.5",
+    "@webcomponents/webcomponentsjs": "^2.8.0",
     "compression": "^1.7.4",
     "express": "^4.18.2",
+    "lit": "^3.3.1",
     "lit-html": "^3.0.0",
     "mermaid": "^11.9.0",
     "morgan": "^1.10.0",

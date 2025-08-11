@@ -54,19 +54,7 @@ export class WorkspaceCardStorage
     this.socket.onAnyOutgoing((event, ...args) => {
       this.debug("onAnyOutgoing()", event, args);
     });
-    this.socket.on("disconnect", (reason, description) => {
-      this.debug(
-        "on disconnect",
-        {
-          id: this.socket.id,
-          reason,
-          description,
-        },
-
-        this.socket.connected,
-        this.socket.disconnected,
-        this.socket.recovered,
-      );
+    this.socket.on("disconnect", (reason) => {
       try {
         this.emit("disconnect", { type: "disconnect" });
       } catch (e) {

@@ -27,43 +27,66 @@ const esbuildProblemMatcherPlugin = {
 };
 
 async function main() {
-  const ctx = await esbuild.context({
-    entryPoints: ["src/extension.ts"],
-    bundle: true,
-    format: "cjs",
-    minify: production,
-    sourcemap: !production,
-    sourcesContent: false,
-    platform: "node",
-    outfile: "dist/extension.js",
-    external: ["vscode"],
-    logLevel: "silent",
-    plugins: [
-      /* add to the end of plugins array */
-      esbuildProblemMatcherPlugin,
-    ],
-  });
-  const miroCtx = await esbuild.context({
-    entryPoints: ["src/miro.ts"],
-    bundle: true,
-    format: "esm",
-    minify: production,
-    sourcemap: !production,
-    sourcesContent: false,
-    platform: "browser",
-    outfile: "public/miro.js",
-    external: [],
-    logLevel: "silent",
-    plugins: [
-      /* add to the end of plugins array */
-      esbuildProblemMatcherPlugin,
-    ],
-  });
+  const context = [];
+  context.push(
+    await esbuild.context({
+      entryPoints: ["src/extension.ts"],
+      bundle: true,
+      format: "cjs",
+      minify: production,
+      sourcemap: !production,
+      sourcesContent: false,
+      platform: "node",
+      outfile: "dist/extension.js",
+      external: ["vscode"],
+      logLevel: "silent",
+      plugins: [
+        /* add to the end of plugins array */
+        esbuildProblemMatcherPlugin,
+      ],
+    }),
+  );
+  context.push(
+    await esbuild.context({
+      entryPoints: ["src/miro.ts"],
+      bundle: true,
+      format: "esm",
+      minify: production,
+      sourcemap: !production,
+      sourcesContent: false,
+      platform: "browser",
+      outfile: "public/miro.js",
+      external: [],
+      logLevel: "silent",
+      plugins: [
+        /* add to the end of plugins array */
+        esbuildProblemMatcherPlugin,
+      ],
+    }),
+  );
+  context.push(
+    await esbuild.context({
+      entryPoints: ["src/sidebar.ts"],
+      bundle: true,
+      format: "esm",
+      minify: production,
+      sourcemap: !production,
+      sourcesContent: false,
+      platform: "browser",
+      outfile: "public/sidebar.js",
+      external: [],
+      logLevel: "silent",
+      plugins: [
+        /* add to the end of plugins array */
+        esbuildProblemMatcherPlugin,
+      ],
+    }),
+  );
   if (watch) {
-    await Promise.all([ctx.watch(), miroCtx.watch()]);
+    await Promise.all(context.map((ctx) => ctx.watch()));
   } else {
-    await Promise.all([ctx.rebuild(), miroCtx.rebuild()]);
-    await Promise.all([ctx.dispose(), miroCtx.dispose()]);
+    await Promise.all(context.map((ctx) => ctx.rebuild()));
+    await Promise.all(context.map((ctx) => ctx.dispose()));
   }
 }
 

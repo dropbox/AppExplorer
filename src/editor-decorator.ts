@@ -77,7 +77,6 @@ export class EditorDecorator {
   }
 
   triggerUpdate(throttle = false) {
-    debug("triggerUpdate", !!this.timeout, throttle);
     if (this.timeout) {
       clearTimeout(this.timeout);
       this.timeout = undefined;
