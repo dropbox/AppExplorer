@@ -17,6 +17,10 @@ export class ServerStatusElement extends LitElement {
       .selected {
         background-color: var(--colors-blue-250);
       }
+
+      :host {
+        padding: var(--space-small);
+      }
     `,
   ];
 

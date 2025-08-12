@@ -566,7 +566,7 @@ export async function attachToSocket() {
   });
 }
 
-async function extractCardData(card: Item): Promise<CardData | null> {
+export async function extractCardData(card: Item): Promise<CardData | null> {
   if (!isAppCard(card)) {
     return null;
   }
