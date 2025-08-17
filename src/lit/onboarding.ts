@@ -1,9 +1,10 @@
-import { css, html, LitElement } from "lit";
+import { css, html } from "lit";
 import { customElement } from "lit/decorators.js";
+import { AppElement } from "./app-element";
 import { mirotoneStyles } from "./mirotone";
 
 @customElement("app-explorer-onboarding")
-export class OnboardingElement extends LitElement {
+export class OnboardingElement extends AppElement {
   static styles = [
     mirotoneStyles,
     css`

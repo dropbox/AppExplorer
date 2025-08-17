@@ -1,6 +1,5 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import * as path from "path";
 import { LocationFinder } from "../../location-finder";
 import { uriForFile, waitFor } from "./test-utils";
 

@@ -10,7 +10,7 @@ interface SocketHost extends ReactiveControllerHost {
   _socket: SidebarSocket;
 }
 
-export class SocketSubscriptionController implements ReactiveController {
+export class ServerStatusController implements ReactiveController {
   #host: SocketHost;
   value: ServerStatus | undefined;
 

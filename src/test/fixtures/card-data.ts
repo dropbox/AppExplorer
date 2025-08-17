@@ -1,11 +1,4 @@
-import { CardData, SymbolCardData } from "../../EventTypes";
-
-/**
- * Type guard to check if a card is a symbol card
- */
-function isSymbolCard(card: CardData): card is SymbolCardData {
-  return card.type === "symbol";
-}
+import { CardData } from "../../EventTypes";
 
 /**
  * Test card fixtures that reference actual symbols in the sample-workspace

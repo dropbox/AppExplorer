@@ -15,6 +15,20 @@ export class LocationFinder {
     return this.flattenSymbols(symbols, uri);
   }
 
+  async findSymbolsAroundCursor(
+    uri: vscode.Uri,
+    position: vscode.Position,
+  ): Promise<SymbolAnchor[]> {
+    const allSymbols = await this.findSymbolsInDocument(uri);
+    return [
+      ...allSymbols
+        .filter((symbol) => {
+          return symbol.range.contains(position);
+        })
+        .reverse(),
+    ];
+  }
+
   async findSymbolInPosition(
     uri: vscode.Uri,
     position: vscode.Position,

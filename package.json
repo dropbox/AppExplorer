@@ -26,6 +26,8 @@
     "watch-tests": "tsc -p .  -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "type-check": "tsc --noEmit",
+    "format": "prettier --write 'src/**/*.{ts,js,json,css,html}'",
+    "format:check": "prettier --check 'src/**/*.{ts,js,json,css,html}'",
     "lint": "eslint src",
     "prepare": "husky",
     "test": "vscode-test --coverage"
@@ -139,7 +141,7 @@
         },
         {
           "command": "app-explorer.launchMockMiroClient",
-          "when": "appExplorer.enabled"
+          "when": "config.appExplorer.updateExtension"
         },
         {
           "command": "app-explorer.mockMiro.showCardList",
@@ -170,7 +172,7 @@
         "defaults": {
           "dark": "#183c4a",
           "light": "#eaf8fd",
-          "highContrast": "#183c4a"
+          "highContrast": "#183c4a66"
         }
       },
       {
@@ -179,7 +181,7 @@
         "defaults": {
           "dark": "#223a1a",
           "light": "#f4faef",
-          "highContrast": "#f4ff00"
+          "highContrast": "#f2ff0066"
         }
       },
       {
@@ -188,7 +190,7 @@
         "defaults": {
           "dark": "#f4ff00",
           "light": "#4ec2ea",
-          "highContrast": "#f4ff00"
+          "highContrast": "#f4ff0066"
         }
       },
       {
@@ -269,6 +271,7 @@
     "@lit/task": "^1.0.3",
     "@mirohq/websdk-types": "^2.9.5",
     "@webcomponents/webcomponentsjs": "^2.8.0",
+    "classnames": "^2.5.1",
     "compression": "^1.7.4",
     "express": "^4.18.2",
     "lit": "^3.3.1",

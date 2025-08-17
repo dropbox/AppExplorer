@@ -30,18 +30,6 @@ import { SidebarServer } from "./sidebar-server";
 const debug = createDebug("app-explorer:server");
 const debugEvents = debug.extend("events");
 
-/**
- * Error class for exhaustive switch statement checking
- */
-class UnreachableError extends Error {
-  constructor(item: never) {
-    super(`Unexpected value found at runtime: ${item as string}`);
-    this.name = "UnreachableError";
-  }
-}
-
-export function unreachable(_value: never) {}
-
 export type MiroServerSocket = ServerSocket<
   MiroToWorkspaceOperations,
   WorkspaceToMiroOperations

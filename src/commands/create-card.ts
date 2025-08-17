@@ -102,12 +102,9 @@ export async function makeCardData(
     defaultTitle?: string;
   },
 ): Promise<CardData[] | null> {
-  const document = editor.document;
   const position = editor.selection.active;
 
-  const chosenSymbols = await showSymbolPicker(editor, position, {
-    canPickMany: options?.canPickMany,
-  });
+  const chosenSymbols = await showSymbolPicker(editor, position);
   if (
     chosenSymbols === cancel ||
     !chosenSymbols ||
@@ -117,7 +114,6 @@ export async function makeCardData(
   }
 
   const anchor = chosenSymbols[0];
-  const lineAt = document.lineAt(position);
   debug(CHECKPOINT.quickPick("Card Title 2/2"));
   const title = await vscode.window.showInputBox({
     title: "Card Title 2/2",
@@ -127,12 +123,6 @@ export async function makeCardData(
   if (!title) {
     return null;
   }
-
-  const def: vscode.LocationLink = {
-    targetUri: document.uri,
-    targetRange: lineAt.range,
-  };
-  const path = getRelativePath(def.targetUri)!;
 
   const cards = await Promise.all(
     chosenSymbols.map(async (anchor): Promise<CardData> => {
@@ -161,30 +151,12 @@ export async function makeCardData(
 async function showSymbolPicker(
   editor: vscode.TextEditor,
   position: vscode.Position,
-  options?: {
-    canPickMany?: boolean;
-  },
 ): Promise<Anchor[] | undefined | typeof cancel> {
   const locationFinder = new LocationFinder();
-  const allSymbols = await locationFinder.findSymbolsInDocument(
-    editor.document.uri,
-  );
   const selectedSymbol = await locationFinder.findSymbolInPosition(
     editor.document.uri,
     position,
   );
-
-  if (options?.canPickMany && selectedSymbol) {
-    allSymbols.sort((a, b) => {
-      if (a.label === selectedSymbol.label) {
-        return -1;
-      }
-      if (b.label === selectedSymbol.label) {
-        return 1;
-      }
-      return 0;
-    });
-  }
 
   type TaggedQuickPickItem<T, D> = vscode.QuickPickItem & {
     type: T;
@@ -194,28 +166,24 @@ async function showSymbolPicker(
 
   type OptionType = SymbolOption;
 
-  const items: Array<OptionType> = [
-    ...allSymbols
-      .flatMap((symbol): SymbolOption[] => {
-        if (symbol.range.contains(position)) {
-          const item: SymbolOption = {
-            type: symbol.type,
-            label: symbol.label,
-            target: symbol,
-            picked: symbol.label === selectedSymbol?.label,
-          };
-          return [item];
-        }
-        return [];
-      })
-      .reverse(),
-  ];
+  const items: Array<OptionType> = (
+    await locationFinder.findSymbolsAroundCursor(editor.document.uri, position)
+  )
+    .map((symbol) => {
+      const item: SymbolOption = {
+        type: symbol.type,
+        label: symbol.label,
+        target: symbol,
+        picked: symbol.label === selectedSymbol?.label,
+      };
+      return item;
+    })
+    .reverse();
 
   debug(CHECKPOINT.quickPick("Choose a symbol step 1/2"));
   const tmp = await vscode.window.showQuickPick(items, {
     title: "Choose a symbol step 1/2",
     placeHolder: `Choose a symbol to anchor the card to`,
-    canPickMany: options?.canPickMany ?? true,
     matchOnDescription: true,
     onDidSelectItem: (item: OptionType) => {
       debug(CHECKPOINT.selected(item));

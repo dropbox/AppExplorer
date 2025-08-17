@@ -1,13 +1,6 @@
 /* global miro */
 
-import type {
-  AppCard,
-  BoardNode,
-  CardField,
-  Item,
-  Rect,
-  Tag,
-} from "@mirohq/websdk-types";
+import type { AppCard, BoardNode, Item, Rect, Tag } from "@mirohq/websdk-types";
 import createDebug from "debug";
 import { type Socket, io as socketIO } from "socket.io-client";
 import invariant from "tiny-invariant";
@@ -17,6 +10,8 @@ import {
   type MiroToWorkspaceOperations,
   type WorkspaceToMiroOperations,
 } from "./EventTypes";
+import { isAppCard } from "./miro/isAppCard";
+import { updateCard } from "./miro/updateCard";
 import { bindHandlers } from "./utils/bindHandlers";
 import { notEmpty } from "./utils/notEmpty";
 
@@ -28,51 +23,11 @@ function decode(str: string) {
   );
 }
 
-type MetaData = {
+export type MetaData = {
   path: string;
   symbol: string | null;
   codeLink: string | null;
 };
-
-async function updateCard(
-  card: AppCard,
-  data: Partial<CardData>,
-): Promise<AppCard> {
-  let metaData: MetaData;
-  invariant(data.path, "missing data.path in updateCard");
-  if (data.type === "symbol") {
-    metaData = {
-      path: data.path,
-      symbol: data.symbol ?? null,
-      codeLink: data.codeLink ?? null,
-    };
-  } else {
-    throw new Error(`Invalid card type: ${data.type}`);
-  }
-
-  await card.setMetadata("app-explorer", metaData);
-  if (metaData.codeLink) {
-    card.linkedTo = metaData.codeLink ?? "";
-  }
-
-  card.title = data.title ?? "";
-  const fields: CardField[] = [
-    {
-      value: data.path,
-      tooltip: data.path,
-    },
-  ];
-  if (metaData.symbol) {
-    fields.push({
-      value: metaData.symbol,
-      tooltip: `Symbol ${metaData.symbol}`,
-    });
-  }
-  card.fields = fields;
-  await card.sync();
-
-  return card;
-}
 
 type BoundingBox = {
   min: { x: number; y: number };
@@ -133,7 +88,6 @@ async function makeRect(cards: AppCard[]): Promise<Rect> {
 }
 
 const isTag = (item: Item): item is Tag => item.type === "tag";
-const isAppCard = (item: Item): item is AppCard => item.type === "app_card";
 async function nextCardLocation() {
   const selection = (await miro.board.getSelection()).filter(isAppCard);
   const width = 300;
@@ -281,13 +235,8 @@ export async function attachToSocket() {
   debug = debug.extend(
     socket.id || Math.random().toString(36).substring(2, 15),
   );
-  const originalLog = debug.log;
-  debug.log = (...args) => {
-    originalLog(...args);
-    socket.emit("log", args);
-  };
 
-  miro.board.ui.on("icon:click", async () => {
+  await miro.board.ui.on("icon:click", async () => {
     await miro.board.ui.openPanel({ url: "/sidebar.html" });
   });
 

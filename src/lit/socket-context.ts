@@ -5,6 +5,7 @@ import { Socket, io as socketIO } from "socket.io-client";
 import {
   ServerToSidebarOperations,
   SidebarToServerOperations,
+  WorkspaceToSidebarOperations,
 } from "../EventTypes";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -12,7 +13,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const debug = createDebug("app-explorer:miro:sidebar");
 
 export type SidebarSocket = Socket<
-  ServerToSidebarOperations,
+  ServerToSidebarOperations & WorkspaceToSidebarOperations,
   SidebarToServerOperations
 >;
 

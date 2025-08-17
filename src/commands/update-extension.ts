@@ -115,7 +115,7 @@ function findVsceExecutable(rootPath: string): string | undefined {
       throw new Error(`vsce not found in PATH. Status: ${version.status}`);
     }
     return "vsce";
-  } catch (error) {
+  } catch (_error) {
     const nodeModulesVsce = path.join(rootPath, "node_modules", ".bin", binary);
     if (fs.existsSync(nodeModulesVsce)) {
       try {

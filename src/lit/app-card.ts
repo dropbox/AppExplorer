@@ -1,11 +1,15 @@
-import { css, html, LitElement } from "lit";
+import classNames from "classnames";
+import { css, html } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { ifDefined } from "lit/directives/if-defined.js";
 import { CardData } from "../EventTypes";
+import { AppElement } from "./app-element";
 import { mirotoneStyles } from "./mirotone";
 
+// const debug = createDebug("app-explorer:lit:app-card");
+
 @customElement("app-card")
-export class AppCard extends LitElement {
+export class AppCard extends AppElement {
   static styles = [
     mirotoneStyles,
     css`
@@ -19,8 +23,18 @@ export class AppCard extends LitElement {
         top: 24px;
         right: 0;
       }
+
+      .hideTags .app-card--tags .symbol-tag {
+        display: none;
+      }
     `,
   ];
+
+  @property({ type: Boolean })
+  hideTags = false;
+
+  @property({ type: Boolean })
+  attachSelected: boolean = true;
 
   @property({ type: Object })
   cardData!: CardData;
@@ -68,13 +82,20 @@ export class AppCard extends LitElement {
       candidates.length > 0 ? candidates[0] : "/AppExplorer.svg";
 
     return html`
-      <div class="app-card">
+      <div
+        draggable="false"
+        class=${classNames("app-card miro-draggable", {
+          hideTags: this.hideTags,
+        })}
+        data-attach-selected=${this.attachSelected}
+        data-card="${JSON.stringify(this.cardData)}"
+      >
         <h1 class="app-card--title">${this.cardData.title}</h1>
         <h1 class="app-card--description p-medium"></h1>
         <div class="app-card--body">
           <div class="app-card--tags">
             <span class="tag">${this.cardData.path}</span>
-            <span class="tag">${this.cardData.symbol}</span>
+            <span class="tag symbol-tag">${this.cardData.symbol}</span>
           </div>
 
           ${html`

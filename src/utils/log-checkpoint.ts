@@ -27,7 +27,7 @@ export const CHECKPOINT = {
   createCard: "{createCard:start}",
 } as const;
 
-type CheckpointValue = `${keyof typeof CHECKPOINT}:${string}`;
+export type CheckpointValue = `${keyof typeof CHECKPOINT}:${string}`;
 
 export const checkpointRegex = new RegExp(
   `{(${Object.keys(CHECKPOINT).join("|")}):([^}]+)}`,

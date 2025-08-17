@@ -1,16 +1,17 @@
 import { consume } from "@lit/context";
 import { Task } from "@lit/task";
 import createDebug from "debug";
-import { css, html, LitElement } from "lit";
+import { css, html } from "lit";
 import { customElement } from "lit/decorators.js";
+import { AppElement } from "./app-element";
 import { mirotoneStyles } from "./mirotone";
+import { ServerStatusController } from "./server-status-controller";
 import { SidebarSocket, socketContext } from "./socket-context";
-import { SocketSubscriptionController } from "./socket-subscription-controller";
 
 const debug = createDebug("app-explorer:server-status");
 
 @customElement("app-explorer-server-status")
-export class ServerStatusElement extends LitElement {
+export class ServerStatusElement extends AppElement {
   static styles = [
     mirotoneStyles,
     css`
@@ -18,8 +19,8 @@ export class ServerStatusElement extends LitElement {
         background-color: var(--colors-blue-250);
       }
 
-      :host {
-        padding: var(--space-small);
+      app-explorer-server-status {
+        padding: 0 var(--space-small);
       }
     `,
   ];
@@ -27,7 +28,7 @@ export class ServerStatusElement extends LitElement {
   @consume({ context: socketContext })
   _socket!: SidebarSocket;
 
-  private serverStatusController = new SocketSubscriptionController(this);
+  private serverStatusController = new ServerStatusController(this);
 
   private _miroBoard = new Task(this, {
     args: () => [miro],

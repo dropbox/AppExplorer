@@ -4,15 +4,21 @@ import {
   ServerToSidebarOperations,
   SidebarToServerOperations,
   WorkspaceInfo,
+  WorkspaceToSidebarOperations,
 } from "../EventTypes";
 import { BoardInfo, CardStorage } from "../card-storage";
+import {
+  DocumentSymbolTracker,
+  getDocumentSymbolTracker,
+} from "../document-symbol-tracker";
+import { LocationFinder } from "../location-finder";
 
 const debug = createDebug("app-explorer:server:sidebar");
 
-type SidebarNamespace = Namespace<
-  SidebarToServerOperations,
-  ServerToSidebarOperations
->;
+type SendSidebarEvents = ServerToSidebarOperations &
+  WorkspaceToSidebarOperations;
+
+type SidebarNamespace = Namespace<SidebarToServerOperations, SendSidebarEvents>;
 
 export class SidebarServer {
   private sidebarNamespace: SidebarNamespace;
@@ -20,6 +26,8 @@ export class SidebarServer {
 
   private connectedWorkspaces: Map<string, WorkspaceInfo>;
   #instanceId = `sidebar-${Math.random().toString(36).substring(2, 15)}`;
+  subscriptions: { dispose(): void }[] = [];
+  symbolTracker: DocumentSymbolTracker;
   constructor(
     namespace: SidebarNamespace,
     cardStorage: CardStorage,
@@ -40,26 +48,54 @@ export class SidebarServer {
     this.cardStorage.on("boardUpdate", this.emitServerStatus);
     this.cardStorage.on("connectedBoards", this.emitServerStatus);
     this.cardStorage.on("workspaceBoards", this.emitServerStatus);
+
+    this.subscriptions.push({
+      dispose: () => {
+        this.sidebarNamespace.off("connection", this.onSidebarConnection);
+        this.cardStorage.off("boardUpdate", this.emitServerStatus);
+        this.cardStorage.off("connectedBoards", this.emitServerStatus);
+        this.cardStorage.off("workspaceBoards", this.emitServerStatus);
+      },
+    });
+
+    this.symbolTracker = getDocumentSymbolTracker(new LocationFinder());
+    this.subscriptions.push(this.symbolTracker);
   }
 
-  destroy() {
-    this.sidebarNamespace.off("connection", this.onSidebarConnection);
-    this.cardStorage.off("boardUpdate", this.emitServerStatus);
-    this.cardStorage.off("connectedBoards", this.emitServerStatus);
-    this.cardStorage.off("workspaceBoards", this.emitServerStatus);
+  dispose() {
+    this.subscriptions.forEach((d) => d.dispose());
   }
 
   onSidebarConnection = (
-    socket: Socket<SidebarToServerOperations, ServerToSidebarOperations>,
+    socket: Socket<SidebarToServerOperations, SendSidebarEvents>,
   ) => {
     debug("New sidebar connection", { socketId: socket.id });
-    socket.on("getInstanceId", (callback) => {
-      debug("getInstanceId", this.#instanceId);
-      return callback(this.#instanceId);
+    Object.entries(this.handlers).forEach(([event, handler]) => {
+      socket.on(event as keyof SidebarToServerOperations, handler);
+    });
+    socket.onAnyOutgoing((event) => {
+      debug("outgoing", event);
     });
 
-    debug("emit timer");
-    setTimeout(this.emitServerStatus, 500);
+    this.subscriptions.push(
+      this.symbolTracker.event((event) => {
+        if (event.type === "symbolsChanged") {
+          socket.emit("cardsAroundCursor", event.symbols);
+        }
+      }),
+    );
+
+    setTimeout(() => {
+      this.emitServerStatus();
+      this.symbolTracker.fire({ type: "symbolRequest" });
+    }, 250);
+  };
+
+  handlers: SidebarToServerOperations = {
+    getInstanceId: (callback) => {
+      debug("getInstanceId", this.#instanceId);
+      callback(this.#instanceId);
+    },
   };
 
   getServerStatus = () => {

@@ -2,6 +2,7 @@ import createDebug from "debug";
 import { EventEmitter } from "events";
 import invariant from "tiny-invariant";
 import * as vscode from "vscode";
+import { SymbolPathChangeEvent } from "./document-symbol-tracker";
 import { CardData } from "./EventTypes";
 import { MiroServerSocket } from "./server/server";
 import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
@@ -87,6 +88,7 @@ type StorageEvent = {
     },
   ];
   selectedCards: [{ type: "selectedCards"; cards: CardData[] }];
+  symbolsChanged: [SymbolPathChangeEvent];
 };
 
 export class CardStorage

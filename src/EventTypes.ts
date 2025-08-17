@@ -1,5 +1,6 @@
 import { AppCard, TagColor } from "@mirohq/websdk-types";
 import { BoardInfo, CardStorage } from "./card-storage";
+import { SymbolPathChangeEvent } from "./document-symbol-tracker";
 import { WorkspaceServerSocket } from "./server/server";
 
 export type SymbolCardData = {
@@ -55,6 +56,11 @@ export type SidebarToServerOperations = {
 };
 export type ServerToSidebarOperations = {
   serverStatus: (status: ServerStatus) => void;
+  cardsAroundCursor: (data: CardData[]) => void;
+};
+
+export type WorkspaceToSidebarOperations = {
+  symbolsChanged: (sombols: SymbolPathChangeEvent) => void;
 };
 
 // Operations callable on Miro boards from workspaces (via server)

@@ -4,10 +4,12 @@ import { ContextProvider } from "@lit/context";
 import { Task } from "@lit/task";
 import "@webcomponents/webcomponentsjs";
 import createDebug from "debug";
-import { css, html, LitElement } from "lit";
+import { css, html } from "lit";
 import { customElement } from "lit/decorators.js";
 import { CardData } from "./EventTypes";
 import "./lit/app-card";
+import { AppElement } from "./lit/app-element";
+import "./lit/cards-around-cursor";
 import { mirotoneStyles, rawMirotoneStyles } from "./lit/mirotone";
 import "./lit/onboarding";
 import "./lit/server-status";
@@ -23,7 +25,7 @@ document.head.insertAdjacentHTML(
 const debug = createDebug("app-explorer:miro:sidebar");
 
 @customElement("app-explorer-sidebar")
-export class SidebarElement extends LitElement {
+export class SidebarElement extends AppElement {
   static styles = [
     mirotoneStyles,
     css`
@@ -38,7 +40,7 @@ export class SidebarElement extends LitElement {
         overflow: hidden;
       }
 
-      :host {
+      app-explorer-sidebar {
         display: flex;
         flex-direction: column;
         max-height: 100%;
@@ -81,6 +83,10 @@ export class SidebarElement extends LitElement {
   constructor() {
     super();
 
+    miro?.board.ui.on("drop", (e) => {
+      debug("Drop event:", e);
+    });
+
     miro?.board.ui.on("items:delete", () => {
       this._cardsOnBoard.run();
     });
@@ -99,17 +105,7 @@ export class SidebarElement extends LitElement {
     }
 
     return html`
-      <app-explorer-server-status></app-explorer-server-status>
-      <hr class="hr" />
-      <p class="commands">
-        Most functionality is managed in VSCode using the Command Palette.
-      </p>
-
-      <div class="card-list">
-        ${this._cardsOnBoard.value?.map(
-          (card) => html`<app-card .cardData=${card}></app-card>`,
-        )}
-      </div>
+      <app-explorer-cards-around-cursor></app-explorer-cards-around-cursor>
     `;
   }
 }

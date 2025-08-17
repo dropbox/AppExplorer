@@ -30,6 +30,16 @@ export default [
       eqeqeq: "warn",
       "no-throw-literal": "warn",
       semi: "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^(_|debug$)",
+          caughtErrorsIgnorePattern: "^(_|debug$)",
+          varsIgnorePattern: "^(_|debug$)",
+          destructuredArrayIgnorePattern: "^(_|debug$)",
+          ignoreRestSiblings: true,
+        },
+      ],
     },
   },
 ];

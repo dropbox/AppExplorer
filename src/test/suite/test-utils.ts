@@ -14,8 +14,6 @@ export type Options = {
   message?: string;
 };
 
-type ListPredicate = string[];
-
 /**
  * Wait for a log line matching the predicate.
  */

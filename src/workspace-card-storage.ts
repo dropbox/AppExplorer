@@ -9,6 +9,7 @@ import {
   WorkspaceRegistrationRequest,
   WorkspaceToMiroOperations,
   WorkspaceToServerOperations,
+  WorkspaceToSidebarOperations,
 } from "./EventTypes";
 import { getGitHubUrl } from "./get-github-url";
 import { LocationFinder } from "./location-finder";
@@ -22,7 +23,9 @@ export class WorkspaceCardStorage
 {
   public readonly socket: Socket<
     ServerToWorkspaceEvents & MiroToWorkspaceOperations,
-    WorkspaceToMiroOperations & WorkspaceToServerOperations
+    WorkspaceToMiroOperations &
+      WorkspaceToServerOperations &
+      WorkspaceToSidebarOperations
   >;
 
   #locationFinder: LocationFinder;
