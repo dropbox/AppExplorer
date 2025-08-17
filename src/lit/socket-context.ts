@@ -1,5 +1,7 @@
-import { createContext } from "@lit/context";
+import { ContextProvider, createContext } from "@lit/context";
+import { Task } from "@lit/task";
 import "@webcomponents/webcomponentsjs";
+import { ReactiveElement } from "lit";
 import { Socket, io as socketIO } from "socket.io-client";
 import {
   ServerToSidebarOperations,
@@ -88,4 +90,22 @@ export async function connectSidebarSocket() {
   }
 
   return socket;
+}
+
+export class SocketProvider extends ContextProvider<
+  { __context__: SidebarSocket },
+  ReactiveElement
+> {
+  constructor(host: ReactiveElement) {
+    super(host, {
+      context: socketContext,
+    });
+  }
+  _socketTask = new Task(this.host, {
+    args: () => [],
+    task: connectSidebarSocket,
+    onComplete: (socket) => {
+      this.setValue(socket);
+    },
+  });
 }

@@ -13,7 +13,7 @@ import "./cards-around-cursor";
 import { mirotoneStyles, rawMirotoneStyles } from "./mirotone";
 import "./onboarding";
 import "./server-status";
-import { connectSidebarSocket } from "./socket-context";
+import { SocketProvider } from "./socket-context";
 // Mirotone must be loaded on the host page to set all the CSS variables.
 document.head.insertAdjacentHTML(
   "beforeend",
@@ -63,14 +63,11 @@ export class EditCardElement extends AppElement {
   @state()
   private cardEdits: Partial<CardData> = {};
 
-  private socketTask = new Task(this, {
-    args: () => [],
-    task: connectSidebarSocket,
-  });
+  private _socketProvider = new SocketProvider(this);
 
   jumpToCode = () => {
     const appCard = this.cardData.value;
-    const socket = this.socketTask.value;
+    const socket = this._socketProvider.value;
     try {
       if (appCard && socket) {
         socket.emit("navigateTo", appCard);

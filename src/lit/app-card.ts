@@ -3,19 +3,28 @@ import { css, html } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { ifDefined } from "lit/directives/if-defined.js";
 import { CardData } from "../EventTypes";
+import { createDebug } from "../utils/create-debug";
 import { AppElement } from "./app-element";
 import { mirotoneStyles } from "./mirotone";
 
-// const debug = createDebug("app-explorer:lit:app-card");
+const debug = createDebug("app-explorer:lit:app-card");
 
 @customElement("app-card")
-export class AppCard extends AppElement {
+export class AppCardElement extends AppElement {
   static styles = [
     mirotoneStyles,
     css`
       .screen-reader-text {
         position: absolute;
         left: -9999px;
+      }
+
+      .app-card--title {
+        overflow: hidden;
+        white-space: nowrap;
+        direction: rtl;
+        text-align: left;
+        text-overflow: ellipsis;
       }
 
       .code-link {
@@ -49,6 +58,9 @@ export class AppCard extends AppElement {
 
   @property({ type: Object })
   cardData!: CardData;
+
+  @property({ type: Boolean })
+  miroDraggable = true;
 
   @state()
   private faviconIndex = 0;
@@ -95,13 +107,16 @@ export class AppCard extends AppElement {
     return html`
       <div
         draggable="false"
-        class=${classNames("app-card miro-draggable", {
+        class=${classNames("app-card", {
           hideTags: this.hideTags,
+          "miro-draggable": this.miroDraggable,
         })}
         data-attach-selected=${this.attachSelected}
         data-card="${JSON.stringify(this.cardData)}"
       >
-        <h1 class="app-card--title">${this.cardData.title}</h1>
+        <h1 class="app-card--title">
+          <span>${this.cardData.title}</span>
+        </h1>
         <h1 class="app-card--description p-medium"></h1>
         <div class="app-card--body">
           <div class="app-card--tags">

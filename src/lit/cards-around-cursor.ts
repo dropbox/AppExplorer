@@ -108,7 +108,7 @@ export class CardsAroundCursorElement extends AppElement {
     const symbolCards = this.controller.value ?? [];
 
     if (symbolCards.length === 0) {
-      return html`<div class="no-symbols">No symbols around cursor</div>`;
+      return html`<app-explorer-onboarding></app-explorer-onboarding>`;
     }
 
     const cards = html`
