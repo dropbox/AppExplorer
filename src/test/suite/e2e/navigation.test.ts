@@ -1,12 +1,11 @@
 import * as assert from "assert";
-import createDebug from "debug";
 import * as vscode from "vscode";
 import { SymbolCardData } from "../../../EventTypes";
+import { createDebug } from "../../../utils/create-debug";
 import { TEST_CARDS } from "../../fixtures/card-data";
 import { E2ETestUtils, isSymbolCard } from "../../helpers/e2e-test-utils";
 import { MockMiroClient } from "../../mocks/mock-miro-client";
 import { delay, waitFor, waitForValue } from "../test-utils";
-
 const debug = createDebug("app-explorer:test:navigation");
 
 suite("E2E Navigation Tests", () => {

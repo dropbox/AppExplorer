@@ -1,13 +1,12 @@
 import { consume } from "@lit/context";
 import { Task } from "@lit/task";
-import createDebug from "debug";
 import { css, html } from "lit";
 import { customElement } from "lit/decorators.js";
+import { createDebug } from "../utils/create-debug";
 import { AppElement } from "./app-element";
 import { mirotoneStyles } from "./mirotone";
 import { ServerStatusController } from "./server-status-controller";
 import { SidebarSocket, socketContext } from "./socket-context";
-
 const debug = createDebug("app-explorer:server-status");
 
 @customElement("app-explorer-server-status")

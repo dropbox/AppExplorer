@@ -1,9 +1,13 @@
-import createDebug from "debug";
 import { Namespace, Socket } from "socket.io";
 import {
+  MiroToWorkspaceOperations,
   ServerToSidebarOperations,
+  ServerToWorkspaceEvents,
   SidebarToServerOperations,
+  SidebarToWorkspaceOperations,
   WorkspaceInfo,
+  WorkspaceToMiroOperations,
+  WorkspaceToServerOperations,
   WorkspaceToSidebarOperations,
 } from "../EventTypes";
 import { BoardInfo, CardStorage } from "../card-storage";
@@ -12,13 +16,16 @@ import {
   getDocumentSymbolTracker,
 } from "../document-symbol-tracker";
 import { LocationFinder } from "../location-finder";
-
+import { createDebug } from "../utils/create-debug";
 const debug = createDebug("app-explorer:server:sidebar");
 
 type SendSidebarEvents = ServerToSidebarOperations &
   WorkspaceToSidebarOperations;
 
-type SidebarNamespace = Namespace<SidebarToServerOperations, SendSidebarEvents>;
+type ListenSidebarEvents = SidebarToServerOperations &
+  SidebarToWorkspaceOperations;
+
+type SidebarNamespace = Namespace<ListenSidebarEvents, SendSidebarEvents>;
 
 export class SidebarServer {
   private sidebarNamespace: SidebarNamespace;
@@ -28,11 +35,18 @@ export class SidebarServer {
   #instanceId = `sidebar-${Math.random().toString(36).substring(2, 15)}`;
   subscriptions: { dispose(): void }[] = [];
   symbolTracker: DocumentSymbolTracker;
+
+  private workspaceNamespace: Namespace<
+    WorkspaceToMiroOperations & WorkspaceToServerOperations,
+    MiroToWorkspaceOperations & ServerToWorkspaceEvents
+  >;
   constructor(
     namespace: SidebarNamespace,
     cardStorage: CardStorage,
     connectedWorkspaces: Map<string, WorkspaceInfo>,
+    workspaceNamespace: SidebarServer["workspaceNamespace"],
   ) {
+    this.workspaceNamespace = workspaceNamespace;
     this.sidebarNamespace = namespace.use((socket, next) => {
       socket.onAny((event) => {
         debug("sidebar event", { event });
@@ -67,11 +81,11 @@ export class SidebarServer {
   }
 
   onSidebarConnection = (
-    socket: Socket<SidebarToServerOperations, SendSidebarEvents>,
+    socket: Socket<ListenSidebarEvents, SendSidebarEvents>,
   ) => {
     debug("New sidebar connection", { socketId: socket.id });
     Object.entries(this.handlers).forEach(([event, handler]) => {
-      socket.on(event as keyof SidebarToServerOperations, handler);
+      socket.on(event as keyof ListenSidebarEvents, handler);
     });
     socket.onAnyOutgoing((event) => {
       debug("outgoing", event);
@@ -91,10 +105,13 @@ export class SidebarServer {
     }, 250);
   };
 
-  handlers: SidebarToServerOperations = {
+  handlers: ListenSidebarEvents = {
     getInstanceId: (callback) => {
       debug("getInstanceId", this.#instanceId);
       callback(this.#instanceId);
+    },
+    navigateTo: (card) => {
+      this.workspaceNamespace.emit("navigateTo", card);
     },
   };
 

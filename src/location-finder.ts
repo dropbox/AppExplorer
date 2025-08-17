@@ -1,8 +1,7 @@
-import createDebug from "debug";
 import * as vscode from "vscode";
 import { SymbolAnchor } from "./commands/create-card";
 import { CardData } from "./EventTypes";
-
+import { createDebug } from "./utils/create-debug";
 const debug = createDebug("app-explorer:location-finder");
 
 export class LocationFinder {

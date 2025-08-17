@@ -51,6 +51,10 @@ export type ServerStatus = {
   connectedWorkspaces: Omit<WorkspaceInfo, "socket">[];
 };
 
+export type SidebarToWorkspaceOperations = {
+  navigateTo: (card: CardData) => void;
+};
+
 export type SidebarToServerOperations = {
   getInstanceId: (callback: (id: string) => void) => void;
 };

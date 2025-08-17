@@ -4,7 +4,6 @@ const rawPlugin = require("esbuild-raw-plugin").raw({});
 
 const production = process.argv.includes("--production");
 const watch = process.argv.includes("--watch");
-const pkgJson = require("./package.json");
 
 /**
  * @type {import('esbuild').Plugin}
@@ -62,14 +61,14 @@ async function main() {
   );
   context.push(
     await esbuild.context({
-      entryPoints: ["src/sidebar.ts"],
+      entryPoints: ["src/lit.ts"],
       bundle: true,
       format: "esm",
       minify: production,
       sourcemap: !production,
       sourcesContent: false,
       platform: "browser",
-      outfile: "public/sidebar.js",
+      outfile: "public/lit.js",
       external: [],
       logLevel: "silent",
       plugins: [rawPlugin, esbuildProblemMatcherPlugin],

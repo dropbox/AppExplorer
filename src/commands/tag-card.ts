@@ -1,11 +1,10 @@
 import { TagColor } from "@mirohq/websdk-types";
-import createDebug from "debug";
 import * as vscode from "vscode";
 import { AppExplorerTag, CardData, allColors } from "../EventTypes";
 import { HandlerContext } from "../extension";
+import { createDebug } from "../utils/create-debug";
 import { CHECKPOINT } from "../utils/log-checkpoint";
 import { notEmpty } from "../utils/notEmpty";
-
 const debug = createDebug("app-explorer:tag-card");
 
 export const makeTagCardHandler = (context: HandlerContext) => {

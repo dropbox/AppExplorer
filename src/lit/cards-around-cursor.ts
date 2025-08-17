@@ -1,13 +1,12 @@
-import createDebug from "debug";
 import { css, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { CardData } from "../EventTypes";
 import { isAppCard } from "../miro/isAppCard";
 import { updateCard } from "../miro/updateCard";
+import { createDebug } from "../utils/create-debug";
 import { AppElement } from "./app-element";
 import { CardsAroundCursorController } from "./cards-around-cursor-controller";
 import { mirotoneStyles } from "./mirotone";
-
 const debug = createDebug("app-explorer:cards-around-cursor");
 
 @customElement("app-explorer-cards-around-cursor")

@@ -1,9 +1,8 @@
 import * as childProcess from "child_process";
-import createDebug from "debug";
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-
+import { createDebug } from "../utils/create-debug";
 let outputChannel: vscode.OutputChannel;
 const debug = createDebug("app-explorer:update-extension");
 

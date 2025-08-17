@@ -9,8 +9,8 @@ dist-code
 .husky/
 public/miro.js
 public/miro.js.map
-public/sidebar.js
-public/sidebar.js.map
+public/lit.js
+public/lit.js.map
 coverage/
 compiled-tests/
 *.log

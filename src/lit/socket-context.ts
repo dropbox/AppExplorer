@@ -1,20 +1,20 @@
 import { createContext } from "@lit/context";
 import "@webcomponents/webcomponentsjs";
-import createDebug from "debug";
 import { Socket, io as socketIO } from "socket.io-client";
 import {
   ServerToSidebarOperations,
   SidebarToServerOperations,
+  SidebarToWorkspaceOperations,
   WorkspaceToSidebarOperations,
 } from "../EventTypes";
-
+import { createDebug } from "../utils/create-debug";
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const debug = createDebug("app-explorer:miro:sidebar");
 
 export type SidebarSocket = Socket<
   ServerToSidebarOperations & WorkspaceToSidebarOperations,
-  SidebarToServerOperations
+  SidebarToServerOperations & SidebarToWorkspaceOperations
 >;
 
 export const socketContext = createContext<SidebarSocket>(

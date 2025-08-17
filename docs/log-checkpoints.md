@@ -31,7 +31,7 @@ During tests there is no browser involved. Only the test runner and the
 workspace, which are connected through a LogPipe.
 
 ```ts
-import createDebug from "debug";
+import { createDebug } from "./utils/create-debug";
 
 const debug = createDebug("app-explorer:module-name");
 ```

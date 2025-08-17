@@ -1,7 +1,13 @@
 /* global miro */
 
-import type { AppCard, BoardNode, Item, Rect, Tag } from "@mirohq/websdk-types";
-import createDebug from "debug";
+import type {
+  AppCard,
+  BoardNode,
+  Item,
+  ItemsCreateEvent,
+  Rect,
+  Tag,
+} from "@mirohq/websdk-types";
 import { type Socket, io as socketIO } from "socket.io-client";
 import invariant from "tiny-invariant";
 import {
@@ -13,9 +19,12 @@ import {
 import { isAppCard } from "./miro/isAppCard";
 import { updateCard } from "./miro/updateCard";
 import { bindHandlers } from "./utils/bindHandlers";
+import { createDebug } from "./utils/create-debug";
 import { notEmpty } from "./utils/notEmpty";
 
+createDebug.enable("*");
 let debug = createDebug("app-explorer:miro");
+debug("Miro SDK version:", miro);
 
 function decode(str: string) {
   return str.replaceAll(/&#([0-9A-F]{2});/g, (_, charCode) =>
@@ -448,30 +457,10 @@ export async function attachToSocket() {
   bindHandlers(socket, queryImplementations);
 
   miro.board.ui.on("app_card:open", async (event) => {
-    try {
-      const { appCard } = event;
-      const data = await extractCardData(appCard);
-      if (data) {
-        await miro.board.select({ id: appCard.id });
-        socket.emit("navigateTo", data);
-        miro.board.notifications.showInfo("Opening card in VSCode");
-      }
-    } catch (error) {
-      debug("AppExplorer: Error opening app card", error);
-    }
+    await editCardModal(event.appCard);
   });
   miro.board.ui.on("app_card:connect", async (event) => {
-    try {
-      const { appCard } = event;
-      const data = await extractCardData(appCard);
-      if (data) {
-        await miro.board.select({ id: appCard.id });
-        socket.emit("navigateTo", data);
-        miro.board.notifications.showInfo("Opening card in VSCode");
-      }
-    } catch (error) {
-      debug("AppExplorer: Error connecting app card", error);
-    }
+    await editCardModal(event.appCard);
   });
 
   miro.board.ui.on("items:delete", async function (event) {
@@ -490,6 +479,13 @@ export async function attachToSocket() {
       );
     } catch (error) {
       debug("AppExplorer: Error deleting items", error);
+    }
+  });
+
+  miro.board.ui.on("items:create", async (event: ItemsCreateEvent) => {
+    const card = event.items.find(isAppCard);
+    if (card) {
+      await editCardModal(card);
     }
   });
 
@@ -513,6 +509,26 @@ export async function attachToSocket() {
       debug("AppExplorer: Notifying VSCode of updated selection", error);
     }
   });
+}
+
+async function editCardModal(card: AppCard) {
+  const cardData = await extractCardData(card);
+  invariant(cardData, "Card data must be defined");
+
+  const { waitForClose } = await miro.board.ui.openModal<
+    CardData,
+    CardData | null
+  >({
+    data: cardData,
+    url: "/edit-card.html",
+    width: 500,
+    height: 400,
+  });
+
+  const updatedCardData = await waitForClose();
+  if (updatedCardData) {
+    await updateCard(card, updatedCardData);
+  }
 }
 
 export async function extractCardData(card: Item): Promise<CardData | null> {

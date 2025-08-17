@@ -1,12 +1,11 @@
-import createDebug from "debug";
 import * as vscode from "vscode";
 import { CardData } from "./EventTypes";
 import { HandlerContext } from "./extension";
 import { getRelativePath } from "./get-relative-path";
 import { LocationFinder } from "./location-finder";
 import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
+import { createDebug } from "./utils/create-debug";
 import { WorkspaceCardStorage } from "./workspace-card-storage";
-
 const debug = createDebug("app-explorer:editor-decorator");
 
 interface CardDecoration extends vscode.DecorationOptions {

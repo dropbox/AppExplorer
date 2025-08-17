@@ -1,11 +1,12 @@
-import createDebug from "debug";
+import baseDebug from "debug";
 import invariant from "tiny-invariant";
 import { formatWithOptions } from "util";
 import * as vscode from "vscode";
 import { LogPipe } from "./log-pipe";
+import { createDebug } from "./utils/create-debug";
 
-createDebug.inspectOpts ??= {};
-createDebug.inspectOpts.hideDate = true;
+baseDebug.inspectOpts ??= {};
+baseDebug.inspectOpts.hideDate = true;
 const debug = createDebug("app-explorer:logger");
 
 createDebug.enable("app-explorer:*");
@@ -34,7 +35,7 @@ export class Logger {
 
     this.outputChannel.appendLine("Logger initialized");
 
-    createDebug.log = this.log;
+    baseDebug.log = this.log;
   }
 
   log = (message: unknown, ...args: unknown[]) => {
@@ -121,6 +122,15 @@ function cleanCardEvents<T extends unknown>(eventFragment: T): T {
       return eventFragment;
     }
     cleanMap.set(eventFragment, true);
+
+    if (
+      "miroLink" in eventFragment &&
+      "boardId" in eventFragment &&
+      "title" in eventFragment
+    ) {
+      return `(card: ${eventFragment.title})` as T;
+    }
+
     const cleaned = Object.fromEntries(
       Object.entries(eventFragment).map(([key, value]) => {
         if (typeof value === "function") {

@@ -165,7 +165,7 @@ test("Test with proper mocking", async () => {
 Use the `debug` library exclusively in tests and testing tools:
 
 ```typescript
-import createDebug from "debug";
+import { createDebug } from "./utils/create-debug";
 
 // Create namespaced debug loggers
 const debug = createDebug("app-explorer:test:e2e");
@@ -550,7 +550,7 @@ test("Handle invalid file gracefully", async () => {
 
 ```typescript
 // src/test/suite/e2e/navigation.test.ts
-import createDebug from "debug";
+import { createDebug } from "./utils/create-debug";
 
 const debug = createDebug(`app-explorer:test:navigation`);
 

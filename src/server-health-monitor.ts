@@ -1,9 +1,8 @@
-import createDebug from "debug";
 import { FeatureFlagManager } from "./feature-flag-manager";
 import { ServerDiscovery } from "./server-discovery";
 import { ServerLauncher } from "./server-launcher";
+import { createDebug } from "./utils/create-debug";
 import { WorkspaceCardStorage } from "./workspace-card-storage";
-
 const debug = createDebug("app-explorer:health-monitor");
 
 export type HealthStatus = "healthy" | "unhealthy" | "unknown";

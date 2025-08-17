@@ -24,6 +24,17 @@ export class AppCard extends AppElement {
         right: 0;
       }
 
+      app-card .app-card {
+        width: 100%;
+        max-width: unset;
+      }
+
+      .app-card--app-logo {
+        position: absolute;
+        right: 1rem;
+        bottom: 1rem;
+      }
+
       .hideTags .app-card--tags .symbol-tag {
         display: none;
       }

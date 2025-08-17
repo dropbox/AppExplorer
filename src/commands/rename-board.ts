@@ -1,8 +1,7 @@
-import createDebug from "debug";
 import * as vscode from "vscode";
 import type { HandlerContext } from "../extension";
+import { createDebug } from "../utils/create-debug";
 import { CHECKPOINT } from "../utils/log-checkpoint";
-
 const debug = createDebug("app-explorer:rename-board");
 
 export function makeRenameHandler(context: HandlerContext) {

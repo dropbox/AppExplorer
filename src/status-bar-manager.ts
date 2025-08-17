@@ -1,7 +1,6 @@
-import createDebug from "debug";
 import * as vscode from "vscode";
+import { createDebug } from "./utils/create-debug";
 import { WorkspaceCardStorage } from "./workspace-card-storage";
-
 const debug = createDebug("app-explorer:status-bar-manager");
 
 export class StatusBarManager {

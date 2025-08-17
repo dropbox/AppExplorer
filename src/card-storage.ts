@@ -1,4 +1,3 @@
-import createDebug from "debug";
 import { EventEmitter } from "events";
 import invariant from "tiny-invariant";
 import * as vscode from "vscode";
@@ -6,8 +5,8 @@ import { SymbolPathChangeEvent } from "./document-symbol-tracker";
 import { CardData } from "./EventTypes";
 import { MiroServerSocket } from "./server/server";
 import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
+import { createDebug } from "./utils/create-debug";
 import { notEmpty } from "./utils/notEmpty";
-
 // Storage adapter interface to abstract persistence layer
 export interface StorageAdapter {
   get<T>(key: string): T | undefined;

@@ -1,4 +1,3 @@
-import createDebug from "debug";
 import fs from "node:fs";
 import path from "node:path";
 import * as vscode from "vscode";
@@ -23,9 +22,9 @@ import { ServerLauncher } from "./server-launcher";
 import { MiroServer } from "./server/server";
 import { StatusBarManager } from "./status-bar-manager";
 import { listenToAllEvents } from "./test/helpers/listen-to-all-events";
+import { createDebug } from "./utils/create-debug";
 import { CHECKPOINT } from "./utils/log-checkpoint";
 import { WorkspaceCardStorage } from "./workspace-card-storage";
-
 const debug = createDebug("app-explorer:extension");
 export type HandlerContext = {
   cardStorage: WorkspaceCardStorage;

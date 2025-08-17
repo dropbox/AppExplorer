@@ -1,13 +1,12 @@
 import assert from "assert";
-import createDebug from "debug";
 import { join } from "path";
 import * as vscode from "vscode";
 import { CardData } from "../../../EventTypes";
+import { createDebug } from "../../../utils/create-debug";
 import { TEST_CARDS, getTestCardsBySymbol } from "../../fixtures/card-data";
 import { E2ETestUtils, isSymbolCard } from "../../helpers/e2e-test-utils";
 import { MockMiroClient } from "../../mocks/mock-miro-client";
 import { delay, waitFor } from "../test-utils";
-
 /**
  * E2E tests for the "AppExplorer: Attach Card to Code" command
  * Tests the complete workflow of re-linking an existing card to the current code location

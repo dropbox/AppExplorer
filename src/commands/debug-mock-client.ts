@@ -1,12 +1,11 @@
-import createDebug from "debug";
 import * as vscode from "vscode";
 import { CardData } from "../EventTypes";
 import { HandlerContext } from "../extension";
 import { TEST_CARDS } from "../test/fixtures/card-data";
 import { isSymbolCard } from "../test/helpers/e2e-test-utils";
 import { MockMiroClient } from "../test/mocks/mock-miro-client";
+import { createDebug } from "../utils/create-debug";
 import { CHECKPOINT } from "../utils/log-checkpoint";
-
 const debug = createDebug("app-explorer:debug-mock-client");
 
 /**

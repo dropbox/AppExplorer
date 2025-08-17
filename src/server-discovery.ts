@@ -1,6 +1,6 @@
-import createDebug from "debug";
 import { DEFAULT_HEALTH_CHECK_CONFIG, ServerHealthCheck } from "./EventTypes";
 import { PortConfig } from "./port-config";
+import { createDebug } from "./utils/create-debug";
 const debug = createDebug("app-explorer:server-discovery");
 
 export interface ServerDiscoveryOptions {

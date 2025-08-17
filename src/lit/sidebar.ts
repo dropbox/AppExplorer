@@ -3,19 +3,18 @@
 import { ContextProvider } from "@lit/context";
 import { Task } from "@lit/task";
 import "@webcomponents/webcomponentsjs";
-import createDebug from "debug";
 import { css, html } from "lit";
 import { customElement } from "lit/decorators.js";
-import { CardData } from "./EventTypes";
-import "./lit/app-card";
-import { AppElement } from "./lit/app-element";
-import "./lit/cards-around-cursor";
-import { mirotoneStyles, rawMirotoneStyles } from "./lit/mirotone";
-import "./lit/onboarding";
-import "./lit/server-status";
-import { connectSidebarSocket, socketContext } from "./lit/socket-context";
-import { extractCardData } from "./miro";
-
+import { CardData } from "../EventTypes";
+import { extractCardData } from "../miro";
+import { createDebug } from "../utils/create-debug";
+import "./app-card";
+import { AppElement } from "./app-element";
+import "./cards-around-cursor";
+import { mirotoneStyles, rawMirotoneStyles } from "./mirotone";
+import "./onboarding";
+import "./server-status";
+import { connectSidebarSocket, socketContext } from "./socket-context";
 // Mirotone must be loaded on the host page to set all the CSS variables.
 document.head.insertAdjacentHTML(
   "beforeend",

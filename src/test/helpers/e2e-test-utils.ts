@@ -1,17 +1,17 @@
 import * as assert from "assert";
-import createDebug from "debug";
+import baseDebug from "debug";
 import invariant from "tiny-invariant";
 import * as vscode from "vscode";
 import { CardData, SymbolCardData } from "../../EventTypes";
 import { LocationFinder } from "../../location-finder";
 import { LogPipe } from "../../log-pipe";
+import { createDebug } from "../../utils/create-debug";
 import { CHECKPOINT, checkpointRegex } from "../../utils/log-checkpoint";
 import { TEST_CARDS } from "../fixtures/card-data";
 import { MockMiroClient } from "../mocks/mock-miro-client";
 import { delay, waitFor, waitForLog } from "../suite/test-utils";
-
-createDebug.inspectOpts ??= {};
-createDebug.inspectOpts.hideDate = true;
+baseDebug.inspectOpts ??= {};
+baseDebug.inspectOpts.hideDate = true;
 let DEBUG = "app-explorer:*";
 // DEBUG = "app-explorer:card-storage:*,app-explorer:extension";
 

@@ -1,6 +1,5 @@
 import { TagColor } from "@mirohq/websdk-types/stable/features/widgets/tag";
 import compression from "compression";
-import createDebug from "debug";
 import express from "express";
 import { createServer } from "http";
 import morgan from "morgan";
@@ -26,6 +25,7 @@ import { logger } from "../logger";
 import { PortConfig } from "../port-config";
 import { listenToAllEvents } from "../test/helpers/listen-to-all-events";
 import { bindHandlers } from "../utils/bindHandlers";
+import { createDebug } from "../utils/create-debug";
 import { SidebarServer } from "./sidebar-server";
 const debug = createDebug("app-explorer:server");
 const debugEvents = debug.extend("events");
@@ -103,6 +103,7 @@ export class MiroServer {
       io.of("/sidebar"),
       this.cardStorage,
       this.connectedWorkspaces,
+      this.workspaceNamespace,
     );
   }
   private setupWorkspaceNamespace() {
@@ -182,16 +183,10 @@ export class MiroServer {
   ): Promise<void> {
     debug("New workspace connection", { socketId: socket.id });
     socket.onAny((event, ...args) => {
-      debugEvents("Received workspace event", socket.id, {
-        event,
-        args,
-      });
+      debugEvents("Received workspace event", socket.id, event, args);
     });
     socket.onAnyOutgoing((event, ...args) => {
-      debugEvents("Sending workspace event", socket.id, {
-        event,
-        args,
-      });
+      debugEvents("Sending workspace event", socket.id, event, args);
     });
     socket.on("disconnect", () => {
       debug("Workspace socket disconnected", { id: socket.id });
@@ -526,16 +521,10 @@ export class MiroServer {
       // Add a small delay to allow the client to set up its handlers
       await new Promise((resolve) => setTimeout(resolve, 100));
       socket.onAny((event, ...args) => {
-        debugEvents("Received miro event", socket.id, {
-          event,
-          args,
-        });
+        debugEvents("Received miro event", socket.id, event, args);
       });
       socket.onAnyOutgoing((event, ...args) => {
-        debugEvents("Sending miro event", socket.id, {
-          event,
-          args,
-        });
+        debugEvents("Sending miro event", socket.id, event, args);
       });
 
       const info = await socket.emitWithAck("getBoardInfo", "");

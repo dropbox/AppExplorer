@@ -1,10 +1,9 @@
-import createDebug from "debug";
 import * as vscode from "vscode";
 import { invariant } from "./commands/create-card";
 import { HandlerContext } from "./extension";
 import { getRelativePath } from "./get-relative-path";
 import { LocationFinder } from "./location-finder";
-
+import { createDebug } from "./utils/create-debug";
 const debug = createDebug("app-explorer:lens");
 
 export class AppExplorerLens implements vscode.CodeLensProvider {

@@ -1,15 +1,14 @@
 import * as assert from "assert";
-import createDebug from "debug";
 import path from "path";
 import invariant from "tiny-invariant";
 import * as vscode from "vscode";
 import { CardData } from "../../../EventTypes";
+import { createDebug } from "../../../utils/create-debug";
 import { CHECKPOINT } from "../../../utils/log-checkpoint";
 import { TEST_CARDS } from "../../fixtures/card-data";
 import { E2ETestUtils, isSymbolCard } from "../../helpers/e2e-test-utils";
 import { MockMiroClient } from "../../mocks/mock-miro-client";
 import { waitForLog, waitForValue } from "../test-utils";
-
 const debug = createDebug("app-explorer:test:card-lifecycle");
 
 /**

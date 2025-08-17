@@ -1,12 +1,11 @@
-import createDebug from "debug";
 import * as vscode from "vscode";
 import { CardData } from "../EventTypes";
 import { HandlerContext, selectRangeInEditor } from "../extension";
 import { getGitHubUrl } from "../get-github-url";
 import { getRelativePath } from "../get-relative-path";
 import { LocationFinder } from "../location-finder";
+import { createDebug } from "../utils/create-debug";
 import { CHECKPOINT } from "../utils/log-checkpoint";
-
 const debug = createDebug("app-explorer:create-card");
 
 export class UnreachableError extends Error {
