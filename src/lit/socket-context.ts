@@ -3,21 +3,13 @@ import { Task } from "@lit/task";
 import "@webcomponents/webcomponentsjs";
 import { ReactiveElement } from "lit";
 import { Socket, io as socketIO } from "socket.io-client";
-import {
-  ServerToSidebarOperations,
-  SidebarToServerOperations,
-  SidebarToWorkspaceOperations,
-  WorkspaceToSidebarOperations,
-} from "../EventTypes";
+import { EventsFrom, EventsTo } from "../socket-events";
 import { createDebug } from "../utils/create-debug";
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const debug = createDebug("app-explorer:miro:sidebar");
 
-export type SidebarSocket = Socket<
-  ServerToSidebarOperations & WorkspaceToSidebarOperations,
-  SidebarToServerOperations & SidebarToWorkspaceOperations
->;
+export type SidebarSocket = Socket<EventsTo<"sidebar">, EventsFrom<"sidebar">>;
 
 export const socketContext = createContext<SidebarSocket>(
   Symbol("socketContext"),

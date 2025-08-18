@@ -12,17 +12,14 @@ import { BoardInfo, CardStorage, MemoryAdapter } from "../card-storage";
 import {
   AppExplorerTag,
   CardData,
-  MiroToWorkspaceOperations,
-  ServerToWorkspaceEvents,
   WorkspaceInfo,
   WorkspaceRegistrationRequest,
   WorkspaceRegistrationResponse,
-  WorkspaceToMiroOperations,
-  WorkspaceToServerOperations,
 } from "../EventTypes";
 import { FeatureFlagManager } from "../feature-flag-manager";
 import { logger } from "../logger";
 import { PortConfig } from "../port-config";
+import { EventsFrom, EventsTo, RoutedEvents } from "../socket-events";
 import { listenToAllEvents } from "../test/helpers/listen-to-all-events";
 import { bindHandlers } from "../utils/bindHandlers";
 import { createDebug } from "../utils/create-debug";
@@ -31,21 +28,21 @@ const debug = createDebug("app-explorer:server");
 const debugEvents = debug.extend("events");
 
 export type MiroServerSocket = ServerSocket<
-  MiroToWorkspaceOperations,
-  WorkspaceToMiroOperations
+  EventsFrom<"miro">,
+  EventsTo<"miro">
 >;
 
 export type WorkspaceServerSocket = ServerSocket<
-  WorkspaceToMiroOperations & WorkspaceToServerOperations,
-  MiroToWorkspaceOperations & ServerToWorkspaceEvents
+  EventsFrom<"workspace">,
+  EventsTo<"workspace">
 >;
 
 export class MiroServer {
   subscriptions = [] as vscode.Disposable[];
   httpServer: ReturnType<typeof createServer>;
   private workspaceNamespace: Namespace<
-    WorkspaceToMiroOperations & WorkspaceToServerOperations,
-    MiroToWorkspaceOperations & ServerToWorkspaceEvents
+    EventsFrom<"workspace">,
+    EventsTo<"workspace">
   >;
   private connectedWorkspaces = new Map<string, WorkspaceInfo>();
 
@@ -91,9 +88,10 @@ export class MiroServer {
       });
     });
 
-    const io = new Server<MiroToWorkspaceOperations, WorkspaceToMiroOperations>(
-      this.httpServer,
-    );
+    const io = new Server<
+      RoutedEvents<"miro", "workspace">,
+      RoutedEvents<"workspace", "miro">
+    >(this.httpServer);
     io.on("connection", this.onMiroConnection.bind(this));
     // Create workspace namespace
     this.workspaceNamespace = io.of("/workspace");
@@ -214,7 +212,7 @@ export class MiroServer {
         socket.emit("selectedCards", event.cards);
       });
 
-    const serverQueries: WorkspaceToServerOperations = {
+    const serverQueries: RoutedEvents<"workspace", "server"> = {
       /**
        * Handle workspace registration request
        */
@@ -282,7 +280,7 @@ export class MiroServer {
       },
     };
 
-    const miroOperations: WorkspaceToMiroOperations = {
+    const miroOperations: RoutedEvents<"workspace", "miro"> = {
       /**
        * Handle cardStatus request from workspace and route to Miro board
        */
@@ -550,7 +548,7 @@ export class MiroServer {
         cards: this.cardStorage.getCardsByBoard()[info.boardId],
       });
 
-      const miroToWorkspace: MiroToWorkspaceOperations = {
+      const miroToWorkspace: RoutedEvents<"miro", "workspace"> = {
         log: ([message, ...args]: unknown[]) => {
           logger.log(message, ...args);
         },
@@ -590,8 +588,8 @@ export class MiroServer {
       };
       bindHandlers(
         socket as unknown as ClientSocket<
-          MiroToWorkspaceOperations,
-          WorkspaceToMiroOperations
+          RoutedEvents<"miro", "workspace">,
+          RoutedEvents<"workspace", "miro">
         >,
         miroToWorkspace,
       );

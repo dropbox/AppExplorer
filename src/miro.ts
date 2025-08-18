@@ -10,14 +10,10 @@ import type {
 } from "@mirohq/websdk-types";
 import { type Socket, io as socketIO } from "socket.io-client";
 import invariant from "tiny-invariant";
-import {
-  type AppExplorerTag,
-  type CardData,
-  type MiroToWorkspaceOperations,
-  type WorkspaceToMiroOperations,
-} from "./EventTypes";
+import { type AppExplorerTag, type CardData } from "./EventTypes";
 import { isAppCard } from "./miro/isAppCard";
 import { updateCard } from "./miro/updateCard";
+import { EventsFrom, EventsTo } from "./socket-events";
 import { bindHandlers } from "./utils/bindHandlers";
 import { createDebug } from "./utils/create-debug";
 import { notEmpty } from "./utils/notEmpty";
@@ -237,10 +233,7 @@ async function zoomIntoCards(cards: AppCard[]) {
 }
 
 export async function attachToSocket() {
-  const socket = socketIO() as Socket<
-    WorkspaceToMiroOperations,
-    MiroToWorkspaceOperations
-  >;
+  const socket = socketIO() as Socket<EventsTo<"miro">, EventsFrom<"miro">>;
   debug = debug.extend(
     socket.id || Math.random().toString(36).substring(2, 15),
   );
@@ -250,7 +243,7 @@ export async function attachToSocket() {
   });
 
   const boardId = await miro.board.getInfo().then((info) => info.id);
-  const queryImplementations: WorkspaceToMiroOperations = {
+  const queryImplementations: EventsTo<"miro"> = {
     setBoardName: async (routedBoardId, name, done) => {
       invariant(routedBoardId === boardId, "Board ID mismatch");
       await miro.board.setAppData("name", name);

@@ -2,14 +2,9 @@ import createDebugger from "debug";
 import { EventEmitter } from "events";
 import { Socket, io as socketIO } from "socket.io-client";
 import * as vscode from "vscode";
-import {
-  AppExplorerTag,
-  CardData,
-  MiroToWorkspaceOperations,
-  SymbolCardData,
-  WorkspaceToMiroOperations,
-} from "../../EventTypes";
+import { AppExplorerTag, CardData, SymbolCardData } from "../../EventTypes";
 import { CardStorage, MemoryAdapter } from "../../card-storage";
+import { EventsTo, RoutedEvents } from "../../socket-events";
 
 const debug = createDebugger("app-explorer:test:mock-miro-client");
 
@@ -208,9 +203,9 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
-  socketEmit<K extends keyof MiroToWorkspaceOperations>(
+  socketEmit<K extends keyof RoutedEvents<"miro", "workspace">>(
     event: K,
-    data: Parameters<MiroToWorkspaceOperations[K]>[0],
+    data: Parameters<RoutedEvents<"miro", "workspace">[K]>[0],
   ) {
     this.socket?.emit(event, data);
     debug("Sent %s event to server %O", event, {
@@ -271,7 +266,7 @@ export class MockMiroClient extends EventEmitter<MockMiroClientEvents> {
       return;
     }
 
-    const queryHandlers: WorkspaceToMiroOperations = {
+    const queryHandlers: EventsTo<"miro"> = {
       cardStatus: async (_routedBoardId, dataCard, done) => {
         const card = this.cardStorage.getCardByLink(dataCard.miroLink);
         if (!card) {

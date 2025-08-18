@@ -2,30 +2,21 @@ import { Socket, io as socketIO } from "socket.io-client";
 import * as vscode from "vscode";
 import { BoardInfo, CardStorage, StorageAdapter } from "./card-storage";
 import { goToCardCode } from "./commands/browse";
-import {
-  CardData,
-  MiroToWorkspaceOperations,
-  ServerToWorkspaceEvents,
-  WorkspaceRegistrationRequest,
-  WorkspaceToMiroOperations,
-  WorkspaceToServerOperations,
-  WorkspaceToSidebarOperations,
-} from "./EventTypes";
+import { CardData, WorkspaceRegistrationRequest } from "./EventTypes";
 import { getGitHubUrl } from "./get-github-url";
 import { LocationFinder } from "./location-finder";
+import { EventsFrom, EventsTo, RoutedEvents } from "./socket-events";
 
 export class WorkspaceCardStorage
   extends CardStorage
   implements
     vscode.Disposable,
-    MiroToWorkspaceOperations,
-    ServerToWorkspaceEvents
+    RoutedEvents<"miro", "workspace">,
+    EventsTo<"workspace">
 {
   public readonly socket: Socket<
-    ServerToWorkspaceEvents & MiroToWorkspaceOperations,
-    WorkspaceToMiroOperations &
-      WorkspaceToServerOperations &
-      WorkspaceToSidebarOperations
+    EventsTo<"workspace">,
+    EventsFrom<"workspace">
   >;
 
   #locationFinder: LocationFinder;

@@ -1,4 +1,3 @@
-import { DEFAULT_HEALTH_CHECK_CONFIG, ServerHealthCheck } from "./EventTypes";
 import { PortConfig } from "./port-config";
 import { createDebug } from "./utils/create-debug";
 const debug = createDebug("app-explorer:server-discovery");
@@ -6,7 +5,10 @@ const debug = createDebug("app-explorer:server-discovery");
 export interface ServerDiscoveryOptions {
   port: number;
   host: string;
-  healthCheck: ServerHealthCheck;
+  healthCheck: {
+    endpoint: string; // Health check endpoint path
+    timeout: number; // Request timeout in milliseconds
+  };
 }
 
 /**
@@ -20,7 +22,10 @@ function getDefaultServerOptions(): ServerDiscoveryOptions {
   return {
     port: PortConfig.getServerPort(),
     host: "localhost",
-    healthCheck: DEFAULT_HEALTH_CHECK_CONFIG,
+    healthCheck: {
+      endpoint: "/health",
+      timeout: 5000, // 5 seconds
+    },
   };
 }
 
@@ -115,32 +120,10 @@ export class ServerDiscovery {
   }
 
   /**
-   * Get current server status
-   */
-  getServerStatus(): {
-    isHealthy: boolean;
-    lastCheck?: Date;
-    consecutiveFailures: number;
-  } {
-    return {
-      isHealthy: this.consecutiveFailures === 0,
-      lastCheck: this.lastHealthCheck,
-      consecutiveFailures: this.consecutiveFailures,
-    };
-  }
-
-  /**
    * Get the server URL for websocket connections
    */
   getServerUrl(): string {
     return `http://${this.options.host}:${this.options.port}`;
-  }
-
-  /**
-   * Get the websocket URL for workspace connections
-   */
-  getWebSocketUrl(): string {
-    return `ws://${this.options.host}:${this.options.port}/workspace`;
   }
 
   /**
