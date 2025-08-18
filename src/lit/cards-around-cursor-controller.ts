@@ -8,19 +8,29 @@ const debug = createDebug("app-explorer:cards-around-cursor:controller");
 export class CardsAroundCursorController implements ReactiveController {
   #host: ReactiveControllerHost;
   value: CardData[] | undefined;
-  private _socketContext: ContextConsumer<
+  #socket: SidebarSocket | undefined;
+  private _socketContext?: ContextConsumer<
     {
       __context__: SidebarSocket;
     },
     LitElement
   >;
   listening: boolean = false;
+  retry: NodeJS.Timeout | undefined;
 
-  constructor(host: LitElement) {
+  constructor(host: LitElement, socket?: SidebarSocket) {
     (this.#host = host).addController(this);
-    this._socketContext = new ContextConsumer(host, {
-      context: socketContext,
-    });
+    this.#socket = socket;
+
+    if (!socket) {
+      this._socketContext = new ContextConsumer(host, {
+        context: socketContext,
+      });
+    }
+  }
+
+  get socket() {
+    return this.#socket || this._socketContext?.value;
   }
 
   private onValueChange = (newValue: CardData[]): void => {
@@ -30,25 +40,30 @@ export class CardsAroundCursorController implements ReactiveController {
   };
 
   hostUpdated() {
-    if (!this.listening) {
-      this.subscribe();
-    }
+    this.subscribe();
   }
 
   hostConnected(): void {
-    const socket = this._socketContext.value;
-    if (socket) {
-      this.subscribe();
-    }
+    this.subscribe();
   }
 
   private subscribe(): void {
-    this.listening = true;
-    const socket = this._socketContext.value!;
-    socket.on("cardsAroundCursor", this.onValueChange);
+    if (this.socket) {
+      this.socket.on("cardsAroundCursor", this.onValueChange);
+      this.listening = true;
+      this.retry = undefined;
+      debug("listening for cardsAroundCursor");
+    } else {
+      debug("not connected, retrying...");
+      this.retry = setTimeout(() => this.subscribe(), 500);
+    }
   }
   hostDisconnected(): void {
-    const socket = this._socketContext.value!;
-    socket.off("cardsAroundCursor", this.onValueChange);
+    if (this.socket) {
+      this.socket.off("cardsAroundCursor", this.onValueChange);
+    }
+    if (this.retry) {
+      clearTimeout(this.retry);
+    }
   }
 }

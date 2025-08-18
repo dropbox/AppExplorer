@@ -10,6 +10,7 @@ import { createDebug } from "../utils/create-debug";
 import "./app-card";
 import { AppElement } from "./app-element";
 import "./cards-around-cursor";
+import { CardsAroundCursorController } from "./cards-around-cursor-controller";
 import { mirotoneStyles, rawMirotoneStyles } from "./mirotone";
 import "./onboarding";
 import "./server-status";
@@ -63,7 +64,10 @@ export class EditCardElement extends AppElement {
   @state()
   private cardEdits: Partial<CardData> = {};
 
-  private _socketProvider = new SocketProvider(this);
+  private cardsAroundCursor: CardsAroundCursorController | undefined;
+  private _socketProvider = new SocketProvider(this, (socket) => {
+    this.cardsAroundCursor = new CardsAroundCursorController(this, socket);
+  });
 
   jumpToCode = () => {
     const appCard = this.cardData.value;
@@ -86,6 +90,8 @@ export class EditCardElement extends AppElement {
   };
 
   render() {
+    const symbolsAroundCursor = this.cardsAroundCursor?.value ?? [];
+
     return this.cardData.render({
       initial: () => html`<p>Loading...</p>`,
       complete: (data) => {
@@ -94,7 +100,7 @@ export class EditCardElement extends AppElement {
           <form @submit=${this.handleSubmit}>
             <app-card .cardData=${cardData}></app-card>
             <div class="form-group">
-              <label for="title">Input label</label>
+              <label for="title">Title</label>
               <input
                 autofocus
                 class="input"
@@ -109,6 +115,41 @@ export class EditCardElement extends AppElement {
                 }}
                 id="title"
               />
+            </div>
+            <div class="form-group">
+              <label for="symbol">Symbol Path</label>
+              <select
+                id="symbol"
+                class="select"
+                @change=${(e: InputEvent) => {
+                  const [path, symbol] = (
+                    e.target as HTMLSelectElement
+                  ).value.split("\n");
+
+                  this.cardEdits = {
+                    ...this.cardEdits,
+                    path,
+                    symbol,
+                  };
+                }}
+              >
+                <option
+                  value=${data.path + "\n" + data.symbol}
+                  ?selected=${data.symbol === cardData.symbol}
+                >
+                  ${data.symbol}
+                </option>
+                ${symbolsAroundCursor.map(
+                  (card) => html`
+                    <option
+                      value=${card.path + "\n" + card.symbol}
+                      ?selected=${card.symbol === cardData.symbol}
+                    >
+                      ${card.symbol}
+                    </option>
+                  `,
+                )}
+              </select>
             </div>
 
             <div class="flex-row space-between">

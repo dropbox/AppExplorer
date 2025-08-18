@@ -96,16 +96,20 @@ export class SocketProvider extends ContextProvider<
   { __context__: SidebarSocket },
   ReactiveElement
 > {
-  constructor(host: ReactiveElement) {
+  constructor(
+    host: ReactiveElement,
+    onComplete?: (value: SidebarSocket) => void,
+  ) {
     super(host, {
       context: socketContext,
     });
+    new Task(this.host, {
+      args: () => [],
+      task: connectSidebarSocket,
+      onComplete: (socket) => {
+        this.setValue(socket);
+        onComplete?.(socket);
+      },
+    });
   }
-  _socketTask = new Task(this.host, {
-    args: () => [],
-    task: connectSidebarSocket,
-    onComplete: (socket) => {
-      this.setValue(socket);
-    },
-  });
 }
