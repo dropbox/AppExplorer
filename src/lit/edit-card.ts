@@ -2,6 +2,7 @@
 
 import { Task } from "@lit/task";
 import "@webcomponents/webcomponentsjs";
+import classNames from "classnames";
 import { css, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import invariant from "tiny-invariant";
@@ -42,6 +43,28 @@ export class EditCardElement extends AppElement {
         margin: 1rem 0;
       }
 
+      .form-group.expand {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        z-index: 10;
+        background-color: white;
+        padding: 1rem;
+        border: 1px solid black;
+        margin: 0;
+
+        & > label + * {
+          flex-grow: 1;
+        }
+      }
+
+      .form-group > label {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+      }
+
       .flex-row {
         display: flex;
         flex-direction: row;
@@ -69,6 +92,11 @@ export class EditCardElement extends AppElement {
     this.cardsAroundCursor = new CardsAroundCursorController(this, socket);
   });
 
+  private _miroTags = new Task(this, {
+    args: () => [],
+    task: async () => miro.board.get({ type: "tag" }),
+  });
+
   jumpToCode = () => {
     const appCard = this.cardData.value;
     const socket = this._socketProvider.value;
@@ -89,6 +117,9 @@ export class EditCardElement extends AppElement {
     miro.board.ui.closeModal({ ...data, ...this.cardEdits });
   };
 
+  @state()
+  private _expandDescription = false;
+
   render() {
     const symbolsAroundCursor = this.cardsAroundCursor?.value ?? [];
 
@@ -105,7 +136,6 @@ export class EditCardElement extends AppElement {
                 autofocus
                 class="input"
                 type="text"
-                placeholder="Placeholder"
                 value=${cardData.title}
                 @input=${(e: InputEvent) => {
                   this.cardEdits = {
@@ -115,6 +145,38 @@ export class EditCardElement extends AppElement {
                 }}
                 id="title"
               />
+            </div>
+            <div
+              class=${classNames("form-group", {
+                expand: this._expandDescription,
+              })}
+            >
+              <label for="description"
+                >description
+
+                <button
+                  @click=${() =>
+                    (this._expandDescription = !this._expandDescription)}
+                  class="button button-primary button-small expand-button"
+                  type="button"
+                  aria-label="label"
+                >
+                  <span class="icon-expand"></span>
+                </button>
+              </label>
+              <textarea
+                class=${classNames("textarea")}
+                type="text"
+                @input=${(e: InputEvent) => {
+                  this.cardEdits = {
+                    ...this.cardEdits,
+                    description: (e.target as HTMLInputElement).value,
+                  };
+                }}
+                .value=${cardData.description ?? ""}
+                id="description"
+                rows="3"
+              ></textarea>
             </div>
             <div class="form-group">
               <label for="symbol">Symbol Path</label>

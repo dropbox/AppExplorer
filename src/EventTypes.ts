@@ -11,6 +11,7 @@ export type SymbolCardData = {
   miroLink?: string;
   codeLink: string | null;
   status: AppCard["status"];
+  description?: string;
 };
 
 export type GroupCardData = Pick<

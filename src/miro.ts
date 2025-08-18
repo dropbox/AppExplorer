@@ -515,7 +515,7 @@ async function editCardModal(card: AppCard) {
     data: cardData,
     url: "/edit-card.html",
     width: 500,
-    height: 400,
+    height: 600,
   });
 
   const updatedCardData = await waitForClose();
@@ -542,7 +542,7 @@ export async function extractCardData(card: Item): Promise<CardData | null> {
       type: "symbol",
       boardId,
       title: decode(card.title),
-      // description: decode(card.description),
+      description: decode(card.description),
       miroLink: `https://miro.com/app/board/${boardId}/?moveToWidget=${card.id}`,
       path: path,
       symbol: symbol,

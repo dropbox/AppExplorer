@@ -26,6 +26,7 @@ export async function updateCard(
   }
 
   card.title = data.title ?? "";
+  card.description = data.description ?? "";
   const fields: CardField[] = [
     {
       value: data.path,
